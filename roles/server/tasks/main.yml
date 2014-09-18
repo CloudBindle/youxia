@@ -1,0 +1,14 @@
+---
+- name: Template over redis config
+  template: src=redis.json.j2 dest=/etc/sensu/conf.d/redis.json
+
+- name: Activate server services
+  service: name={{ item }} state=started enabled=yes
+  with_items:
+    - sensu-server
+    - sensu-api
+    - sensu-client 
+
+- name: Template over api config
+  template: src=api.json.j2 dest=/etc/sensu/conf.d/api.json
+

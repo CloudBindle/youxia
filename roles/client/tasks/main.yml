@@ -1,0 +1,8 @@
+---
+- name: Template over sensu config
+  template: src=client.json.j2 dest=/etc/sensu/conf.d/client.json
+
+- name: Activate client services
+  service: name={{ item }} state=started enabled=yes
+  with_items:
+    - sensu-client 

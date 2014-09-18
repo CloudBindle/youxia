@@ -1,0 +1,23 @@
+---
+- name: Install RabbitMQ signing key
+  apt_key: url=http://repos.sensuapp.org/apt/pubkey.gpg state=present
+  
+- name: Install sensu repository
+  apt_repository: repo='deb     http://repos.sensuapp.org/apt sensu main' state=present
+
+- name: Install sensu
+  apt: name=sensu state=latest
+
+- name: Create ssl directory
+  file: state=directory path=/etc/sensu/ssl
+
+- name: Copy over sensu SSL key (do not check this in)
+  copy: src={{ item }} dest=/etc/sensu/ssl/{{ item }}
+  with_items:
+    - key.pem
+    - cert.pem
+
+- name: Template over rabbit connector config
+  template: src=rabbitmq.json.j2 dest=/etc/sensu/conf.d/rabbitmq.json
+
+
