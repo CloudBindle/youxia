@@ -1,4 +1,4 @@
 ---
 
 - name: restart sensu-client
-  service: name=sensu-client state=restarted 
+  service: name=sensu-client state=restarted sleep=2

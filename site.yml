@@ -3,17 +3,17 @@
   sudo: True
   tasks:
   # ensure a hostname is set for the sensu-server
-  - name: Set hostname
-    hostname: name={{ansible_hostname}}
+  #- name: Set hostname
+  #  hostname: name={{ansible_hostname}}
 
   # This allows clients to refer to the sensu-server by name
   # Idempotent way to build a /etc/hosts file with Ansible using your Ansible hosts inventory for a source.
   # Will include all hosts the playbook is run on.
   # Inspired from http://xmeblog.blogspot.com/2013/06/ansible-dynamicaly-update-etchosts.html
   - name: Build hosts file for all hosts
-    lineinfile: dest=/etc/hosts line="{{ hostvars[item].ansible_default_ipv4.address }} {{item}}" state=present
+    lineinfile: dest=/etc/hosts line="{{ hostvars[item].ansible_ssh_host }} {{item}}" state=present
     when: hostvars[item].ansible_default_ipv4.address is defined
-    with_items: groups['all']
+    with_items: groups['sensu-server']
 
 # setup sensu-server
 - hosts: sensu-server 
