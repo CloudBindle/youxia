@@ -1,0 +1,28 @@
+{
+  "checks": {
+    "cron_check": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-procs.rb -p cron -C 1 ",
+      "interval": 60,
+      "subscribers": [ "common" ]
+    }, 
+    "sge_exec_check": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-procs.rb -p /usr/lib/gridengine/sge_execd -C 1 ",
+      "interval": 60,
+      "subscribers": [ "compute" ]
+    },
+    "sge_master_check": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-procs.rb -p /usr/lib/gridengine/sge_qmaster -C 1 ",
+      "interval": 60,
+      "subscribers": [ "master" ]
+    },
+    "seqware_check": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-cmd.rb --command \"sudo -H -u seqware bash -c '/home/seqware/bin/seqware check'\"",
+      "interval": 60,
+      "subscribers": [ "master" ]
+    }
+  }
+}

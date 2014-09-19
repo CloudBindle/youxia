@@ -1,3 +1,4 @@
+#base/taks/main/yml
 ---
 - name: Install RabbitMQ signing key
   apt_key: url=http://repos.sensuapp.org/apt/pubkey.gpg state=present
@@ -19,5 +20,15 @@
 
 - name: Template over rabbit connector config
   template: src=rabbitmq.json.j2 dest=/etc/sensu/conf.d/rabbitmq.json
-
-
+  
+- name: Template over embedded ruby config
+  template: src=sensu.j2 dest=/etc/default/sensu
+  
+- name: Add sensu to sudoers
+  lineinfile:
+    "dest=/etc/sudoers
+    state=present
+    regexp='^sensu ALL'
+    validate='visudo -cf %s'
+    line='sensu ALL=(ALL) NOPASSWD: ALL'"
+  

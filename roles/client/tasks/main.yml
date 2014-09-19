@@ -1,7 +1,23 @@
+# client/tasks/main.yml
 ---
 - name: Template over sensu config
   template: src=client.json.j2 dest=/etc/sensu/conf.d/client.json
+  notify: restart sensu-client
 
+- name: Install check-procs plugin 
+  get_url: 
+    dest=/etc/sensu/plugins/check-procs.rb 
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/processes/check-procs.rb
+    mode=755
+  notify: restart sensu-client
+  
+- name: Install check-cmd plugin 
+  get_url: 
+    dest=/etc/sensu/plugins/check-cmd.rb 
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/processes/check-cmd.rb
+    mode=755
+  notify: restart sensu-client
+  
 - name: Activate client services
   service: name={{ item }} state=started enabled=yes
   with_items:

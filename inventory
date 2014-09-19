@@ -1,8 +1,9 @@
 [sensu-server]
 sensu-server	ansible_ssh_host=10.5.74.121	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem
 
-[sensu-client]
+[master]
 master		ansible_ssh_host=10.5.74.122	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem
+[worker]
 worker1		ansible_ssh_host=10.5.74.123	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem
 worker2		ansible_ssh_host=10.5.74.124	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem
 worker3		ansible_ssh_host=10.5.74.125	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem
