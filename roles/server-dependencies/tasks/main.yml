@@ -20,9 +20,9 @@
 - name: Copy over SSL certificates (do not check into repo)
   copy: src={{ item }} dest=/etc/rabbitmq/ssl/
   with_items:
-    - sensu_ca/cacert.pem
-    - server/cert.pem
-    - server/key.pem
+    - cacert.pem
+    - cert.pem
+    - key.pem
   notify: restart rabbitmq 
 
 - name: Configure SSL via template
