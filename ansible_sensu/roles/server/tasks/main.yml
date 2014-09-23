@@ -1,0 +1,20 @@
+# server/tasks/main.yml
+---
+- name: Template over redis config
+  template: src=redis.json.j2 dest=/etc/sensu/conf.d/redis.json
+  notify: restart redis
+
+- name: Template over sensu api config
+  template: src=api.json.j2 dest=/etc/sensu/conf.d/api.json
+  notify: restart sensu server services
+    
+- name: Template checks
+  template: src=checks.json.j2 dest=/etc/sensu/conf.d/checks.json
+  notify: restart sensu server services
+  
+- name: Ensure state of server services
+  service: name={{ item }} state=started enabled=yes
+  with_items:
+    - sensu-server
+    - sensu-api
+    - redis-server

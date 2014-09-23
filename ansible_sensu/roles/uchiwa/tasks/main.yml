@@ -1,0 +1,10 @@
+---
+- name: Install uchiwa 
+  apt: name=uchiwa state=latest
+
+- name: Template over rabbit connector config
+  template: src=uchiwa.json.j2 dest=/etc/sensu/uchiwa.json owner=uchiwa
+  notify: restart uchiwa
+
+- name: Enable service
+  service: name=uchiwa state=started enabled=yes
