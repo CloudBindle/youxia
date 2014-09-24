@@ -289,12 +289,11 @@ public class Deployer {
                 buffer.append(s.getInstanceId()).append('\t').append("ansible_ssh_host=").append(s.getPublicIpAddress());
                 buffer.append('\t').append("ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem");
             }
-            Path createTempFile = Files.createTempFile("ansible", "inventory");
+            Path createTempFile = Files.createTempFile("ansible", ".inventory");
             // 2. run ansible
-            CommandLine cmdLine = new CommandLine("ANSIBLE_HOST_KEY_CHECKING=False");
+            CommandLine cmdLine = new CommandLine("ansible-playbook");
             Map<String, String> environmentMap = Maps.newHashMap();
             environmentMap.put("ANSIBLE_HOST_KEY_CHECKING", "False");
-            cmdLine.addArgument("ansible-playbook");
             cmdLine.addArgument("-i");
             cmdLine.addArgument("${file}");
             cmdLine.addArgument("${playbook}");
