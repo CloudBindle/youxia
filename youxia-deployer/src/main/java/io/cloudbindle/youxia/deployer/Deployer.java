@@ -1,50 +1,32 @@
 package io.cloudbindle.youxia.deployer;
 
-import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import com.amazonaws.auth.profile.ProfilesConfigFile;
-import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.iterable.S3Objects;
-import com.amazonaws.services.s3.model.Bucket;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.amazonaws.services.ec2.model.SpotPrice;
+import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import io.cloudbindle.youxia.amazonaws.Requests;
+import io.cloudbindle.youxia.client.SensuClient;
 import io.cloudbindle.youxia.sensu.api.Client;
+import io.cloudbindle.youxia.sensu.api.ClientHistory;
 import io.cloudbindle.youxia.util.ConfigTools;
-import java.io.File;
-import java.io.InputStreamReader;
-import java.net.URI;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Calendar;
 import java.util.List;
-import java.util.Set;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.BuiltinHelpFormatter;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.commons.configuration.SubnodeConfiguration;
 
 /**
  * This class maintains a fleet of amazon instances dependent on state retrieved from sensu.
@@ -55,186 +37,230 @@ import org.apache.http.impl.client.HttpClients;
 public class Deployer {
 
     private static final int DEFAULT_SENSU_PORT = 4567;
-    /*
-     * Important: Be sure to fill in your AWS access credentials in the AwsCredentials.properties file in this project before you run this
-     * sample. http://aws.amazon.com/security-credentials
-     */
-    static AmazonEC2 ec2;
-    static AmazonS3 s3;
+    private static final long SLEEP_CYCLE = 60000;
+    private ArgumentAcceptingOptionSpec<Integer> totalNodes;
+    private ArgumentAcceptingOptionSpec<Float> maxSpotPrice;
+    private ArgumentAcceptingOptionSpec<Integer> batchSize;
+    private ArgumentAcceptingOptionSpec<String> sensuHost;
+    private ArgumentAcceptingOptionSpec<Integer> sensuPort;
+    private OptionSet options;
 
-    /**
-     * The only information needed to create a client are security credentials - your AWS Access Key ID and Secret Access Key. All other
-     * configuration, such as the service endpoints have defaults provided.
-     * 
-     * Additional client parameters, such as proxy configuration, can be specified in an optional ClientConfiguration object when
-     * constructing a client.
-     * 
-     * @see com.amazonaws.auth.BasicAWSCredentials
-     * @see com.amazonaws.auth.PropertiesCredentials
-     * @see com.amazonaws.ClientConfiguration
-     */
-    private static void populateAWSCredentials() throws Exception {
-        /*
-         * ProfileCredentialsProvider loads AWS security credentials from a .aws/config file in your home directory.
-         * 
-         * These same credentials are used when working with the AWS CLI.
-         * 
-         * You can find more information on the AWS profiles config file here:
-         * http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html
-         */
-        File configFile = new File(System.getProperty("user.home"), ".aws/config");
-        AWSCredentialsProvider credentialsProvider = new ProfileCredentialsProvider(new ProfilesConfigFile(configFile), "default");
-
-        if (credentialsProvider.getCredentials() == null) {
-            throw new RuntimeException("No AWS security credentials found:\n" + "Make sure you've configured your credentials in: "
-                    + configFile.getAbsolutePath() + "\n" + "For more information on configuring your credentials, see "
-                    + "http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html");
-        }
-
-        ec2 = new AmazonEC2Client(credentialsProvider);
-        s3 = new AmazonS3Client(credentialsProvider);
-    }
-
-    public static void main(String[] args) throws Exception {
-
+    public void parseArguments(String[] args) {
         OptionParser parser = new OptionParser();
 
         parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
 
-        ArgumentAcceptingOptionSpec<Integer> totalNodes = parser
+        this.totalNodes = parser
                 .acceptsAll(Arrays.asList("total-nodes-num", "t"), "Total number of spot and on-demand instances to maintain.")
                 .withRequiredArg().ofType(Integer.class).required();
-        ArgumentAcceptingOptionSpec<Float> maxSpotPrice = parser
-                .acceptsAll(Arrays.asList("max-spot-price", "p"), "Maximum price to pay for spot-price instances.").withRequiredArg()
-                .ofType(Float.class).required();
-        ArgumentAcceptingOptionSpec<Integer> waitTime = parser
-                .acceptsAll(Arrays.asList("wait-time", "w"),
-                        "Number of seconds to wait before replacing an offline (not-responding to keepalive) instance").withRequiredArg()
-                .ofType(Integer.class).required();
-        ArgumentAcceptingOptionSpec<Integer> batchSize = parser
-                .acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring up at one time").withRequiredArg()
-                .ofType(Integer.class).required();
-        ArgumentAcceptingOptionSpec<String> sensuHost = parser.acceptsAll(Arrays.asList("sensu-host", "sh"), "URL for the sensu host")
-                .withRequiredArg().ofType(String.class).defaultsTo("localhost");
-        ArgumentAcceptingOptionSpec<Integer> sensuPort = parser
-                .acceptsAll(Arrays.asList("sensu-port", "sp"), "Port for the sensu server api").withRequiredArg().ofType(Integer.class)
-                .required().defaultsTo(DEFAULT_SENSU_PORT);
+        this.maxSpotPrice = parser.acceptsAll(Arrays.asList("max-spot-price", "p"), "Maximum price to pay for spot-price instances.")
+                .withRequiredArg().ofType(Float.class).required();
+        this.batchSize = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring up at one time")
+                .withRequiredArg().ofType(Integer.class).required();
+        this.sensuHost = parser.acceptsAll(Arrays.asList("sensu-host", "sh"), "URL for the sensu host").withRequiredArg()
+                .ofType(String.class).defaultsTo("localhost");
+        this.sensuPort = parser.acceptsAll(Arrays.asList("sensu-port", "sp"), "Port for the sensu server api").withRequiredArg()
+                .ofType(Integer.class).required().defaultsTo(DEFAULT_SENSU_PORT);
 
-        OptionSet options = null;
         try {
-            options = parser.parse(args);
+            this.options = parser.parse(args);
         } catch (OptionException e) {
-            final int helpNumColumns = 160;
-            parser.formatHelpWith(new BuiltinHelpFormatter(helpNumColumns, 2));
-            parser.printHelpOn(System.out);
-            System.exit(-1);
+            try {
+                final int helpNumColumns = 160;
+                parser.formatHelpWith(new BuiltinHelpFormatter(helpNumColumns, 2));
+                parser.printHelpOn(System.out);
+                System.exit(-1);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
         }
         assert (options != null);
+    }
 
-        populateAWSCredentials();
+    /**
+     * Determine the number of clients that we need to spawn.
+     * 
+     * @return
+     */
+    public int assessClients() {
         HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
-
+        SubnodeConfiguration configurationAt = youxiaConfig.configurationAt("youxia");
+        configurationAt.getString(null);
         // Talk to sensu and determine number of AWS clients that are active
-        CloseableHttpClient httpclient = HttpClients.createDefault();
-        CredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(new AuthScope(options.valueOf(sensuHost), options.valueOf(sensuPort)),
-                new UsernamePasswordCredentials(youxiaConfig.getString("username"), youxiaConfig.getString("password")));
+        SensuClient sensuClient = new SensuClient(options.valueOf(sensuHost), options.valueOf(sensuPort),
+                (String) youxiaConfig.getProperty("youxia.sensu_username"), (String) youxiaConfig.getProperty("youxia.sensu_password"));
 
-        HttpClientContext context = HttpClientContext.create();
-        context.setCredentialsProvider(credsProvider);
-
-        URI uri = new URIBuilder().setScheme("http").setPort(options.valueOf(sensuPort)).setHost(options.valueOf(sensuHost))
-                .setPath("/clients").build();
-        HttpGet httpget = new HttpGet(uri);
-        System.out.println("Looking at " + httpget.toString());
-
+        List<Client> clients = sensuClient.getClients();
         List<Client> awsClients = Lists.newArrayList();
-        try (CloseableHttpResponse response = httpclient.execute(httpget, context)) {
-            System.out.println(response.toString());
-            try (InputStreamReader reader = new InputStreamReader(response.getEntity().getContent())) {
-                Gson gson = new GsonBuilder().create();
-                Client[] clients = gson.fromJson(reader, Client[].class);
-                for (Client client : clients) {
-                    if (client.getEnvironment().getAnsible_system_vendor().equals("")
-                            && client.getEnvironment().getAnsible_product_name().equals("")) {
-                        // TODO: find better way to denote AWS clients aside from the abscence of openstack vendor or product name
-                        awsClients.add(client);
-                    }
-                }
+        for (Client client : clients) {
+            if (client.getEnvironment().getAnsible_system_vendor().equals("")
+                    && client.getEnvironment().getAnsible_product_name().equals("")) {
+                // TODO: find better way to denote AWS clients aside from the lack of a openstack vendor or product name
+                awsClients.add(client);
             }
         }
         System.out.println("Found " + awsClients.size() + " AWS clients");
 
-        try {
-            /*
-             * The Amazon EC2 client allows you to easily launch and configure computing capacity in AWS datacenters.
-             * 
-             * In this sample, we use the EC2 client to list the availability zones in a region, and then list the instances running in
-             * those zones.
-             */
-            DescribeAvailabilityZonesResult availabilityZonesResult = ec2.describeAvailabilityZones();
-            List<AvailabilityZone> availabilityZones = availabilityZonesResult.getAvailabilityZones();
-            System.out.println("You have access to " + availabilityZones.size() + " availability zones:");
-            for (AvailabilityZone zone : availabilityZones) {
-                System.out.println(" - " + zone.getZoneName() + " (" + zone.getRegionName() + ")");
-            }
-
-            DescribeInstancesResult describeInstancesResult = ec2.describeInstances();
-            Set<Instance> instances = new HashSet<>();
-            for (Reservation reservation : describeInstancesResult.getReservations()) {
-                instances.addAll(reservation.getInstances());
-            }
-
-            System.out.println("You have " + instances.size() + " Amazon EC2 instance(s) running.");
-
-            /*
-             * The Amazon S3 client allows you to manage and configure buckets and to upload and download data.
-             * 
-             * In this sample, we use the S3 client to list all the buckets in your account, and then iterate over the object metadata for
-             * all objects in one bucket to calculate the total object count and space usage for that one bucket. Note that this sample only
-             * retrieves the object's metadata and doesn't actually download the object's content.
-             * 
-             * In addition to the low-level Amazon S3 client in the SDK, there is also a high-level TransferManager API that provides
-             * asynchronous management of uploads and downloads with an easy to use API:
-             * http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/s3/transfer/TransferManager.html
-             */
-            List<Bucket> buckets = s3.listBuckets();
-            System.out.println("You have " + buckets.size() + " Amazon S3 bucket(s).");
-
-            if (buckets.size() > 0) {
-                Bucket bucket = buckets.get(0);
-
-                long totalSize = 0;
-                long totalItems = 0;
-                /*
-                 * The S3Objects and S3Versions classes provide convenient APIs for iterating over the contents of your buckets, without
-                 * having to manually deal with response pagination.
-                 */
-                for (S3ObjectSummary objectSummary : S3Objects.inBucket(s3, bucket.getName())) {
-                    totalSize += objectSummary.getSize();
-                    totalItems++;
+        // determine number of clients in distress
+        List<Client> distressedClients = Lists.newArrayList();
+        for (Client client : awsClients) {
+            // TODO: properly assess clients for distress
+            List<ClientHistory> history = sensuClient.getClientHistory(client.getName());
+            for (ClientHistory h : history) {
+                if (h.getLast_status() != 0) {
+                    distressedClients.add(client);
                 }
-
-                System.out.println("The bucket '" + bucket.getName() + "' contains " + totalItems + " objects " + "with a total size of "
-                        + totalSize + " bytes.");
             }
+        }
+        System.out.println("Found " + distressedClients.size() + " distressed AWS clients");
+        // TODO: tear-down distressed clients
+
+        int clientsNeeded = options.valueOf(totalNodes) - awsClients.size();
+        System.out.println("Need " + clientsNeeded + " more clients");
+        int clientsAfterBatching = Math.min(options.valueOf(this.batchSize), clientsNeeded);
+        System.out.println("After batch limit, we can requisition up to " + clientsAfterBatching + " this run");
+        return clientsAfterBatching;
+    }
+
+    /**
+     * This checks to see whether the current spot price is reasonable.
+     * 
+     * @return
+     */
+    public boolean isReadyToRequestSpotInstances() {
+        AmazonEC2Client ec2 = ConfigTools.getEC2Client();
+        // TODO: restrict this check by region
+        DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory();
+        // TODO: is this most recent first? javadoc does not say
+        Float currentPrice = null;
+        for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
+            if (spotPrice.getAvailabilityZone().contains("us-east") && spotPrice.getInstanceType().equals("m1.xlarge")
+                    && spotPrice.getProductDescription().contains("Linux")) {
+                System.out.println(spotPrice.toString());
+                currentPrice = Float.valueOf(spotPrice.getSpotPrice());
+                break;
+            }
+        }
+        if (currentPrice == null) {
+            throw new RuntimeException("Invalid spot price request, check your zone or instance type");
+        }
+        boolean currentPriceIsAcceptable = options.valueOf(this.maxSpotPrice) - currentPrice > 0;
+        return currentPriceIsAcceptable;
+    }
+
+    private boolean requestSpotInstances(int numInstances) {
+        return requestSpotInstances(numInstances, false);
+    }
+
+    /**
+     * Request spot instances, incorporates code from
+     * https://github.com/amazonwebservices/aws-sdk-for-java/blob/master/src/samples/AmazonEC2SpotInstances-Advanced/GettingStartedApp.java
+     * 
+     * @param numInstances
+     * @param skipWait
+     * @return
+     */
+    private boolean requestSpotInstances(int numInstances, boolean skipWait) {
+        try {
+            // Setup the helper object that will perform all of the API calls.
+            Requests requests = new Requests("m1.xlarge", "ami-90da15f8", Float.toString(options.valueOf(this.maxSpotPrice)), "Default",
+                    numInstances);
+            requests.setAvailabilityZone("us-east-1a");
+            // Create the list of tags we want to create and tag any associated requests.
+            ArrayList<Tag> tags = new ArrayList<>();
+            tags.add(new Tag("youxia-provisioned", "true"));
+            requests.tagRequests(tags);
+            // Initialize the timer to now.
+            Calendar startTimer = Calendar.getInstance();
+            Calendar nowTimer = null;
+            if (skipWait) {
+                requests.launchOnDemand();
+            } else {
+                // Submit all of the requests.
+                requests.submitRequests();
+                // Loop through all of the requests until all bids are in the active state
+                // (or at least not in the open state).
+                do {
+                    final int wait15Minutes = -15;
+                    // Sleep for 60 seconds.
+                    Thread.sleep(SLEEP_CYCLE);
+                    // Initialize the timer to now, and then subtract 15 minutes, so we can
+                    // compare to see if we have exceeded 15 minutes compared to the startTime.
+                    nowTimer = Calendar.getInstance();
+                    nowTimer.add(Calendar.MINUTE, wait15Minutes);
+                } while (requests.areAnyOpen() && !nowTimer.after(startTimer));
+                // If we couldn't launch Spot within the timeout period, then we should launch an On-Demand
+                // Instance.
+                if (nowTimer.after(startTimer)) {
+                    // Cancel all requests because we timed out.
+                    requests.cleanup();
+                    // Launch On-Demand instances instead
+                    requests.launchOnDemand();
+                }
+            }
+            // Tag any created instances.
+            requests.tagInstances(tags);
+            // Cancel all requests
+            requests.cleanup();
+
+            // wait until instances are ready for SSH
+            ArrayList<String> instanceIds = requests.getInstanceIds();
+            System.out.println("Examining " + instanceIds.size() + " instances");
+            AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
+
+            boolean wait;
+            do {
+                wait = false;
+                DescribeInstancesRequest describeInstancesRequest = new DescribeInstancesRequest();
+                describeInstancesRequest.setInstanceIds(instanceIds);
+                DescribeInstancesResult describeInstances = eC2Client.describeInstances(describeInstancesRequest);
+                for (Reservation r : describeInstances.getReservations()) {
+                    List<Instance> instances = r.getInstances();
+                    for (Instance i : instances) {
+                        System.out.println(i.toString());
+                        if (i.getState().getName().equals("pending") || i.getState().getName().equals("stopping")
+                                || i.getState().getName().equals("shutting-down")) {
+                            wait = true;
+                        }
+                    }
+                }
+                if (wait) {
+                    Thread.sleep(SLEEP_CYCLE);
+                }
+            } while (wait == true);
+
+            return true;
         } catch (AmazonServiceException ase) {
-            /*
-             * AmazonServiceExceptions represent an error response from an AWS services, i.e. your request made it to AWS, but the AWS
-             * service either found it invalid or encountered an error trying to execute it.
-             */
-            System.out.println("Error Message:    " + ase.getMessage());
-            System.out.println("HTTP Status Code: " + ase.getStatusCode());
-            System.out.println("AWS Error Code:   " + ase.getErrorCode());
-            System.out.println("Error Type:       " + ase.getErrorType());
-            System.out.println("Request ID:       " + ase.getRequestId());
-        } catch (AmazonClientException ace) {
-            /*
-             * AmazonClientExceptions represent an error that occurred inside the client on the local host, either while trying to send the
-             * request to AWS or interpret the response. For example, if no network connection is available, the client won't be able to
-             * connect to AWS to execute a request and will throw an AmazonClientException.
-             */
-            System.out.println("Error Message: " + ace.getMessage());
+            // Write out any exceptions that may have occurred.
+            System.out.println("Caught Exception: " + ase.getMessage());
+            System.out.println("Reponse Status Code: " + ase.getStatusCode());
+            System.out.println("Error Code: " + ase.getErrorCode());
+            System.out.println("Request ID: " + ase.getRequestId());
+            throw new RuntimeException(ase);
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+
+        Deployer deployer = new Deployer();
+        deployer.parseArguments(args);
+        int clientsToDeploy = deployer.assessClients();
+        if (clientsToDeploy > 0) {
+            boolean readyToRequestSpot = deployer.isReadyToRequestSpotInstances();
+            if (readyToRequestSpot) {
+                // call out to request spot instances
+                // wait until SSH connection is live
+                deployer.requestSpotInstances(clientsToDeploy);
+            } else {
+                deployer.requestSpotInstances(clientsToDeploy, true);
+            }
+            // hook up sensu to requested instances using Ansible
+            // 1. generate an ansible inventory file
+            // 2. run ansible
         }
     }
 }
