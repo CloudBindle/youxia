@@ -37,6 +37,7 @@ import org.apache.commons.exec.DefaultExecutor;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.exec.Executor;
 import org.apache.commons.exec.PumpStreamHandler;
+import org.apache.commons.io.FileUtils;
 
 /**
  * This class maintains a fleet of amazon instances dependent on state retrieved from sensu.
@@ -178,17 +179,15 @@ public class Deployer {
             // Create the list of tags we want to create and tag any associated requests.
             ArrayList<Tag> tags = new ArrayList<>();
             tags.add(new Tag("youxia-provisioned", "true"));
-            requests.tagRequests(tags);
             // Initialize the timer to now.
             Calendar startTimer = Calendar.getInstance();
             Calendar nowTimer = null;
             if (skipWait) {
                 requests.launchOnDemand();
-                // Tag any created instances.
-                requests.tagInstances(tags);
             } else {
                 // Submit all of the requests.
                 requests.submitRequests();
+                requests.tagRequests(tags);
                 // Loop through all of the requests until all bids are in the active state
                 // (or at least not in the open state).
                 do {
@@ -207,10 +206,10 @@ public class Deployer {
                     requests.cleanup();
                     // Launch On-Demand instances instead
                     requests.launchOnDemand();
-                    // Tag any created instances.
-                    requests.tagInstances(tags);
                 }
             }
+            // Tag any created instances.
+            requests.tagInstances(tags);
 
             // wait until instances are ready for SSH
             List<String> instanceIds = Lists.newArrayList();
@@ -273,23 +272,27 @@ public class Deployer {
             if (readyToRequestSpot) {
                 // call out to request spot instances
                 // wait until SSH connection is live
-                deployer.requestSpotInstances(clientsToDeploy);
+                readyInstances = deployer.requestSpotInstances(clientsToDeploy);
             } else {
-                deployer.requestSpotInstances(clientsToDeploy, true);
+                readyInstances = deployer.requestSpotInstances(clientsToDeploy, true);
             }
             // hook up sensu to requested instances using Ansible
             // 1. generate an ansible inventory file
             StringBuilder buffer = new StringBuilder();
             // TODO: parameterize all this stuff
             buffer.append("[sensu-server]")
+                    .append('\n')
                     .append("\tansible_ssh_host=23.22.238.129\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=/home/dyuen/.ssh/oicr-aws-dyuen.pem\n");
             // assume all clients are masters (single-node clusters) for now
             buffer.append("[master]\n");
             for (Instance s : readyInstances) {
                 buffer.append(s.getInstanceId()).append('\t').append("ansible_ssh_host=").append(s.getPublicIpAddress());
-                buffer.append('\t').append("ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem");
+                buffer.append('\t').append("ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem").append('\n');
             }
             Path createTempFile = Files.createTempFile("ansible", ".inventory");
+            FileUtils.writeStringToFile(createTempFile.toFile(), buffer.toString());
+            System.out.println(buffer.toString());
+
             // 2. run ansible
             CommandLine cmdLine = new CommandLine("ansible-playbook");
             Map<String, String> environmentMap = Maps.newHashMap();
