@@ -10,7 +10,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:1.2.1:exec</goal>
             </goals>
             <properties>
-                <exec.args>-classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 5 --sensu-host ec2-23-22-238-129.compute-1.amazonaws.com --sensu-port 4567 --total-nodes-num 3 --wait-time 60</exec.args>
+                <exec.args>-classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 5 --sensu-host ec2-23-22-238-129.compute-1.amazonaws.com --sensu-port 4567 --total-nodes-num 3</exec.args>
                 <exec.executable>java</exec.executable>
             </properties>
         </action>
@@ -24,7 +24,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:1.2.1:exec</goal>
             </goals>
             <properties>
-                <exec.args>-Xdebug -Xrunjdwp:transport=dt_socket,server=n,address=${jpda.address} -classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 5 --sensu-host ec2-23-22-238-129.compute-1.amazonaws.com --sensu-port 4567 --total-nodes-num 3 --wait-time 60</exec.args>
+                <exec.args>-Xdebug -Xrunjdwp:transport=dt_socket,server=n,address=${jpda.address} -classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 5 --sensu-host ec2-23-22-238-129.compute-1.amazonaws.com --sensu-port 4567 --total-nodes-num 3</exec.args>
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
             </properties>
@@ -39,7 +39,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:1.2.1:exec</goal>
             </goals>
             <properties>
-                <exec.args>-classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 5 --sensu-host ec2-23-22-238-129.compute-1.amazonaws.com --sensu-port 4567 --total-nodes-num 3 --wait-time 60</exec.args>
+                <exec.args>-classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 5 --sensu-host ec2-23-22-238-129.compute-1.amazonaws.com --sensu-port 4567 --total-nodes-num 3</exec.args>
                 <exec.executable>java</exec.executable>
             </properties>
         </action>

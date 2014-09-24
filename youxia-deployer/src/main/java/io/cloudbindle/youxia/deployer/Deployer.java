@@ -10,16 +10,21 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.amazonaws.Requests;
 import io.cloudbindle.youxia.client.SensuClient;
 import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.BuiltinHelpFormatter;
 import joptsimple.OptionException;
@@ -27,6 +32,11 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import org.apache.commons.configuration.SubnodeConfiguration;
+import org.apache.commons.exec.CommandLine;
+import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.exec.ExecuteWatchdog;
+import org.apache.commons.exec.Executor;
+import org.apache.commons.exec.PumpStreamHandler;
 
 /**
  * This class maintains a fleet of amazon instances dependent on state retrieved from sensu.
@@ -129,12 +139,11 @@ public class Deployer {
      */
     public boolean isReadyToRequestSpotInstances() {
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
-        // TODO: restrict this check by region
         DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory();
-        // TODO: is this most recent first? javadoc does not say
+        // TODO: parameterize zone and instance types
         Float currentPrice = null;
         for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
-            if (spotPrice.getAvailabilityZone().contains("us-east") && spotPrice.getInstanceType().equals("m1.xlarge")
+            if (spotPrice.getAvailabilityZone().contains("us-east-1a") && spotPrice.getInstanceType().equals("m1.xlarge")
                     && spotPrice.getProductDescription().contains("Linux")) {
                 System.out.println(spotPrice.toString());
                 currentPrice = Float.valueOf(spotPrice.getSpotPrice());
@@ -148,7 +157,7 @@ public class Deployer {
         return currentPriceIsAcceptable;
     }
 
-    private boolean requestSpotInstances(int numInstances) {
+    private List<Instance> requestSpotInstances(int numInstances) {
         return requestSpotInstances(numInstances, false);
     }
 
@@ -160,7 +169,7 @@ public class Deployer {
      * @param skipWait
      * @return
      */
-    private boolean requestSpotInstances(int numInstances, boolean skipWait) {
+    private List<Instance> requestSpotInstances(int numInstances, boolean skipWait) {
         try {
             // Setup the helper object that will perform all of the API calls.
             Requests requests = new Requests("m1.xlarge", "ami-90da15f8", Float.toString(options.valueOf(this.maxSpotPrice)), "Default",
@@ -175,6 +184,8 @@ public class Deployer {
             Calendar nowTimer = null;
             if (skipWait) {
                 requests.launchOnDemand();
+                // Tag any created instances.
+                requests.tagInstances(tags);
             } else {
                 // Submit all of the requests.
                 requests.submitRequests();
@@ -196,21 +207,25 @@ public class Deployer {
                     requests.cleanup();
                     // Launch On-Demand instances instead
                     requests.launchOnDemand();
+                    // Tag any created instances.
+                    requests.tagInstances(tags);
                 }
             }
-            // Tag any created instances.
-            requests.tagInstances(tags);
+
+            // wait until instances are ready for SSH
+            List<String> instanceIds = Lists.newArrayList();
+            instanceIds.addAll(requests.getInstanceIds());
             // Cancel all requests
             requests.cleanup();
 
-            // wait until instances are ready for SSH
-            ArrayList<String> instanceIds = requests.getInstanceIds();
             System.out.println("Examining " + instanceIds.size() + " instances");
             AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
 
+            List<Instance> returnInstances = Lists.newArrayList();
             boolean wait;
             do {
                 wait = false;
+                returnInstances.clear();
                 DescribeInstancesRequest describeInstancesRequest = new DescribeInstancesRequest();
                 describeInstancesRequest.setInstanceIds(instanceIds);
                 DescribeInstancesResult describeInstances = eC2Client.describeInstances(describeInstancesRequest);
@@ -222,14 +237,17 @@ public class Deployer {
                                 || i.getState().getName().equals("shutting-down")) {
                             wait = true;
                         }
+                        returnInstances.add(i);
                     }
                 }
                 if (wait) {
                     Thread.sleep(SLEEP_CYCLE);
+                } else {
+                    break;
                 }
-            } while (wait == true);
+            } while (true);
 
-            return true;
+            return returnInstances;
         } catch (AmazonServiceException ase) {
             // Write out any exceptions that may have occurred.
             System.out.println("Caught Exception: " + ase.getMessage());
@@ -251,6 +269,7 @@ public class Deployer {
         int clientsToDeploy = deployer.assessClients();
         if (clientsToDeploy > 0) {
             boolean readyToRequestSpot = deployer.isReadyToRequestSpotInstances();
+            List<Instance> readyInstances = Lists.newArrayList();
             if (readyToRequestSpot) {
                 // call out to request spot instances
                 // wait until SSH connection is live
@@ -260,7 +279,38 @@ public class Deployer {
             }
             // hook up sensu to requested instances using Ansible
             // 1. generate an ansible inventory file
+            StringBuilder buffer = new StringBuilder();
+            // TODO: parameterize all this stuff
+            buffer.append("[sensu-server]")
+                    .append("\tansible_ssh_host=23.22.238.129\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=/home/dyuen/.ssh/oicr-aws-dyuen.pem\n");
+            // assume all clients are masters (single-node clusters) for now
+            buffer.append("[master]\n");
+            for (Instance s : readyInstances) {
+                buffer.append(s.getInstanceId()).append('\t').append("ansible_ssh_host=").append(s.getPublicIpAddress());
+                buffer.append('\t').append("ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem");
+            }
+            Path createTempFile = Files.createTempFile("ansible", "inventory");
             // 2. run ansible
+            CommandLine cmdLine = new CommandLine("ANSIBLE_HOST_KEY_CHECKING=False");
+            Map<String, String> environmentMap = Maps.newHashMap();
+            environmentMap.put("ANSIBLE_HOST_KEY_CHECKING", "False");
+            cmdLine.addArgument("ansible-playbook");
+            cmdLine.addArgument("-i");
+            cmdLine.addArgument("${file}");
+            cmdLine.addArgument("${playbook}");
+            HashMap map = new HashMap();
+            map.put("file", createTempFile);
+            map.put("playbook", "/home/dyuen/youxia/ansible_sensu/site.yml");
+            cmdLine.setSubstitutionMap(map);
+
+            System.out.println(cmdLine.toString());
+            // kill ansible if it hangs for 15 minutes
+            final int waitTime = 15 * 60 * 1000;
+            ExecuteWatchdog watchdog = new ExecuteWatchdog(waitTime);
+            Executor executor = new DefaultExecutor();
+            executor.setStreamHandler(new PumpStreamHandler(System.out));
+            executor.setWatchdog(watchdog);
+            executor.execute(cmdLine, environmentMap);
         }
     }
 }

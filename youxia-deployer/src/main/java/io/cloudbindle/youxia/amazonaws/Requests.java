@@ -313,7 +313,6 @@ public class Requests {
             ec2.createTags(createTagsRequest);
         } catch (AmazonServiceException e) {
             // Write out any exceptions that may have occurred.
-            System.out.println("Error terminating instances");
             System.out.println("Caught Exception: " + e.getMessage());
             System.out.println("Reponse Status Code: " + e.getStatusCode());
             System.out.println("Error Code: " + e.getErrorCode());
@@ -469,7 +468,8 @@ public class Requests {
     }
 
     /**
-     * @param instanceIds the instanceIds to set
+     * @param instanceIds
+     *            the instanceIds to set
      */
     public void setInstanceIds(ArrayList<String> instanceIds) {
         this.instanceIds = instanceIds;
