@@ -268,7 +268,7 @@ public class Deployer {
         int clientsToDeploy = deployer.assessClients();
         if (clientsToDeploy > 0) {
             boolean readyToRequestSpot = deployer.isReadyToRequestSpotInstances();
-            List<Instance> readyInstances = Lists.newArrayList();
+            List<Instance> readyInstances;
             if (readyToRequestSpot) {
                 // call out to request spot instances
                 // wait until SSH connection is live
@@ -282,7 +282,7 @@ public class Deployer {
             // TODO: parameterize all this stuff
             buffer.append("[sensu-server]")
                     .append('\n')
-                    .append("\tansible_ssh_host=23.22.238.129\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=/home/dyuen/.ssh/oicr-aws-dyuen.pem\n");
+                    .append("sensu-server\tansible_ssh_host=23.22.238.129\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=/home/dyuen/.ssh/oicr-aws-dyuen.pem\n");
             // assume all clients are masters (single-node clusters) for now
             buffer.append("[master]\n");
             for (Instance s : readyInstances) {

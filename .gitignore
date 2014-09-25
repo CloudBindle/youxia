@@ -2,3 +2,6 @@
 /youxia-deployer/target/
 /youxia-common/nbproject/private/
 /ansible_sensu/target/
+/youxia-reaper/target/
+/youxia-collector/target/
+/youxia-generator/target/
