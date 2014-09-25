@@ -112,7 +112,7 @@ public class Reaper {
                     instancesToKill.add(instance.getKey());
                 }
             } catch (RuntimeException e) {
-                System.out.println("Skipping " + instance.getKey() + " " + instance.getValue() + "due to connection error");
+                System.out.println("Skipping " + instance.getKey() + " " + instance.getValue() + " due to connection error");
             }
         }
 
