@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package io.cloudbindle.youxia.client;
+package io.cloudbindle.youxia.sensu.client;
 
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;

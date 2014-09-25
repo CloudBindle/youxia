@@ -12,10 +12,9 @@ import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.amazonaws.Requests;
-import io.cloudbindle.youxia.client.SensuClient;
-import io.cloudbindle.youxia.sensu.api.Client;
-import io.cloudbindle.youxia.sensu.api.ClientHistory;
+import io.cloudbindle.youxia.aws.AwsListing;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.InstanceListingInterface;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,7 +30,6 @@ import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
-import org.apache.commons.configuration.SubnodeConfiguration;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
 import org.apache.commons.exec.ExecuteWatchdog;
@@ -47,13 +45,10 @@ import org.apache.commons.io.FileUtils;
  */
 public class Deployer {
 
-    private static final int DEFAULT_SENSU_PORT = 4567;
     private static final long SLEEP_CYCLE = 60000;
     private ArgumentAcceptingOptionSpec<Integer> totalNodes;
     private ArgumentAcceptingOptionSpec<Float> maxSpotPrice;
     private ArgumentAcceptingOptionSpec<Integer> batchSize;
-    private ArgumentAcceptingOptionSpec<String> sensuHost;
-    private ArgumentAcceptingOptionSpec<Integer> sensuPort;
     private OptionSet options;
 
     public void parseArguments(String[] args) {
@@ -68,11 +63,6 @@ public class Deployer {
                 .withRequiredArg().ofType(Float.class).required();
         this.batchSize = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring up at one time")
                 .withRequiredArg().ofType(Integer.class).required();
-        this.sensuHost = parser.acceptsAll(Arrays.asList("sensu-host", "sh"), "URL for the sensu host").withRequiredArg()
-                .ofType(String.class).defaultsTo("localhost");
-        this.sensuPort = parser.acceptsAll(Arrays.asList("sensu-port", "sp"), "Port for the sensu server api").withRequiredArg()
-                .ofType(Integer.class).required().defaultsTo(DEFAULT_SENSU_PORT);
-
         try {
             this.options = parser.parse(args);
         } catch (OptionException e) {
@@ -94,39 +84,11 @@ public class Deployer {
      * @return
      */
     public int assessClients() {
-        HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
-        SubnodeConfiguration configurationAt = youxiaConfig.configurationAt("youxia");
-        configurationAt.getString(null);
-        // Talk to sensu and determine number of AWS clients that are active
-        SensuClient sensuClient = new SensuClient(options.valueOf(sensuHost), options.valueOf(sensuPort),
-                (String) youxiaConfig.getProperty("youxia.sensu_username"), (String) youxiaConfig.getProperty("youxia.sensu_password"));
+        AwsListing awsLister = new AwsListing();
+        Map<String, String> map = awsLister.getInstances();
+        System.out.println("Found " + map.size() + " AWS clients");
 
-        List<Client> clients = sensuClient.getClients();
-        List<Client> awsClients = Lists.newArrayList();
-        for (Client client : clients) {
-            if (client.getEnvironment().getAnsible_system_vendor().equals("")
-                    && client.getEnvironment().getAnsible_product_name().equals("")) {
-                // TODO: find better way to denote AWS clients aside from the lack of a openstack vendor or product name
-                awsClients.add(client);
-            }
-        }
-        System.out.println("Found " + awsClients.size() + " AWS clients");
-
-        // determine number of clients in distress
-        List<Client> distressedClients = Lists.newArrayList();
-        for (Client client : awsClients) {
-            // TODO: properly assess clients for distress
-            List<ClientHistory> history = sensuClient.getClientHistory(client.getName());
-            for (ClientHistory h : history) {
-                if (h.getLast_status() != 0) {
-                    distressedClients.add(client);
-                }
-            }
-        }
-        System.out.println("Found " + distressedClients.size() + " distressed AWS clients");
-        // TODO: tear-down distressed clients
-
-        int clientsNeeded = options.valueOf(totalNodes) - awsClients.size();
+        int clientsNeeded = options.valueOf(totalNodes) - map.size();
         System.out.println("Need " + clientsNeeded + " more clients");
         int clientsAfterBatching = Math.min(options.valueOf(this.batchSize), clientsNeeded);
         System.out.println("After batch limit, we can requisition up to " + clientsAfterBatching + " this run");
@@ -172,13 +134,15 @@ public class Deployer {
      */
     private List<Instance> requestSpotInstances(int numInstances, boolean skipWait) {
         try {
+            HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
             // Setup the helper object that will perform all of the API calls.
             Requests requests = new Requests("m1.xlarge", "ami-90da15f8", Float.toString(options.valueOf(this.maxSpotPrice)), "Default",
                     numInstances);
             requests.setAvailabilityZone("us-east-1a");
             // Create the list of tags we want to create and tag any associated requests.
             ArrayList<Tag> tags = new ArrayList<>();
-            tags.add(new Tag("youxia-provisioned", "true"));
+            tags.add(new Tag(InstanceListingInterface.YOUXIA_MANAGED_TAG, youxiaConfig
+                    .getString(InstanceListingInterface.YOUXIA_MANAGED_TAG)));
             // Initialize the timer to now.
             Calendar startTimer = Calendar.getInstance();
             Calendar nowTimer = null;
@@ -187,7 +151,6 @@ public class Deployer {
             } else {
                 // Submit all of the requests.
                 requests.submitRequests();
-                requests.tagRequests(tags);
                 // Loop through all of the requests until all bids are in the active state
                 // (or at least not in the open state).
                 do {

@@ -31,18 +31,6 @@
             <artifactId>jopt-simple</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpcore</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-        </dependency>
-        <dependency>
             <groupId>io.cloudbindle</groupId>
             <artifactId>youxia-common</artifactId>
         </dependency>
@@ -87,9 +75,9 @@
                     <archive>
                         <manifest>
                             <mainClass>io.cloudbindle.youxia.deployer.Deployer</mainClass>
-                             <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                         </manifest>
-                         <manifestEntries>
+                        <manifestEntries>
                             <Implementation-Build>${buildNumber}</Implementation-Build>
                         </manifestEntries>
                     </archive>

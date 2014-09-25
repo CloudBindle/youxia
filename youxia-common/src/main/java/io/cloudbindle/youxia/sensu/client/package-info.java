@@ -3,5 +3,5 @@
  * 
  * @since 1.0
  */
-package io.cloudbindle.youxia.client;
+package io.cloudbindle.youxia.sensu.client;
 
