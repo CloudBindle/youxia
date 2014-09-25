@@ -1,7 +1,7 @@
 youxia
 ======
 
-A collection of tools allowing one to manage clouds of SeqWare instances
+A collection of tools allowing one to manage clouds of SeqWare instances (specifically an AWS cloud acting as overflow for an academic cloud based on OpenStack).
 
 For most tools, you will need to have a valid Amazon Web Services developer account.
 
