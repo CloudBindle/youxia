@@ -1,68 +1,62 @@
 package io.cloudbindle.youxia.reaper;
 
-import com.amazonaws.services.ec2.AmazonEC2Client;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.SpotPrice;
+import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.cloudbindle.youxia.sensu.client.SensuClient;
+import io.cloudbindle.youxia.aws.AwsListing;
 import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
+import io.cloudbindle.youxia.sensu.client.SensuClient;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.seqware.common.model.WorkflowRunStatus;
+import io.seqware.pipeline.SqwKeys;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.BuiltinHelpFormatter;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
+import joptsimple.OptionSpecBuilder;
+import net.sourceforge.seqware.common.metadata.MetadataFactory;
+import net.sourceforge.seqware.common.metadata.MetadataWS;
+import net.sourceforge.seqware.common.model.WorkflowRun;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
-import org.apache.commons.configuration.SubnodeConfiguration;
-import org.apache.commons.exec.CommandLine;
-import org.apache.commons.exec.DefaultExecutor;
-import org.apache.commons.exec.ExecuteWatchdog;
-import org.apache.commons.exec.Executor;
-import org.apache.commons.exec.PumpStreamHandler;
-import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 
 /**
- * This class tears down VMs that are unhealthy or have reached their kill limit.
+ * This class tears down VMs that are unhealthy or have run enough workflows to reach the kill limit.
  * 
- * Before you run this code, be sure to fill in your AWS security credentials in the src/main/resources/AwsCredentials.properties file in
- * this project.
  */
 public class Reaper {
 
     private static final int DEFAULT_SENSU_PORT = 4567;
-    private ArgumentAcceptingOptionSpec<Integer> totalNodes;
-    private ArgumentAcceptingOptionSpec<Float> maxSpotPrice;
     private ArgumentAcceptingOptionSpec<Integer> batchSize;
     private ArgumentAcceptingOptionSpec<String> sensuHost;
     private ArgumentAcceptingOptionSpec<Integer> sensuPort;
     private OptionSet options;
+    private ArgumentAcceptingOptionSpec<Integer> killLimit;
+    private OptionSpecBuilder testMode;
 
     public void parseArguments(String[] args) {
         OptionParser parser = new OptionParser();
 
         parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
 
-        this.totalNodes = parser
-                .acceptsAll(Arrays.asList("total-nodes-num", "t"), "Total number of spot and on-demand instances to maintain.")
+        this.killLimit = parser
+                .acceptsAll(Arrays.asList("kill-limit", "k"), "Number of finished workflow runs that triggers the kill limit")
                 .withRequiredArg().ofType(Integer.class).required();
-        this.maxSpotPrice = parser.acceptsAll(Arrays.asList("max-spot-price", "p"), "Maximum price to pay for spot-price instances.")
-                .withRequiredArg().ofType(Float.class).required();
-        this.batchSize = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring up at one time")
-                .withRequiredArg().ofType(Integer.class).required();
+        this.batchSize = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring down at one time")
+                .withRequiredArg().ofType(Integer.class).defaultsTo(1);
         this.sensuHost = parser.acceptsAll(Arrays.asList("sensu-host", "sh"), "URL for the sensu host").withRequiredArg()
                 .ofType(String.class).defaultsTo("localhost");
         this.sensuPort = parser.acceptsAll(Arrays.asList("sensu-port", "sp"), "Port for the sensu server api").withRequiredArg()
-                .ofType(Integer.class).required().defaultsTo(DEFAULT_SENSU_PORT);
+                .ofType(Integer.class).defaultsTo(DEFAULT_SENSU_PORT);
+        this.testMode = parser.acceptsAll(Arrays.asList("test", "t"), "In test mode, we only output instances that would be killed");
 
         try {
             this.options = parser.parse(args);
@@ -80,18 +74,63 @@ public class Reaper {
     }
 
     /**
-     * Determine the number of clients that we need to spawn.
+     * Determine the clients that we need to bring down.
      * 
      * @return
      */
-    public int assessClients() {
+    public List<String> assessClients() {
         HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
-        SubnodeConfiguration configurationAt = youxiaConfig.configurationAt("youxia");
-        configurationAt.getString(null);
-        // Talk to sensu and determine number of AWS clients that are active
+        AwsListing lister = new AwsListing();
+        Map<String, String> instances = lister.getInstances();
+        List<String> instancesToKill = Lists.newArrayList();
+
+        // determine number of clients in distress
+        List<Client> distressedClients = Lists.newArrayList();
+        if (options.has(sensuHost) && options.has(sensuPort)) {
+            distressedClients = determineSensuUnhealthyClients(youxiaConfig);
+        }
+        // TODO: incoporate sensu information here
+
+        Map<String, String> settings = Maps.newHashMap();
+        settings.put(SqwKeys.SW_REST_USER.getSettingKey(), "admin@admin.com");
+        settings.put(SqwKeys.SW_REST_PASS.getSettingKey(), "admin");
+
+        for (Entry<String, String> instance : instances.entrySet()) {
+            // fake a settings
+            String url = "http://" + instance.getValue() + ":8080/SeqWareWebService";
+            System.out.println("Looking at " + url);
+            settings.put(SqwKeys.SW_REST_URL.getSettingKey(), url);
+            MetadataWS ws = MetadataFactory.getWS(settings);
+            // TODO: can we really not just get all workflow runs?
+            try {
+                List<WorkflowRun> workflowRuns = ws.getWorkflowRunsByStatus(WorkflowRunStatus.cancelled);
+                workflowRuns.addAll(ws.getWorkflowRunsByStatus(WorkflowRunStatus.failed));
+                workflowRuns.addAll(ws.getWorkflowRunsByStatus(WorkflowRunStatus.completed));
+                System.out.println(instance.getKey() + " has " + workflowRuns.size() + " workflow runs");
+                if (workflowRuns.size() >= options.valueOf(this.killLimit)) {
+                    System.out.println(instance.getKey() + " is at or above the kill limit");
+                    instancesToKill.add(instance.getKey());
+                }
+            } catch (RuntimeException e) {
+                System.out.println("Skipping " + instance.getKey() + " " + instance.getValue() + "due to connection error");
+            }
+        }
+
+        // consider batch size
+        while (instancesToKill.size() > options.valueOf(this.batchSize)) {
+            System.out.println(instancesToKill.get(0) + " is removed from kill list due to batch size");
+            instancesToKill.remove(0);
+        }
+
+        return instancesToKill;
+    }
+
+    private List<Client> determineSensuUnhealthyClients(HierarchicalINIConfiguration youxiaConfig) {
+        List<Client> distressedClients;
+        System.out.println("Considering sensu information to identify distressed hosts");
+        // If sensu options are specified, talk to sensu and cross-reference health information
         SensuClient sensuClient = new SensuClient(options.valueOf(sensuHost), options.valueOf(sensuPort),
                 (String) youxiaConfig.getProperty("youxia.sensu_username"), (String) youxiaConfig.getProperty("youxia.sensu_password"));
-
         List<Client> clients = sensuClient.getClients();
         List<Client> awsClients = Lists.newArrayList();
         for (Client client : clients) {
@@ -101,10 +140,9 @@ public class Reaper {
                 awsClients.add(client);
             }
         }
-        System.out.println("Found " + awsClients.size() + " AWS clients");
-
+        System.out.println("Found " + awsClients.size() + " AWS clients in sensu");
         // determine number of clients in distress
-        List<Client> distressedClients = Lists.newArrayList();
+        distressedClients = Lists.newArrayList();
         for (Client client : awsClients) {
             // TODO: properly assess clients for distress
             List<ClientHistory> history = sensuClient.getClientHistory(client.getName());
@@ -114,84 +152,27 @@ public class Reaper {
                 }
             }
         }
-        System.out.println("Found " + distressedClients.size() + " distressed AWS clients");
-        // TODO: tear-down distressed clients
-
-        int clientsNeeded = options.valueOf(totalNodes) - awsClients.size();
-        System.out.println("Need " + clientsNeeded + " more clients");
-        int clientsAfterBatching = Math.min(options.valueOf(this.batchSize), clientsNeeded);
-        System.out.println("After batch limit, we can requisition up to " + clientsAfterBatching + " this run");
-        return clientsAfterBatching;
-    }
-
-    /**
-     * This checks to see whether the current spot price is reasonable.
-     * 
-     * @return
-     */
-    public boolean isReadyToRequestSpotInstances() {
-        AmazonEC2Client ec2 = ConfigTools.getEC2Client();
-        DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory();
-        // TODO: parameterize zone and instance types
-        Float currentPrice = null;
-        for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
-            if (spotPrice.getAvailabilityZone().contains("us-east-1a") && spotPrice.getInstanceType().equals("m1.xlarge")
-                    && spotPrice.getProductDescription().contains("Linux")) {
-                System.out.println(spotPrice.toString());
-                currentPrice = Float.valueOf(spotPrice.getSpotPrice());
-                break;
-            }
-        }
-        if (currentPrice == null) {
-            throw new RuntimeException("Invalid spot price request, check your zone or instance type");
-        }
-        boolean currentPriceIsAcceptable = options.valueOf(this.maxSpotPrice) - currentPrice > 0;
-        return currentPriceIsAcceptable;
+        return distressedClients;
     }
 
     public static void main(String[] args) throws Exception {
 
         Reaper deployer = new Reaper();
         deployer.parseArguments(args);
-        int clientsToDeploy = deployer.assessClients();
-        if (clientsToDeploy > 0) {
-            boolean readyToRequestSpot = deployer.isReadyToRequestSpotInstances();
-            List<Instance> readyInstances;
-
-            // hook up sensu to requested instances using Ansible
-            // 1. generate an ansible inventory file
-            StringBuilder buffer = new StringBuilder();
-            // TODO: parameterize all this stuff
-            buffer.append("[sensu-server]")
-                    .append('\n')
-                    .append("sensu-server\tansible_ssh_host=23.22.238.129\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=/home/dyuen/.ssh/oicr-aws-dyuen.pem\n");
-            // assume all clients are masters (single-node clusters) for now
-            buffer.append("[master]\n");
-
-            Path createTempFile = Files.createTempFile("ansible", ".inventory");
-            FileUtils.writeStringToFile(createTempFile.toFile(), buffer.toString());
-            System.out.println(buffer.toString());
-
-            // 2. run ansible
-            CommandLine cmdLine = new CommandLine("ansible-playbook");
-            Map<String, String> environmentMap = Maps.newHashMap();
-            environmentMap.put("ANSIBLE_HOST_KEY_CHECKING", "False");
-            cmdLine.addArgument("-i");
-            cmdLine.addArgument("${file}");
-            cmdLine.addArgument("${playbook}");
-            HashMap map = new HashMap();
-            map.put("file", createTempFile);
-            map.put("playbook", "/home/dyuen/youxia/ansible_sensu/site.yml");
-            cmdLine.setSubstitutionMap(map);
-
-            System.out.println(cmdLine.toString());
-            // kill ansible if it hangs for 15 minutes
-            final int waitTime = 15 * 60 * 1000;
-            ExecuteWatchdog watchdog = new ExecuteWatchdog(waitTime);
-            Executor executor = new DefaultExecutor();
-            executor.setStreamHandler(new PumpStreamHandler(System.out));
-            executor.setWatchdog(watchdog);
-            executor.execute(cmdLine, environmentMap);
+        List<String> instancesToKill = deployer.assessClients();
+        if (instancesToKill.size() > 0) {
+            if (deployer.options.has(deployer.testMode)) {
+                System.out.println("Test mode:");
+                for (String instance : instancesToKill) {
+                    System.out.println("Would have killed: " + instance);
+                }
+            } else {
+                System.out.println("Live mode:");
+                System.out.println("Killing " + StringUtils.join(instancesToKill, ','));
+                AmazonEC2 client = ConfigTools.getEC2Client();
+                TerminateInstancesRequest request = new TerminateInstancesRequest(instancesToKill);
+                client.terminateInstances(request);
+            }
         }
     }
 }
