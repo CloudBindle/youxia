@@ -25,13 +25,13 @@ Configure your credentials in a <code>.youxia/config</code> file in your home di
 
 	[youxia]
 	sensu_username = admin
-	sensu_password = XXXX 
+	sensu_password = XXXXX 
 	sensu_ip_address = XX.XX.XXX.XXX
 	aws_ssh_key = /home/dyuen/.ssh/oicr-aws-dyuen.pem
 	aws_key_name = oicr-aws-dyuen
 	openstack_username = sweng:dyuen	
-	openstack_password = XXXXXX 
-	openstack_endpoint = http://XXXXXX:5000/v2.0/
+	openstack_password = XXXXX
+	openstack_endpoint = http://sweng.os.oicr.on.ca:5000/v2.0/
 	zone = us-east-1a
 	managed_tag = drunken_master
 
@@ -39,11 +39,17 @@ Configure your credentials in a <code>.youxia/config</code> file in your home di
 	ami_image = ami-90da15f8
 	instance_type = m1.xlarge
 
-	[reaper]
-	seqware_rest_user = XXX@XXX.com 
-	seqware_rest_pass = XXX 
-	seqware_rest_port = 8080
-	seqware_rest_url = SeqWareWebService
-    
+	[seqware]
+	rest_user = admin@admin.com
+	rest_pass = XXXXX
+	rest_port = 8080
+	rest_root = SeqWareWebService
+
+	[generator]
+	max_scheduled_workflows = 1
+	max_workflows = 1
+	workflow_accession = 2
+	workflow_name = Workflow_Bundle_BWA
+	workflow_version = 2.6.0
 
 See [Youxia](https://en.wikipedia.org/wiki/Youxia)
