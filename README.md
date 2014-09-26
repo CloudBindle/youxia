@@ -5,7 +5,15 @@ A collection of tools allowing one to manage clouds of SeqWare instances (specif
 
 For most tools, you will need to have a valid Amazon Web Services developer account.
 
-## Configuration
+## Developers
+
+1. Java contributions must be formatted using SeqWare's Eclipse formatting file. See https://seqware.github.io/docs/100-coding-standards/ for more details
+2. Test your build against Checkstyle and a few Maven checks for consistent dependencies using <code>mvn clean install</code>
+3. Check your build status on jenkins
+
+## Users
+
+### Configuration
 
 Configure your AWS security credentials in a <code>.aws/config</code> file in your home directory. For example:
 
