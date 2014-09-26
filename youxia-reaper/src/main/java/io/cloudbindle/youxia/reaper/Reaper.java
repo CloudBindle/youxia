@@ -29,20 +29,29 @@ import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * This class tears down VMs that are unhealthy or have run enough workflows to reach the kill limit.
+ * This class tears down VMs that are unhealthy or have run enough workflows to reach the reaper's kill limit.
  * 
  */
 public class Reaper {
 
-    private static final int DEFAULT_SENSU_PORT = 4567;
-    private ArgumentAcceptingOptionSpec<Integer> batchSize;
-    private ArgumentAcceptingOptionSpec<String> sensuHost;
-    private ArgumentAcceptingOptionSpec<Integer> sensuPort;
-    private OptionSet options;
-    private ArgumentAcceptingOptionSpec<Integer> killLimit;
-    private OptionSpecBuilder testMode;
+    public static final String REAPER_SEQWARE_REST_PASS = "reaper.seqware_rest_pass";
+    public static final String REAPER_SEQWARE_REST_USER = "reaper.seqware_rest_user";
+    public static final String REAPER_SEQWARE_REST_PORT = "reaper.seqware_rest_port";
+    public static final String REAPER_SEQWARE_REST_ROOT = "reaper.seqware_rest_root";
 
-    public void parseArguments(String[] args) {
+    private static final int DEFAULT_SENSU_PORT = 4567;
+    private final ArgumentAcceptingOptionSpec<Integer> batchSize;
+    private final ArgumentAcceptingOptionSpec<String> sensuHost;
+    private final ArgumentAcceptingOptionSpec<Integer> sensuPort;
+    private OptionSet options;
+    private final ArgumentAcceptingOptionSpec<Integer> killLimit;
+    private final OptionSpecBuilder testMode;
+    private final HierarchicalINIConfiguration youxiaConfig;
+
+    public Reaper(String[] args) {
+        this.youxiaConfig = ConfigTools.getYouxiaConfig();
+        // TODO: validate that all used properties are present
+
         OptionParser parser = new OptionParser();
 
         parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
@@ -78,8 +87,8 @@ public class Reaper {
      * 
      * @return
      */
-    public List<String> assessClients() {
-        HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
+    private List<String> assessClients() {
+
         AwsListing lister = new AwsListing();
         Map<String, String> instances = lister.getInstances();
         List<String> instancesToKill = Lists.newArrayList();
@@ -87,17 +96,18 @@ public class Reaper {
         // determine number of clients in distress
         List<Client> distressedClients = Lists.newArrayList();
         if (options.has(sensuHost) && options.has(sensuPort)) {
-            distressedClients = determineSensuUnhealthyClients(youxiaConfig);
+            distressedClients = determineSensuUnhealthyClients();
         }
-        // TODO: incoporate sensu information here
+        // TODO: incoporate sensu information to determine instances to kill here
 
         Map<String, String> settings = Maps.newHashMap();
-        settings.put(SqwKeys.SW_REST_USER.getSettingKey(), "admin@admin.com");
-        settings.put(SqwKeys.SW_REST_PASS.getSettingKey(), "admin");
+        settings.put(SqwKeys.SW_REST_USER.getSettingKey(), youxiaConfig.getString(REAPER_SEQWARE_REST_USER));
+        settings.put(SqwKeys.SW_REST_PASS.getSettingKey(), youxiaConfig.getString(REAPER_SEQWARE_REST_PASS));
 
         for (Entry<String, String> instance : instances.entrySet()) {
             // fake a settings
-            String url = "http://" + instance.getValue() + ":8080/SeqWareWebService";
+            String url = "http://" + instance.getValue() + ":" + youxiaConfig.getString(REAPER_SEQWARE_REST_PORT) + "/"
+                    + youxiaConfig.getString(REAPER_SEQWARE_REST_ROOT);
             System.out.println("Looking at " + url);
             settings.put(SqwKeys.SW_REST_URL.getSettingKey(), url);
             MetadataWS ws = MetadataFactory.getWS(settings);
@@ -125,12 +135,12 @@ public class Reaper {
         return instancesToKill;
     }
 
-    private List<Client> determineSensuUnhealthyClients(HierarchicalINIConfiguration youxiaConfig) {
+    private List<Client> determineSensuUnhealthyClients() {
         List<Client> distressedClients;
         System.out.println("Considering sensu information to identify distressed hosts");
         // If sensu options are specified, talk to sensu and cross-reference health information
         SensuClient sensuClient = new SensuClient(options.valueOf(sensuHost), options.valueOf(sensuPort),
-                (String) youxiaConfig.getProperty("youxia.sensu_username"), (String) youxiaConfig.getProperty("youxia.sensu_password"));
+                youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_USERNAME), youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD));
         List<Client> clients = sensuClient.getClients();
         List<Client> awsClients = Lists.newArrayList();
         for (Client client : clients) {
@@ -157,8 +167,7 @@ public class Reaper {
 
     public static void main(String[] args) throws Exception {
 
-        Reaper deployer = new Reaper();
-        deployer.parseArguments(args);
+        Reaper deployer = new Reaper(args);
         List<String> instancesToKill = deployer.assessClients();
         if (instancesToKill.size() > 0) {
             if (deployer.options.has(deployer.testMode)) {

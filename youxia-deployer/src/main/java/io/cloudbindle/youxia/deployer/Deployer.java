@@ -40,18 +40,25 @@ import org.apache.commons.io.FileUtils;
 /**
  * This class maintains a fleet of amazon instances dependent on state retrieved from sensu.
  * 
- * Before you run this code, be sure to fill in your AWS security credentials in the src/main/resources/AwsCredentials.properties file in
- * this project.
+ * Before you run this code, be sure to fill in your ~/.youxia/config and ~/.aws/config
  */
 public class Deployer {
 
     private static final long SLEEP_CYCLE = 60000;
-    private ArgumentAcceptingOptionSpec<Integer> totalNodes;
-    private ArgumentAcceptingOptionSpec<Float> maxSpotPrice;
-    private ArgumentAcceptingOptionSpec<Integer> batchSize;
+    private final ArgumentAcceptingOptionSpec<Integer> totalNodes;
+    private final ArgumentAcceptingOptionSpec<Float> maxSpotPrice;
+    private final ArgumentAcceptingOptionSpec<Integer> batchSize;
     private OptionSet options;
+    private final HierarchicalINIConfiguration youxiaConfig;
+    public static final String DEPLOYER_INSTANCE_TYPE = "deployer.instance_type";
+    public static final String DEPLOYER_ZONE = "deployer.zone";
 
-    public void parseArguments(String[] args) {
+    private final ArgumentAcceptingOptionSpec<String> playbook;
+
+    public Deployer(String[] args) {
+        // record configuration
+        this.youxiaConfig = ConfigTools.getYouxiaConfig();
+        // TODO: validate that all required parameters are present
         OptionParser parser = new OptionParser();
 
         parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
@@ -63,6 +70,9 @@ public class Deployer {
                 .withRequiredArg().ofType(Float.class).required();
         this.batchSize = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring up at one time")
                 .withRequiredArg().ofType(Integer.class).required();
+        this.playbook = parser
+                .acceptsAll(Arrays.asList("ansible-playbook", "a"), "If specified, ansible will be run using the specified playbook")
+                .withRequiredArg().ofType(String.class).required();
         try {
             this.options = parser.parse(args);
         } catch (OptionException e) {
@@ -75,7 +85,6 @@ public class Deployer {
                 throw new RuntimeException(ex);
             }
         }
-        assert (options != null);
     }
 
     /**
@@ -83,7 +92,7 @@ public class Deployer {
      * 
      * @return
      */
-    public int assessClients() {
+    private int assessClients() {
         AwsListing awsLister = new AwsListing();
         Map<String, String> map = awsLister.getInstances();
         System.out.println("Found " + map.size() + " AWS clients");
@@ -100,13 +109,13 @@ public class Deployer {
      * 
      * @return
      */
-    public boolean isReadyToRequestSpotInstances() {
+    private boolean isReadyToRequestSpotInstances() {
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
         DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory();
-        // TODO: parameterize zone and instance types
         Float currentPrice = null;
         for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
-            if (spotPrice.getAvailabilityZone().contains("us-east-1a") && spotPrice.getInstanceType().equals("m1.xlarge")
+            if (spotPrice.getAvailabilityZone().contains(youxiaConfig.getString(DEPLOYER_ZONE))
+                    && spotPrice.getInstanceType().equals(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
                     && spotPrice.getProductDescription().contains("Linux")) {
                 System.out.println(spotPrice.toString());
                 currentPrice = Float.valueOf(spotPrice.getSpotPrice());
@@ -134,11 +143,10 @@ public class Deployer {
      */
     private List<Instance> requestSpotInstances(int numInstances, boolean skipWait) {
         try {
-            HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
             // Setup the helper object that will perform all of the API calls.
-            Requests requests = new Requests("m1.xlarge", "ami-90da15f8", Float.toString(options.valueOf(this.maxSpotPrice)), "Default",
-                    numInstances);
-            requests.setAvailabilityZone("us-east-1a");
+            Requests requests = new Requests(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE), youxiaConfig.getString("deployer.ami_image"),
+                    Float.toString(options.valueOf(this.maxSpotPrice)), "Default", numInstances);
+            requests.setAvailabilityZone(youxiaConfig.getString(DEPLOYER_ZONE));
             // Create the list of tags we want to create and tag any associated requests.
             ArrayList<Tag> tags = new ArrayList<>();
             tags.add(new Tag(InstanceListingInterface.YOUXIA_MANAGED_TAG, youxiaConfig
@@ -224,10 +232,57 @@ public class Deployer {
         }
     }
 
+    private void runAnsible(List<Instance> readyInstances) {
+        if (this.options.has(this.playbook)) {
+            try {
+                // hook up sensu to requested instances using Ansible
+                // 1. generate an ansible inventory file
+                StringBuilder buffer = new StringBuilder();
+                buffer.append("[sensu-server]").append('\n').append("sensu-server\tansible_ssh_host=")
+                        .append(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS))
+                        .append("\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=")
+                        .append(youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY)).append("\n");
+                // assume all clients are masters (single-node clusters) for now
+                buffer.append("[master]\n");
+                for (Instance s : readyInstances) {
+                    buffer.append(s.getInstanceId()).append('\t').append("ansible_ssh_host=").append(s.getPublicIpAddress());
+                    buffer.append('\t').append("ansible_ssh_private_key_file=")
+                            .append(youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY)).append('\n');
+                }
+                Path createTempFile = Files.createTempFile("ansible", ".inventory");
+                FileUtils.writeStringToFile(createTempFile.toFile(), buffer.toString());
+                System.out.println("Ansible inventory:");
+                System.out.println(buffer.toString());
+
+                // 2. run ansible
+                CommandLine cmdLine = new CommandLine("ansible-playbook");
+                Map<String, String> environmentMap = Maps.newHashMap();
+                environmentMap.put("ANSIBLE_HOST_KEY_CHECKING", "False");
+                cmdLine.addArgument("-i");
+                cmdLine.addArgument("${file}");
+                cmdLine.addArgument("${playbook}");
+                HashMap map = new HashMap();
+                map.put("file", createTempFile);
+                map.put("playbook", this.options.valueOf(this.playbook));
+                cmdLine.setSubstitutionMap(map);
+
+                System.out.println(cmdLine.toString());
+                // kill ansible if it hangs for 15 minutes
+                final int waitTime = 15 * 60 * 1000;
+                ExecuteWatchdog watchdog = new ExecuteWatchdog(waitTime);
+                Executor executor = new DefaultExecutor();
+                executor.setStreamHandler(new PumpStreamHandler(System.out));
+                executor.setWatchdog(watchdog);
+                executor.execute(cmdLine, environmentMap);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+    }
+
     public static void main(String[] args) throws Exception {
 
-        Deployer deployer = new Deployer();
-        deployer.parseArguments(args);
+        Deployer deployer = new Deployer(args);
         int clientsToDeploy = deployer.assessClients();
         if (clientsToDeploy > 0) {
             boolean readyToRequestSpot = deployer.isReadyToRequestSpotInstances();
@@ -239,43 +294,7 @@ public class Deployer {
             } else {
                 readyInstances = deployer.requestSpotInstances(clientsToDeploy, true);
             }
-            // hook up sensu to requested instances using Ansible
-            // 1. generate an ansible inventory file
-            StringBuilder buffer = new StringBuilder();
-            // TODO: parameterize all this stuff
-            buffer.append("[sensu-server]")
-                    .append('\n')
-                    .append("sensu-server\tansible_ssh_host=23.22.238.129\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=/home/dyuen/.ssh/oicr-aws-dyuen.pem\n");
-            // assume all clients are masters (single-node clusters) for now
-            buffer.append("[master]\n");
-            for (Instance s : readyInstances) {
-                buffer.append(s.getInstanceId()).append('\t').append("ansible_ssh_host=").append(s.getPublicIpAddress());
-                buffer.append('\t').append("ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem").append('\n');
-            }
-            Path createTempFile = Files.createTempFile("ansible", ".inventory");
-            FileUtils.writeStringToFile(createTempFile.toFile(), buffer.toString());
-            System.out.println(buffer.toString());
-
-            // 2. run ansible
-            CommandLine cmdLine = new CommandLine("ansible-playbook");
-            Map<String, String> environmentMap = Maps.newHashMap();
-            environmentMap.put("ANSIBLE_HOST_KEY_CHECKING", "False");
-            cmdLine.addArgument("-i");
-            cmdLine.addArgument("${file}");
-            cmdLine.addArgument("${playbook}");
-            HashMap map = new HashMap();
-            map.put("file", createTempFile);
-            map.put("playbook", "/home/dyuen/youxia/ansible_sensu/site.yml");
-            cmdLine.setSubstitutionMap(map);
-
-            System.out.println(cmdLine.toString());
-            // kill ansible if it hangs for 15 minutes
-            final int waitTime = 15 * 60 * 1000;
-            ExecuteWatchdog watchdog = new ExecuteWatchdog(waitTime);
-            Executor executor = new DefaultExecutor();
-            executor.setStreamHandler(new PumpStreamHandler(System.out));
-            executor.setWatchdog(watchdog);
-            executor.execute(cmdLine, environmentMap);
+            deployer.runAnsible(readyInstances);
         }
     }
 }
