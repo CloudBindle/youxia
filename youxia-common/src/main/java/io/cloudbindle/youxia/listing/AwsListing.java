@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package io.cloudbindle.youxia.aws;
+package io.cloudbindle.youxia.listing;
 
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
@@ -24,7 +24,6 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.util.ConfigTools;
-import io.cloudbindle.youxia.util.InstanceListingInterface;
 import java.util.Map;
 import java.util.Map.Entry;
 

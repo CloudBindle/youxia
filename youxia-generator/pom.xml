@@ -13,4 +13,18 @@
     <name>youxia-generator</name>
     <url>https://github.com/CloudBindle/youxia</url>
     
+    <dependencies>
+        <dependency>
+            <groupId>io.cloudbindle</groupId>
+            <artifactId>youxia-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.jopt-simple</groupId>
+            <artifactId>jopt-simple</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-configuration</groupId>
+            <artifactId>commons-configuration</artifactId>
+        </dependency>
+    </dependencies>
 </project>

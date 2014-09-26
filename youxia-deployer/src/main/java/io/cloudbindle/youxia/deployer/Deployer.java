@@ -12,9 +12,9 @@ import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.amazonaws.Requests;
-import io.cloudbindle.youxia.aws.AwsListing;
+import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.util.ConfigTools;
-import io.cloudbindle.youxia.util.InstanceListingInterface;
+import io.cloudbindle.youxia.listing.InstanceListingInterface;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,7 +51,7 @@ public class Deployer {
     private OptionSet options;
     private final HierarchicalINIConfiguration youxiaConfig;
     public static final String DEPLOYER_INSTANCE_TYPE = "deployer.instance_type";
-    public static final String DEPLOYER_ZONE = "deployer.zone";
+    public static final String DEPLOYER_AMI_IMAGE = "deployer.ami_image";
 
     private final ArgumentAcceptingOptionSpec<String> playbook;
 
@@ -114,7 +114,7 @@ public class Deployer {
         DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory();
         Float currentPrice = null;
         for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
-            if (spotPrice.getAvailabilityZone().contains(youxiaConfig.getString(DEPLOYER_ZONE))
+            if (spotPrice.getAvailabilityZone().contains(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE))
                     && spotPrice.getInstanceType().equals(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
                     && spotPrice.getProductDescription().contains("Linux")) {
                 System.out.println(spotPrice.toString());
@@ -144,9 +144,10 @@ public class Deployer {
     private List<Instance> requestSpotInstances(int numInstances, boolean skipWait) {
         try {
             // Setup the helper object that will perform all of the API calls.
-            Requests requests = new Requests(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE), youxiaConfig.getString("deployer.ami_image"),
-                    Float.toString(options.valueOf(this.maxSpotPrice)), "Default", numInstances);
-            requests.setAvailabilityZone(youxiaConfig.getString(DEPLOYER_ZONE));
+            Requests requests = new Requests(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE), youxiaConfig.getString(DEPLOYER_AMI_IMAGE),
+                    Float.toString(options.valueOf(this.maxSpotPrice)), "Default", numInstances,
+                    youxiaConfig.getString(ConfigTools.YOUXIA_AWS_KEY_NAME));
+            requests.setAvailabilityZone(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE));
             // Create the list of tags we want to create and tag any associated requests.
             ArrayList<Tag> tags = new ArrayList<>();
             tags.add(new Tag(InstanceListingInterface.YOUXIA_MANAGED_TAG, youxiaConfig

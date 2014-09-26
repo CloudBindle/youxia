@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package io.cloudbindle.youxia.util;
+package io.cloudbindle.youxia.listing;
 
 import java.util.Map;
 

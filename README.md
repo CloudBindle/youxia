@@ -23,13 +23,27 @@ Configure your AWS security credentials in a <code>.aws/config</code> file in yo
 
 Configure your credentials in a <code>.youxia/config</code> file in your home directory. For example:
 
-    [youxia]
-    sensu_username = admin
-    sensu_password = seqware
-    managed_tag = drunken_master
-    
-    [deployer]
-    ami_image = ami-90da15f8
+	[youxia]
+	sensu_username = admin
+	sensu_password = XXXX 
+	sensu_ip_address = XX.XX.XXX.XXX
+	aws_ssh_key = /home/dyuen/.ssh/oicr-aws-dyuen.pem
+	aws_key_name = oicr-aws-dyuen
+	openstack_username = sweng:dyuen	
+	openstack_password = XXXXXX 
+	openstack_endpoint = http://XXXXXX:5000/v2.0/
+	zone = us-east-1a
+	managed_tag = drunken_master
+
+	[deployer]
+	ami_image = ami-90da15f8
+	instance_type = m1.xlarge
+
+	[reaper]
+	seqware_rest_user = XXX@XXX.com 
+	seqware_rest_pass = XXX 
+	seqware_rest_port = 8080
+	seqware_rest_url = SeqWareWebService
     
 
 See [Youxia](https://en.wikipedia.org/wiki/Youxia)

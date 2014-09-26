@@ -61,6 +61,7 @@ public class Requests {
     private Date validTo;
     private String requestType;
     private int numInstances;
+    private String keyName;
 
     /**
      * Public constructor.
@@ -69,10 +70,12 @@ public class Requests {
      * @param amiID
      * @param securityGroup
      * @param bidPrice
+     * @param numInstances
      * @throws Exception
      */
-    public Requests(String instanceType, String amiID, String bidPrice, String securityGroup, int numInstances) throws Exception {
-        init(instanceType, amiID, bidPrice, securityGroup, numInstances);
+    public Requests(String instanceType, String amiID, String bidPrice, String securityGroup, int numInstances, String keyName)
+            throws Exception {
+        init(instanceType, amiID, bidPrice, securityGroup, numInstances, keyName);
     }
 
     /**
@@ -84,7 +87,8 @@ public class Requests {
      * @see com.amazonaws.auth.PropertiesCredentials
      * @see com.amazonaws.ClientConfiguration
      */
-    private void init(String instanceType, String amiID, String bidPrice, String securityGroup, int numInstances) throws Exception {
+    private void init(String instanceType, String amiID, String bidPrice, String securityGroup, int numInstances, String keyName)
+            throws Exception {
         this.instanceType = instanceType;
         this.amiID = amiID;
         this.bidPrice = bidPrice;
@@ -92,6 +96,7 @@ public class Requests {
         this.deleteOnTermination = true;
         this.placementGroupName = null;
         this.numInstances = numInstances;
+        this.keyName = keyName;
 
         this.ec2 = ConfigTools.getEC2Client();
     }
@@ -103,7 +108,6 @@ public class Requests {
      * version by logging into the AWS Management console, and attempting to perform a launch. You will be presented with AMI options, one
      * of which will be Amazon Linux. Simply use that AMI id.
      * 
-     * @return spotInstanceIds
      */
     public void submitRequests() {
         // ==========================================================================//
@@ -123,6 +127,7 @@ public class Requests {
         LaunchSpecification launchSpecification = new LaunchSpecification();
         launchSpecification.setImageId(amiID);
         launchSpecification.setInstanceType(instanceType);
+        launchSpecification.setKeyName(keyName);
 
         // Add the security group to the request.
         ArrayList<String> securityGroups = new ArrayList<>();
@@ -223,6 +228,7 @@ public class Requests {
         runInstancesRequest.setImageId(amiID);
         runInstancesRequest.setMinCount(this.getNumInstances());
         runInstancesRequest.setMaxCount(this.getNumInstances());
+        runInstancesRequest.setKeyName(keyName);
 
         // Add the security group to the request.
         ArrayList<String> securityGroups = new ArrayList<>();

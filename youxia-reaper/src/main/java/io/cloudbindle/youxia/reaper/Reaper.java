@@ -4,7 +4,7 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.cloudbindle.youxia.aws.AwsListing;
+import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
 import io.cloudbindle.youxia.sensu.client.SensuClient;

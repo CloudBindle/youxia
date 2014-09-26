@@ -21,6 +21,7 @@
         <github.url>scm:git:git@github.com:CloudBindle/bindle.git</github.url>
         <httpcomponents-version>4.3.2</httpcomponents-version>
         <seqware-version>1.1.0-alpha.3</seqware-version>
+        <jclouds.version>1.8.0</jclouds.version>
     </properties>
 
     <scm>
@@ -49,6 +50,42 @@
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-core</artifactId>
                 <version>1.8.10.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.jclouds</groupId>
+                <artifactId>jclouds-all</artifactId>
+                <version>${jclouds.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.jclouds</groupId>
+                <artifactId>jclouds-core</artifactId>
+                <version>${jclouds.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.jclouds.api</groupId>
+                <artifactId>openstack-nova</artifactId>
+                <version>${jclouds.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.jclouds</groupId>
+                <artifactId>jclouds-compute</artifactId>
+                <version>${jclouds.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.jclouds.driver</groupId>
+                <artifactId>jclouds-slf4j</artifactId>
+                <version>${jclouds.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.jclouds.driver</groupId>
+                <artifactId>jclouds-sshj</artifactId>
+                <version>${jclouds.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-api</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>net.sf.jopt-simple</groupId>
