@@ -24,8 +24,8 @@ package io.cloudbindle.youxia.sensu.api;
 public class ClientHistory {
     private String check;
     private int[] history;
-    private Long last_execution;
-    private int last_status;
+    private Long lastExecution;
+    private int lastStatus;
 
     /**
      * @return the check
@@ -56,31 +56,31 @@ public class ClientHistory {
     }
 
     /**
-     * @return the last_execution
+     * @return the lastExecution
      */
-    public Long getLast_execution() {
-        return last_execution;
+    public Long getLastExecution() {
+        return lastExecution;
     }
 
     /**
-     * @param last_execution the last_execution to set
+     * @param lastExecution the lastExecution to set
      */
-    public void setLast_execution(Long last_execution) {
-        this.last_execution = last_execution;
+    public void setLastExecution(Long lastExecution) {
+        this.lastExecution = lastExecution;
     }
 
     /**
-     * @return the last_status
+     * @return the lastStatus
      */
-    public int getLast_status() {
-        return last_status;
+    public int getLastStatus() {
+        return lastStatus;
     }
 
     /**
-     * @param last_status the last_status to set
+     * @param lastStatus the lastStatus to set
      */
-    public void setLast_status(int last_status) {
-        this.last_status = last_status;
+    public void setLastStatus(int lastStatus) {
+        this.lastStatus = lastStatus;
     }
 
 }

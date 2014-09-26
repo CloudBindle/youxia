@@ -34,10 +34,6 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class Reaper {
 
-    public static final String REAPER_SEQWARE_REST_PASS = "reaper.seqware_rest_pass";
-    public static final String REAPER_SEQWARE_REST_USER = "reaper.seqware_rest_user";
-    public static final String REAPER_SEQWARE_REST_PORT = "reaper.seqware_rest_port";
-    public static final String REAPER_SEQWARE_REST_ROOT = "reaper.seqware_rest_root";
 
     private static final int DEFAULT_SENSU_PORT = 4567;
     private final ArgumentAcceptingOptionSpec<Integer> batchSize;
@@ -101,13 +97,13 @@ public class Reaper {
         // TODO: incoporate sensu information to determine instances to kill here
 
         Map<String, String> settings = Maps.newHashMap();
-        settings.put(SqwKeys.SW_REST_USER.getSettingKey(), youxiaConfig.getString(REAPER_SEQWARE_REST_USER));
-        settings.put(SqwKeys.SW_REST_PASS.getSettingKey(), youxiaConfig.getString(REAPER_SEQWARE_REST_PASS));
+        settings.put(SqwKeys.SW_REST_USER.getSettingKey(), youxiaConfig.getString(ConfigTools.SEQWARE_REST_USER));
+        settings.put(SqwKeys.SW_REST_PASS.getSettingKey(), youxiaConfig.getString(ConfigTools.SEQWARE_REST_PASS));
 
         for (Entry<String, String> instance : instances.entrySet()) {
             // fake a settings
-            String url = "http://" + instance.getValue() + ":" + youxiaConfig.getString(REAPER_SEQWARE_REST_PORT) + "/"
-                    + youxiaConfig.getString(REAPER_SEQWARE_REST_ROOT);
+            String url = "http://" + instance.getValue() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
+                    + youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT);
             System.out.println("Looking at " + url);
             settings.put(SqwKeys.SW_REST_URL.getSettingKey(), url);
             MetadataWS ws = MetadataFactory.getWS(settings);
@@ -144,8 +140,8 @@ public class Reaper {
         List<Client> clients = sensuClient.getClients();
         List<Client> awsClients = Lists.newArrayList();
         for (Client client : clients) {
-            if (client.getEnvironment().getAnsible_system_vendor().equals("")
-                    && client.getEnvironment().getAnsible_product_name().equals("")) {
+            if (client.getEnvironment().getAnsibleSystemVendor().equals("")
+                    && client.getEnvironment().getAnsibleProductName().equals("")) {
                 // TODO: find better way to denote AWS clients aside from the lack of a openstack vendor or product name
                 awsClients.add(client);
             }
@@ -157,7 +153,7 @@ public class Reaper {
             // TODO: properly assess clients for distress
             List<ClientHistory> history = sensuClient.getClientHistory(client.getName());
             for (ClientHistory h : history) {
-                if (h.getLast_status() != 0) {
+                if (h.getLastStatus() != 0) {
                     distressedClients.add(client);
                 }
             }

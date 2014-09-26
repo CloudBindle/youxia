@@ -18,6 +18,7 @@
 package io.cloudbindle.youxia.sensu.client;
 
 import com.google.common.collect.Lists;
+import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.cloudbindle.youxia.sensu.api.Client;
@@ -88,7 +89,8 @@ public class SensuClient {
         try (CloseableHttpResponse response = httpclient.execute(httpget, context)) {
             System.out.println(response.toString());
             try (InputStreamReader reader = new InputStreamReader(response.getEntity().getContent())) {
-                Gson gson = new GsonBuilder().create();
+                Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting()
+                        .create();
                 return gson.fromJson(reader, targetClass);
             }
         } catch (IOException ex) {

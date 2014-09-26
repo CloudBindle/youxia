@@ -72,37 +72,37 @@ public class Client {
 
     public class Environment {
 
-        private String ansible_system_vendor;
-        private String ansible_product_name;
+        private String ansibleSystemVendor;
+        private String ansibleProductName;
 
         /**
-         * @return the ansible_system_vendor
+         * @return the ansibleSystemVendor
          */
-        public String getAnsible_system_vendor() {
-            return ansible_system_vendor;
+        public String getAnsibleSystemVendor() {
+            return ansibleSystemVendor;
         }
 
         /**
-         * @param ansible_system_vendor
-         *            the ansible_system_vendor to set
+         * @param ansibleSystemVendor
+         *            the ansibleSystemVendor to set
          */
-        public void setAnsible_system_vendor(String ansible_system_vendor) {
-            this.ansible_system_vendor = ansible_system_vendor;
+        public void setAnsibleSystemVendor(String ansibleSystemVendor) {
+            this.ansibleSystemVendor = ansibleSystemVendor;
         }
 
         /**
-         * @return the ansible_product_name
+         * @return the ansibleProductName
          */
-        public String getAnsible_product_name() {
-            return ansible_product_name;
+        public String getAnsibleProductName() {
+            return ansibleProductName;
         }
 
         /**
-         * @param ansible_product_name
-         *            the ansible_product_name to set
+         * @param ansibleProductName
+         *            the ansibleProductName to set
          */
-        public void setAnsible_product_name(String ansible_product_name) {
-            this.ansible_product_name = ansible_product_name;
+        public void setAnsibleProductName(String ansibleProductName) {
+            this.ansibleProductName = ansibleProductName;
         }
 
     }

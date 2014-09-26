@@ -54,7 +54,6 @@ public class OpenStackJCloudsListing implements InstanceListingInterface {
                 for (Server server : toList1) {
                     for (Entry<String, String> tag : server.getMetadata().entrySet()) {
                         if (tag.getKey().equals(YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
-                            System.out.println(server.toString());
                             /**
                              * TODO: This is unfortunate, but it looks like Openstack doesn't actually know which ip addresses assigned to
                              * an instance if public or private. On ours, it looks like the second one, but this is totally unreliable.
