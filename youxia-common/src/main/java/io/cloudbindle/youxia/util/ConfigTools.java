@@ -22,6 +22,7 @@ import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.auth.profile.ProfilesConfigFile;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.simpledb.AmazonSimpleDBClient;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Module;
 import java.io.File;
@@ -48,6 +49,7 @@ public class ConfigTools {
     public static final String YOUXIA_OPENSTACK_USERNAME = "youxia.openstack_username";
     public static final String YOUXIA_OPENSTACK_PASSWORD = "youxia.openstack_password";
     public static final String YOUXIA_OPENSTACK_ENDPOINT = "youxia.openstack_endpoint";
+    public static final String YOUXIA_MANAGED_TAG = "youxia.managed_tag";
     public static final String SEQWARE_REST_USER = "seqware.rest_user";
     public static final String SEQWARE_REST_PORT = "seqware.rest_port";
     public static final String SEQWARE_REST_ROOT = "seqware.rest_root";
@@ -117,6 +119,10 @@ public class ConfigTools {
                 .credentials(youxiaConfig.getString(YOUXIA_OPENSTACK_USERNAME), youxiaConfig.getString(YOUXIA_OPENSTACK_PASSWORD))
                 .modules(ImmutableSet.<Module> of(new SLF4JLoggingModule())).buildApi(NovaApi.class);
         return api;
+    }
+
+    public static AmazonSimpleDBClient getSimpleDBClient() {
+        return new AmazonSimpleDBClient(getAWSCredentialProvider());
     }
 
     public static AmazonEC2Client getEC2Client() {

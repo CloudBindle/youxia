@@ -78,7 +78,7 @@ public class OpenStackTagger implements InstanceListingInterface {
 
     @Override
     public Map<String, String> getInstances() {
-        String managedTag = youxiaConfig.getString(YOUXIA_MANAGED_TAG);
+        String managedTag = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
         List<String> valuesOf = options.valuesOf(instances);
         Set<String> instanceSet = Sets.newHashSet(valuesOf);
 
@@ -94,7 +94,7 @@ public class OpenStackTagger implements InstanceListingInterface {
                 ImmutableList<Server> toList1 = iterable.toList();
                 for (Server server : toList1) {
                     if (instanceSet.contains(server.getId())) {
-                        ImmutableMap<String, String> metadata = ImmutableMap.of(YOUXIA_MANAGED_TAG, managedTag);
+                        ImmutableMap<String, String> metadata = ImmutableMap.of(ConfigTools.YOUXIA_MANAGED_TAG, managedTag);
                         serverApiForZone.setMetadata(server.getId(), metadata);
                         map.put(server.getId(), server.getAccessIPv4());
                     }

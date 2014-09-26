@@ -14,7 +14,6 @@ import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.amazonaws.Requests;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.util.ConfigTools;
-import io.cloudbindle.youxia.listing.InstanceListingInterface;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -150,8 +149,7 @@ public class Deployer {
             requests.setAvailabilityZone(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE));
             // Create the list of tags we want to create and tag any associated requests.
             ArrayList<Tag> tags = new ArrayList<>();
-            tags.add(new Tag(InstanceListingInterface.YOUXIA_MANAGED_TAG, youxiaConfig
-                    .getString(InstanceListingInterface.YOUXIA_MANAGED_TAG)));
+            tags.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)));
             // Initialize the timer to now.
             Calendar startTimer = Calendar.getInstance();
             Calendar nowTimer = null;

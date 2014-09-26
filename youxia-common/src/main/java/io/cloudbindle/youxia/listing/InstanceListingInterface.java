@@ -26,8 +26,6 @@ import java.util.Map;
  */
 public interface InstanceListingInterface {
 
-    String YOUXIA_MANAGED_TAG = "youxia.managed_tag";
-
     /**
      * Retrieves a map between a unique identifier and public ip address
      * 

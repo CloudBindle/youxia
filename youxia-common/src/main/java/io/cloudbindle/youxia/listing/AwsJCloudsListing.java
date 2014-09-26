@@ -34,12 +34,12 @@ public class AwsJCloudsListing implements InstanceListingInterface {
 
     @Override
     public Map<String, String> getInstances() {
-        String managedTag = ConfigTools.getYouxiaConfig().getString(YOUXIA_MANAGED_TAG);
+        String managedTag = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
         ComputeServiceContext context = ConfigTools.getAmazonComputeContext();
         Map<String, String> map = Maps.newHashMap();
         for (ComputeMetadata node : context.getComputeService().listNodes()) {
             for (Entry<String, String> tag : node.getUserMetadata().entrySet()) {
-                if (tag.getKey().equals(YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
+                if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
                     if (node instanceof NodeMetadata) {
                         NodeMetadata nodeMetadata = (NodeMetadata) node;
                         if (nodeMetadata.getPublicAddresses().size() <= 0) {

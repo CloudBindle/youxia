@@ -1,9 +1,23 @@
 package io.cloudbindle.youxia.reaper;
 
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+import com.amazonaws.services.simpledb.AmazonSimpleDBClient;
+import com.amazonaws.services.simpledb.model.CreateDomainRequest;
+import com.amazonaws.services.simpledb.model.Item;
+import com.amazonaws.services.simpledb.model.ListDomainsResult;
+import com.amazonaws.services.simpledb.model.PutAttributesRequest;
+import com.amazonaws.services.simpledb.model.ReplaceableAttribute;
+import com.amazonaws.services.simpledb.model.ReplaceableItem;
+import com.amazonaws.services.simpledb.model.SelectRequest;
+import com.amazonaws.services.simpledb.model.SelectResult;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
@@ -34,7 +48,6 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class Reaper {
 
-
     private static final int DEFAULT_SENSU_PORT = 4567;
     private final ArgumentAcceptingOptionSpec<Integer> batchSize;
     private final ArgumentAcceptingOptionSpec<String> sensuHost;
@@ -43,6 +56,9 @@ public class Reaper {
     private final ArgumentAcceptingOptionSpec<Integer> killLimit;
     private final OptionSpecBuilder testMode;
     private final HierarchicalINIConfiguration youxiaConfig;
+    private final OptionSpecBuilder persistWR;
+    public static final String WORKFLOW_RUNS = ".workflow_runs";
+    private final OptionSpecBuilder listWR;
 
     public Reaper(String[] args) {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
@@ -61,7 +77,11 @@ public class Reaper {
                 .ofType(String.class).defaultsTo("localhost");
         this.sensuPort = parser.acceptsAll(Arrays.asList("sensu-port", "sp"), "Port for the sensu server api").withRequiredArg()
                 .ofType(Integer.class).defaultsTo(DEFAULT_SENSU_PORT);
-        this.testMode = parser.acceptsAll(Arrays.asList("test", "t"), "In test mode, we only output instances that would be killed");
+        this.testMode = parser.acceptsAll(Arrays.asList("test", "t"),
+                "In test mode, we only output instances that would be killed ratehr than actually kill them");
+
+        this.persistWR = parser.acceptsAll(Arrays.asList("persist", "p"), "Persist workflow run information to SimpleDB");
+        this.listWR = parser.acceptsAll(Arrays.asList("listWR", "l"), "Only read workflow run information from SimpleDB");
 
         try {
             this.options = parser.parse(args);
@@ -100,6 +120,8 @@ public class Reaper {
         settings.put(SqwKeys.SW_REST_USER.getSettingKey(), youxiaConfig.getString(ConfigTools.SEQWARE_REST_USER));
         settings.put(SqwKeys.SW_REST_PASS.getSettingKey(), youxiaConfig.getString(ConfigTools.SEQWARE_REST_PASS));
 
+        Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting().create();
+        AmazonSimpleDBClient simpleDBClient = null;
         for (Entry<String, String> instance : instances.entrySet()) {
             // fake a settings
             String url = "http://" + instance.getValue() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
@@ -117,6 +139,30 @@ public class Reaper {
                     System.out.println(instance.getKey() + " is at or above the kill limit");
                     instancesToKill.add(instance.getKey());
                 }
+                if (options.has(this.persistWR)) {
+                    simpleDBClient = ConfigTools.getSimpleDBClient();
+                    final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + WORKFLOW_RUNS;
+                    ListDomainsResult listDomains = simpleDBClient.listDomains();
+                    if (!listDomains.getDomainNames().contains(domainName)) {
+                        simpleDBClient.createDomain(new CreateDomainRequest(domainName));
+                    }
+                    List<ReplaceableItem> items = Lists.newArrayList();
+
+                    for (WorkflowRun run : workflowRuns) {
+                        String json = gson.toJson(run);
+                        Map<String, Object> fromJson = gson.fromJson(json, Map.class);
+                        for (Entry<String, Object> field : fromJson.entrySet()) {
+                            ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), field.getValue().toString(), true);
+                            PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
+                                    + run.getSwAccession(), Lists.newArrayList(attr));
+                            simpleDBClient.putAttributes(request);
+                        }
+                    }
+                }
+            } catch (AmazonClientException e) {
+                System.out.println("Skipping " + instance.getKey() + " " + instance.getValue() + " due to AmazonClient error");
+            } catch (JsonSyntaxException e) {
+                System.out.println("Skipping " + instance.getKey() + " " + instance.getValue() + " due to JSON error");
             } catch (RuntimeException e) {
                 System.out.println("Skipping " + instance.getKey() + " " + instance.getValue() + " due to connection error");
             }
@@ -131,6 +177,23 @@ public class Reaper {
         return instancesToKill;
     }
 
+    private void listWorkflowRuns() {
+        AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
+
+        final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + WORKFLOW_RUNS;
+        SelectResult select = simpleDBClient.select(new SelectRequest("select * from `" + domainName + "`"));
+        for (Item item : select.getItems()) {
+            System.out.println(item.toString());
+        }
+        System.out.println();
+        while (select.getNextToken() != null) {
+            select = simpleDBClient.select(new SelectRequest("select * from `" + domainName + "`").withNextToken(select.getNextToken()));
+            for (Item item : select.getItems()) {
+                System.out.println(item.toString());
+            }
+        }
+    }
+
     private List<Client> determineSensuUnhealthyClients() {
         List<Client> distressedClients;
         System.out.println("Considering sensu information to identify distressed hosts");
@@ -140,8 +203,7 @@ public class Reaper {
         List<Client> clients = sensuClient.getClients();
         List<Client> awsClients = Lists.newArrayList();
         for (Client client : clients) {
-            if (client.getEnvironment().getAnsibleSystemVendor().equals("")
-                    && client.getEnvironment().getAnsibleProductName().equals("")) {
+            if (client.getEnvironment().getAnsibleSystemVendor().equals("") && client.getEnvironment().getAnsibleProductName().equals("")) {
                 // TODO: find better way to denote AWS clients aside from the lack of a openstack vendor or product name
                 awsClients.add(client);
             }
@@ -164,6 +226,10 @@ public class Reaper {
     public static void main(String[] args) throws Exception {
 
         Reaper deployer = new Reaper(args);
+        if (deployer.options.has(deployer.listWR)) {
+            deployer.listWorkflowRuns();
+            return;
+        }
         List<String> instancesToKill = deployer.assessClients();
         if (instancesToKill.size() > 0) {
             if (deployer.options.has(deployer.testMode)) {

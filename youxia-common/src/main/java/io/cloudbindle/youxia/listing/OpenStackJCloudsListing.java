@@ -40,7 +40,7 @@ public class OpenStackJCloudsListing implements InstanceListingInterface {
 
     @Override
     public Map<String, String> getInstances() {
-        String managedTag = ConfigTools.getYouxiaConfig().getString(YOUXIA_MANAGED_TAG);
+        String managedTag = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
         NovaApi novaApi = ConfigTools.getNovaApi();
         Map<String, String> map = Maps.newHashMap();
         for (String zone : novaApi.getConfiguredZones()) {
@@ -53,7 +53,7 @@ public class OpenStackJCloudsListing implements InstanceListingInterface {
                 ImmutableList<Server> toList1 = iterable.toList();
                 for (Server server : toList1) {
                     for (Entry<String, String> tag : server.getMetadata().entrySet()) {
-                        if (tag.getKey().equals(YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
+                        if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
                             /**
                              * TODO: This is unfortunate, but it looks like Openstack doesn't actually know which ip addresses assigned to
                              * an instance if public or private. On ours, it looks like the second one, but this is totally unreliable.

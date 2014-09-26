@@ -220,7 +220,6 @@
         <module>youxia-deployer</module>
         <module>ansible_sensu</module>
         <module>youxia-reaper</module>
-        <module>youxia-collector</module>
         <module>youxia-generator</module>
     </modules>
 

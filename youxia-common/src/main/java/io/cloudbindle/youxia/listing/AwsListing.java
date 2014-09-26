@@ -36,7 +36,7 @@ public class AwsListing implements InstanceListingInterface {
 
     @Override
     public Map<String, String> getInstances() {
-        String managedTag = ConfigTools.getYouxiaConfig().getString(YOUXIA_MANAGED_TAG);
+        String managedTag = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
         Map<String, String> map = Maps.newHashMap();
         // TODO: we can probably constrain instance listing to one region or zone
@@ -44,7 +44,7 @@ public class AwsListing implements InstanceListingInterface {
         for (Reservation reservation : describeInstancesResult.getReservations()) {
             for (Instance instance : reservation.getInstances()) {
                 for (Tag tag : instance.getTags()) {
-                    if (tag.getKey().equals(YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
+                    if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
                         map.put(instance.getInstanceId(), instance.getPublicIpAddress());
                     }
                 }
