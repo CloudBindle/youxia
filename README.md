@@ -16,6 +16,7 @@ For most tools, you will need to have a valid Amazon Web Services developer acco
 ### Configuration
 
 As a prerequisite, please install ansible. You can use the directions from the Bindle project.
+You should also look at the instructions for ansible\_sensu. At a minimum, you will need to generate your SSL certificates with the script in ansible\_sensu/ssl from that directory.
 
 First, configure your AWS security credentials in a <code>.aws/config</code> file in your home directory. For example:
 
