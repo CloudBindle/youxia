@@ -15,6 +15,8 @@ For most tools, you will need to have a valid Amazon Web Services developer acco
 
 ### Configuration
 
+As a prerequisite, please install ansible. You can use the directions from the Bindle project.
+
 First, configure your AWS security credentials in a <code>.aws/config</code> file in your home directory. For example:
 
     [default]
