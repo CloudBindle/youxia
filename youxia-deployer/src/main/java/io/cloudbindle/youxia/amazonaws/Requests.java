@@ -34,6 +34,7 @@ import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.SpotPlacement;
 import com.amazonaws.services.ec2.model.Tag;
+import com.google.common.collect.Lists;
 import io.cloudbindle.youxia.util.ConfigTools;
 import java.util.ArrayList;
 import java.util.Date;
@@ -46,8 +47,8 @@ import java.util.List;
  */
 public class Requests {
     private AmazonEC2 ec2;
-    private ArrayList<String> instanceIds;
-    private ArrayList<String> spotInstanceRequestIds;
+    private ArrayList<String> instanceIds = Lists.newArrayList();
+    private ArrayList<String> spotInstanceRequestIds = Lists.newArrayList();
     private String instanceType;
     private String amiID;
     private String bidPrice;
@@ -71,6 +72,7 @@ public class Requests {
      * @param securityGroup
      * @param bidPrice
      * @param numInstances
+     * @param keyName
      * @throws Exception
      */
     public Requests(String instanceType, String amiID, String bidPrice, String securityGroup, int numInstances, String keyName)
@@ -352,18 +354,20 @@ public class Requests {
         // ==========================================================================//
         // ================= Cancel/Terminate Your Spot Request =====================//
         // ==========================================================================//
-        try {
-            // Cancel requests.
-            System.out.println("Cancelling requests.");
-            CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(spotInstanceRequestIds);
-            ec2.cancelSpotInstanceRequests(cancelRequest);
-        } catch (AmazonServiceException e) {
-            // Write out any exceptions that may have occurred.
-            System.out.println("Error cancelling instances");
-            System.out.println("Caught Exception: " + e.getMessage());
-            System.out.println("Reponse Status Code: " + e.getStatusCode());
-            System.out.println("Error Code: " + e.getErrorCode());
-            System.out.println("Request ID: " + e.getRequestId());
+        if (this.spotInstanceRequestIds.size() > 0) {
+            try {
+                // Cancel requests.
+                System.out.println("Cancelling requests.");
+                CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(spotInstanceRequestIds);
+                ec2.cancelSpotInstanceRequests(cancelRequest);
+            } catch (AmazonServiceException e) {
+                // Write out any exceptions that may have occurred.
+                System.out.println("Error cancelling instances");
+                System.out.println("Caught Exception: " + e.getMessage());
+                System.out.println("Reponse Status Code: " + e.getStatusCode());
+                System.out.println("Error Code: " + e.getErrorCode());
+                System.out.println("Request ID: " + e.getRequestId());
+            }
         }
 
         // try {

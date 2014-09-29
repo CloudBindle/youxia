@@ -18,6 +18,7 @@ import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.stream.JsonWriter;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
@@ -26,6 +27,8 @@ import io.cloudbindle.youxia.util.ConfigTools;
 import io.seqware.common.model.WorkflowRunStatus;
 import io.seqware.pipeline.SqwKeys;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import static java.lang.System.out;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -68,9 +71,6 @@ public class Reaper {
 
         parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
 
-        this.killLimit = parser
-                .acceptsAll(Arrays.asList("kill-limit", "k"), "Number of finished workflow runs that triggers the kill limit")
-                .withRequiredArg().ofType(Integer.class).required();
         this.batchSize = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring down at one time")
                 .withRequiredArg().ofType(Integer.class).defaultsTo(1);
         this.sensuHost = parser.acceptsAll(Arrays.asList("sensu-host", "sh"), "URL for the sensu host").withRequiredArg()
@@ -78,10 +78,14 @@ public class Reaper {
         this.sensuPort = parser.acceptsAll(Arrays.asList("sensu-port", "sp"), "Port for the sensu server api").withRequiredArg()
                 .ofType(Integer.class).defaultsTo(DEFAULT_SENSU_PORT);
         this.testMode = parser.acceptsAll(Arrays.asList("test", "t"),
-                "In test mode, we only output instances that would be killed ratehr than actually kill them");
+                "In test mode, we only output instances that would be killed rather than actually kill them");
 
         this.persistWR = parser.acceptsAll(Arrays.asList("persist", "p"), "Persist workflow run information to SimpleDB");
-        this.listWR = parser.acceptsAll(Arrays.asList("listWR", "l"), "Only read workflow run information from SimpleDB");
+        this.listWR = parser.acceptsAll(Arrays.asList("list", "l"), "Only read workflow run information from SimpleDB");
+
+        this.killLimit = parser
+                .acceptsAll(Arrays.asList("kill-limit", "k"), "Number of finished workflow runs that triggers the kill limit")
+                .requiredUnless(this.listWR).withRequiredArg().ofType(Integer.class);
 
         try {
             this.options = parser.parse(args);
@@ -123,6 +127,11 @@ public class Reaper {
         Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting().create();
         AmazonSimpleDBClient simpleDBClient = null;
         for (Entry<String, String> instance : instances.entrySet()) {
+            if (instance.getValue() == null) {
+                System.out.println("Skipping instance with no ip address" + instance.getKey());
+                // TODO: investigate why some ip addresses are null
+                continue;
+            }
             // fake a settings
             String url = "http://" + instance.getValue() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
                     + youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT);
@@ -179,19 +188,28 @@ public class Reaper {
 
     private void listWorkflowRuns() {
         AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
-
-        final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + WORKFLOW_RUNS;
-        SelectResult select = simpleDBClient.select(new SelectRequest("select * from `" + domainName + "`"));
-        for (Item item : select.getItems()) {
-            System.out.println(item.toString());
-        }
-        System.out.println();
-        while (select.getNextToken() != null) {
-            select = simpleDBClient.select(new SelectRequest("select * from `" + domainName + "`").withNextToken(select.getNextToken()));
+        Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting().create();
+        try (JsonWriter writer = new JsonWriter(new OutputStreamWriter(out, "UTF-8"))) {
+            writer.setIndent("\t");
+            writer.beginArray();
+            final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + WORKFLOW_RUNS;
+            SelectResult select = simpleDBClient.select(new SelectRequest("select * from `" + domainName + "`"));
             for (Item item : select.getItems()) {
-                System.out.println(item.toString());
+                gson.toJson(item, Item.class, writer);
             }
+            System.out.println();
+            while (select.getNextToken() != null) {
+                select = simpleDBClient
+                        .select(new SelectRequest("select * from `" + domainName + "`").withNextToken(select.getNextToken()));
+                for (Item item : select.getItems()) {
+                    gson.toJson(item, Item.class, writer);
+                }
+            }
+            writer.endArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
+
     }
 
     private List<Client> determineSensuUnhealthyClients() {

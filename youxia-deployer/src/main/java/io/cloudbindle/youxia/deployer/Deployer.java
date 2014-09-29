@@ -4,6 +4,7 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
@@ -35,6 +36,7 @@ import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.exec.Executor;
 import org.apache.commons.exec.PumpStreamHandler;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * This class maintains a fleet of amazon instances dependent on state retrieved from sensu.
@@ -51,6 +53,7 @@ public class Deployer {
     private final HierarchicalINIConfiguration youxiaConfig;
     public static final String DEPLOYER_INSTANCE_TYPE = "deployer.instance_type";
     public static final String DEPLOYER_AMI_IMAGE = "deployer.ami_image";
+    public static final String DEPLOYER_SECURITY_GROUP = "deployer.security_group";
 
     private final ArgumentAcceptingOptionSpec<String> playbook;
 
@@ -110,10 +113,13 @@ public class Deployer {
      */
     private boolean isReadyToRequestSpotInstances() {
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
-        DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory();
+        DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory(new DescribeSpotPriceHistoryRequest()
+                .withAvailabilityZone(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE)).withInstanceTypes(
+                        youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE)));
+        // DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory();
         Float currentPrice = null;
         for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
-            if (spotPrice.getAvailabilityZone().contains(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE))
+            if (spotPrice.getAvailabilityZone().equals(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE))
                     && spotPrice.getInstanceType().equals(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
                     && spotPrice.getProductDescription().contains("Linux")) {
                 System.out.println(spotPrice.toString());
@@ -144,7 +150,7 @@ public class Deployer {
         try {
             // Setup the helper object that will perform all of the API calls.
             Requests requests = new Requests(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE), youxiaConfig.getString(DEPLOYER_AMI_IMAGE),
-                    Float.toString(options.valueOf(this.maxSpotPrice)), "Default", numInstances,
+                    Float.toString(options.valueOf(this.maxSpotPrice)), youxiaConfig.getString(DEPLOYER_SECURITY_GROUP), numInstances,
                     youxiaConfig.getString(ConfigTools.YOUXIA_AWS_KEY_NAME));
             requests.setAvailabilityZone(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE));
             // Create the list of tags we want to create and tag any associated requests.
@@ -154,6 +160,7 @@ public class Deployer {
             Calendar startTimer = Calendar.getInstance();
             Calendar nowTimer = null;
             if (skipWait) {
+                requests.setInstanceIds(new ArrayList<String>());
                 requests.launchOnDemand();
             } else {
                 // Submit all of the requests.
@@ -187,7 +194,7 @@ public class Deployer {
             // Cancel all requests
             requests.cleanup();
 
-            System.out.println("Examining " + instanceIds.size() + " instances");
+            System.out.println("Examining " + instanceIds.size() + " instances, " + StringUtils.join(instanceIds, ","));
             AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
 
             List<Instance> returnInstances = Lists.newArrayList();
@@ -245,7 +252,7 @@ public class Deployer {
                 buffer.append("[master]\n");
                 for (Instance s : readyInstances) {
                     buffer.append(s.getInstanceId()).append('\t').append("ansible_ssh_host=").append(s.getPublicIpAddress());
-                    buffer.append('\t').append("ansible_ssh_private_key_file=")
+                    buffer.append("\tansible_ssh_user=ubuntu\t").append("ansible_ssh_private_key_file=")
                             .append(youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY)).append('\n');
                 }
                 Path createTempFile = Files.createTempFile("ansible", ".inventory");
@@ -292,6 +299,14 @@ public class Deployer {
                 readyInstances = deployer.requestSpotInstances(clientsToDeploy);
             } else {
                 readyInstances = deployer.requestSpotInstances(clientsToDeploy, true);
+            }
+            System.out.println("Waiting arbitrary time for SSH to settle even after instances are \"ready\"");
+            final long sleepTime = 60000;
+            Thread.sleep(sleepTime);
+            // safety check here
+            if (readyInstances.size() > clientsToDeploy) {
+                System.out.println("Something has gone awry, more instances reported as ready than were provisioned, aborting ");
+                throw new RuntimeException("readyInstances incorrect information");
             }
             deployer.runAnsible(readyInstances);
         }

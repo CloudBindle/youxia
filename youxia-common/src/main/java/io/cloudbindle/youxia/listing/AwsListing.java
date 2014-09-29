@@ -45,6 +45,10 @@ public class AwsListing implements InstanceListingInterface {
             for (Instance instance : reservation.getInstances()) {
                 for (Tag tag : instance.getTags()) {
                     if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
+                        if (instance.getPublicIpAddress() == null) {
+                            System.err.println("Node " + instance.getInstanceId() + " had no public ip address, skipping");
+                            continue;
+                        }
                         map.put(instance.getInstanceId(), instance.getPublicIpAddress());
                     }
                 }

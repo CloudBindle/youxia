@@ -43,7 +43,8 @@ public class AwsJCloudsListing implements InstanceListingInterface {
                     if (node instanceof NodeMetadata) {
                         NodeMetadata nodeMetadata = (NodeMetadata) node;
                         if (nodeMetadata.getPublicAddresses().size() <= 0) {
-                            System.err.println("Node " + nodeMetadata.getProviderId() + " had no public ip address");
+                            System.err.println("Node " + nodeMetadata.getProviderId() + " had no public ip address, skipping");
+                            continue;
                         }
                         String ipAddress = nodeMetadata.getPublicAddresses().iterator().next();
                         map.put(nodeMetadata.getProviderId(), ipAddress);
