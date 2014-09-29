@@ -92,6 +92,18 @@ You can also just list information in SimpleDB to be used by the decider with:
 Here, you will need to open the SeqWare web services ports (8080). 
 
 
+##### Generator
+
+Fourth, you will probably want to setup the Generator component. The Generator component talks to AWS, OpenStack, and potentially a manually created JSON listing and merges them to produce a listing of valid VMs to schedule with.
+
+A sample command is:
+
+    java -jar youxia-generator/target/youxia-generator-1.1.0-alpha.0-jar-with-dependencies.jar --aws --openstack --json youxia-common/src/test/resources/io/cloudbindle/youxia/pawg/api/single_cluster.json
+
+This section requires no ports aside from connectivity to AWS and Openstack. 
+    
+
+
 ## Other Links
 
 See [Youxia](https://en.wikipedia.org/wiki/Youxia)
