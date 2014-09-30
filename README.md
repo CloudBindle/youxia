@@ -8,7 +8,7 @@ For most tools, you will need to have a valid Amazon Web Services developer acco
 ## Developers
 
 1. Java contributions must be formatted using SeqWare's Eclipse formatting file. See https://seqware.github.io/docs/100-coding-standards/ for more details. Contributions that do not follow this formatting will be rejected. 
-2. Test your build against Checkstyle and a few Maven checks for consistent dependencies using <code>mvn clean install</code>
+2. Test your build against Checkstyle, a few Maven checks for consistent dependencies, and a high priority findbugs check using <code>mvn clean install</code>
 3. Check your build status on jenkins
 
 ## Users
@@ -43,6 +43,7 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	ami_image = ami-90da15f8
 	instance_type = m1.xlarge
         security_group = launch-wizard-73
+        product = Linux/UNIX
 
 
 	[seqware]

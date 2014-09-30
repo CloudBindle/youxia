@@ -2,11 +2,16 @@ package io.cloudbindle.youxia.deployer;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.DescribeInstanceStatusRequest;
+import com.amazonaws.services.ec2.model.DescribeInstanceStatusResult;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceStatus;
+import com.amazonaws.services.ec2.model.InstanceStatusSummary;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.Tag;
@@ -15,6 +20,7 @@ import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.amazonaws.Requests;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Constants;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,6 +60,7 @@ public class Deployer {
     public static final String DEPLOYER_INSTANCE_TYPE = "deployer.instance_type";
     public static final String DEPLOYER_AMI_IMAGE = "deployer.ami_image";
     public static final String DEPLOYER_SECURITY_GROUP = "deployer.security_group";
+    public static final String DEPLOYER_PRODUCT = "deployer.product";
 
     private final ArgumentAcceptingOptionSpec<String> playbook;
 
@@ -114,8 +121,9 @@ public class Deployer {
     private boolean isReadyToRequestSpotInstances() {
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
         DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory(new DescribeSpotPriceHistoryRequest()
-                .withAvailabilityZone(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE)).withInstanceTypes(
-                        youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE)));
+                .withAvailabilityZone(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE))
+                .withInstanceTypes(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
+                .withProductDescriptions(youxiaConfig.getString(DEPLOYER_PRODUCT)));
         // DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory();
         Float currentPrice = null;
         for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
@@ -156,6 +164,7 @@ public class Deployer {
             // Create the list of tags we want to create and tag any associated requests.
             ArrayList<Tag> tags = new ArrayList<>();
             tags.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)));
+            tags.add(new Tag(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()));
             // Initialize the timer to now.
             Calendar startTimer = Calendar.getInstance();
             Calendar nowTimer = null;
@@ -200,7 +209,7 @@ public class Deployer {
             List<Instance> returnInstances = Lists.newArrayList();
             boolean wait;
             do {
-                wait = false;
+                wait = true;
                 returnInstances.clear();
                 DescribeInstancesRequest describeInstancesRequest = new DescribeInstancesRequest();
                 describeInstancesRequest.setInstanceIds(instanceIds);
@@ -209,9 +218,18 @@ public class Deployer {
                     List<Instance> instances = r.getInstances();
                     for (Instance i : instances) {
                         System.out.println(i.toString());
-                        if (i.getState().getName().equals("pending") || i.getState().getName().equals("stopping")
-                                || i.getState().getName().equals("shutting-down")) {
-                            wait = true;
+                        if (i.getState().getName().equals("running")) {
+                            // next check health information
+                            DescribeInstanceStatusResult describeInstanceStatus = eC2Client
+                                    .describeInstanceStatus(new DescribeInstanceStatusRequest().withInstanceIds(i.getInstanceId()));
+                            List<InstanceStatus> instanceStatuses = describeInstanceStatus.getInstanceStatuses();
+                            for (InstanceStatus status : instanceStatuses) {
+                                System.out.println(status.toString());
+                                InstanceStatusSummary instanceStatus = status.getInstanceStatus();
+                                if (instanceStatus.getStatus().equals("ok")) {
+                                    wait = false;
+                                }
+                            }
                         }
                         returnInstances.add(i);
                     }
@@ -300,15 +318,18 @@ public class Deployer {
             } else {
                 readyInstances = deployer.requestSpotInstances(clientsToDeploy, true);
             }
-            System.out.println("Waiting arbitrary time for SSH to settle even after instances are \"ready\"");
-            final long sleepTime = 60000;
-            Thread.sleep(sleepTime);
             // safety check here
             if (readyInstances.size() > clientsToDeploy) {
                 System.out.println("Something has gone awry, more instances reported as ready than were provisioned, aborting ");
                 throw new RuntimeException("readyInstances incorrect information");
             }
-            deployer.runAnsible(readyInstances);
+            deployer.runAnsible(readyInstances); // this should throw an Exception on playbook failure
+            AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
+            // set managed state of instance to ready
+            for (Instance i : readyInstances) {
+                eC2Client.createTags(new CreateTagsRequest().withResources(i.getInstanceId()).withTags(
+                        new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString())));
+            }
         }
     }
 }

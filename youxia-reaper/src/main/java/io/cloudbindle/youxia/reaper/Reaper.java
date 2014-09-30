@@ -2,6 +2,12 @@ package io.cloudbindle.youxia.reaper;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2;
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.amazonaws.services.simpledb.AmazonSimpleDBClient;
 import com.amazonaws.services.simpledb.model.CreateDomainRequest;
@@ -24,6 +30,7 @@ import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
 import io.cloudbindle.youxia.sensu.client.SensuClient;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Constants;
 import io.seqware.common.model.WorkflowRunStatus;
 import io.seqware.pipeline.SqwKeys;
 import java.io.IOException;
@@ -125,13 +132,33 @@ public class Reaper {
         settings.put(SqwKeys.SW_REST_PASS.getSettingKey(), youxiaConfig.getString(ConfigTools.SEQWARE_REST_PASS));
 
         Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting().create();
-        AmazonSimpleDBClient simpleDBClient = null;
+        AmazonSimpleDBClient simpleDBClient;
+        AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
         for (Entry<String, String> instance : instances.entrySet()) {
             if (instance.getValue() == null) {
                 System.out.println("Skipping instance with no ip address" + instance.getKey());
-                // TODO: investigate why some ip addresses are null
                 continue;
             }
+            // terminate instances that did not finish deployment
+            DescribeInstancesResult describeInstances = eC2Client.describeInstances(new DescribeInstancesRequest().withInstanceIds(instance
+                    .getKey()));
+
+            boolean killed = false;
+            for (Reservation r : describeInstances.getReservations()) {
+                for (Instance i : r.getInstances()) {
+                    for (Tag tag : i.getTags()) {
+                        if (tag.getKey().equals(Constants.STATE_TAG) && !tag.getValue().equals(Constants.STATE.READY.toString())) {
+                            System.out.println(instance.getKey() + " is not ready, likely an orphaned VM");
+                            instancesToKill.add(instance.getKey());
+                            killed = true;
+                        }
+                    }
+                }
+            }
+            if (killed) {
+                continue;
+            }
+
             // fake a settings
             String url = "http://" + instance.getValue() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
                     + youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT);
