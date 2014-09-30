@@ -216,7 +216,8 @@ public class Reaper {
 
     private void listWorkflowRuns() {
         AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
-        Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting().create();
+        Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).disableHtmlEscaping()
+                .setPrettyPrinting().create();
         try (JsonWriter writer = new JsonWriter(new OutputStreamWriter(out, "UTF-8"))) {
             writer.setIndent("\t");
             writer.beginArray();
