@@ -9,13 +9,13 @@ import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.simpledb.AmazonSimpleDBClient;
 import com.amazonaws.services.simpledb.model.CreateDomainRequest;
 import com.amazonaws.services.simpledb.model.Item;
 import com.amazonaws.services.simpledb.model.ListDomainsResult;
 import com.amazonaws.services.simpledb.model.PutAttributesRequest;
 import com.amazonaws.services.simpledb.model.ReplaceableAttribute;
-import com.amazonaws.services.simpledb.model.ReplaceableItem;
 import com.amazonaws.services.simpledb.model.SelectRequest;
 import com.amazonaws.services.simpledb.model.SelectResult;
 import com.google.common.collect.Lists;
@@ -25,13 +25,13 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.stream.JsonWriter;
-import io.cloudbindle.youxia.util.Log;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
 import io.cloudbindle.youxia.sensu.client.SensuClient;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
+import io.cloudbindle.youxia.util.Log;
 import io.seqware.common.model.WorkflowRunStatus;
 import io.seqware.pipeline.SqwKeys;
 import java.io.IOException;
@@ -135,6 +135,7 @@ public class Reaper {
         Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting().create();
         AmazonSimpleDBClient simpleDBClient;
         AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
+        AmazonS3Client s3Client = ConfigTools.getS3Client();
         for (Entry<String, String> instance : instances.entrySet()) {
             if (instance.getValue() == null) {
                 Log.info("Skipping instance with no ip address" + instance.getKey());
@@ -183,16 +184,30 @@ public class Reaper {
                     if (!listDomains.getDomainNames().contains(domainName)) {
                         simpleDBClient.createDomain(new CreateDomainRequest(domainName));
                     }
-                    List<ReplaceableItem> items = Lists.newArrayList();
 
                     for (WorkflowRun run : workflowRuns) {
                         String json = gson.toJson(run);
                         Map<String, Object> fromJson = gson.fromJson(json, Map.class);
                         for (Entry<String, Object> field : fromJson.entrySet()) {
-                            ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), field.getValue().toString(), true);
-                            PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
-                                    + run.getSwAccession(), Lists.newArrayList(attr));
-                            simpleDBClient.putAttributes(request);
+                            // split up the ini file to ensure it makes it into the DB
+                            if (field.getKey().equals("ini_file")) {
+                                String iniFile = (String) field.getValue();
+                                String[] iniFileLines = iniFile.split("\n");
+                                for (String iniFileLine : iniFileLines) {
+                                    String[] keyValue = StringUtils.split(iniFileLine, "=", 2);
+                                    ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey() + "." + keyValue[0], keyValue[1],
+                                            true);
+                                    PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
+                                            + run.getSwAccession(), Lists.newArrayList(attr));
+                                    simpleDBClient.putAttributes(request);
+                                }
+                            } else {
+                                // check to see if the item is too big, if so split it up
+                                ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), field.getValue().toString(), true);
+                                PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
+                                        + run.getSwAccession(), Lists.newArrayList(attr));
+                                simpleDBClient.putAttributes(request);
+                            }
                         }
                     }
                 }
@@ -201,7 +216,7 @@ public class Reaper {
             } catch (JsonSyntaxException e) {
                 Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to JSON error");
             } catch (RuntimeException e) {
-                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to connection error");
+                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to runtime error");
             }
         }
 
