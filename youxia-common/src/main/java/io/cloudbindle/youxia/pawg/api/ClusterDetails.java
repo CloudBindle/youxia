@@ -181,8 +181,7 @@ public class ClusterDetails {
 
     public static void main(String[] args) throws IOException {
         Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting().create();
-        String readFileToString = FileUtils.readFileToString(new File(
-                "/home/dyuen/youxia/youxia-common/src/test/resources/io/cloudbindle/youxia/pawg/api/double_cluster.json"));
+        String readFileToString = FileUtils.readFileToString(new File(args[0]));
         Type mapType = new TypeToken<Map<String, ClusterDetails>>() {
         }.getType();
         Map<String, List<Map<String, String>>> map = gson.fromJson(readFileToString, mapType);

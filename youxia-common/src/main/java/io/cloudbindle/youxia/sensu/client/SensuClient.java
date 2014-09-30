@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -88,7 +89,7 @@ public class SensuClient {
         System.out.println("Looking at " + httpget.toString());
         try (CloseableHttpResponse response = httpclient.execute(httpget, context)) {
             System.out.println(response.toString());
-            try (InputStreamReader reader = new InputStreamReader(response.getEntity().getContent())) {
+            try (InputStreamReader reader = new InputStreamReader(response.getEntity().getContent(), StandardCharsets.UTF_8)) {
                 Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting()
                         .create();
                 return gson.fromJson(reader, targetClass);
