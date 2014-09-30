@@ -38,6 +38,7 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	openstack_endpoint = http://sweng.os.oicr.on.ca:5000/v2.0/
 	zone = us-east-1a
 	managed_tag = drunken_master
+	slack_webhook = https://XXXX.slack.com/services/hooks/incoming-webhook?token=XXXXXX
 
 	[deployer]
 	ami_image = ami-90da15f8
@@ -69,6 +70,8 @@ For our security group, we needed to expose the following ports:
 * port 3000 (uchiwa), 4567 (rabbitmq) and 5671 (sensu-api) should be open from your institution
 
 Make sure to customise your managed\_tag since this is how we track your instances whether on AWS or OpenStack and also determines the domain for persistence of WorkflowRun information to SimpleDB.  
+
+Finally, note that Slack is used as a quick monitoring tool to track at a rough level, instances being provisioned and terminated. You will need to create an incoming webhook at slack.com and set your token above correctly. 
 
 #### Multiple Webservices
 
