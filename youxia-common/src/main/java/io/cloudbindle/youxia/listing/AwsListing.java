@@ -24,6 +24,7 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Log;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -46,7 +47,7 @@ public class AwsListing implements InstanceListingInterface {
                 for (Tag tag : instance.getTags()) {
                     if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
                         if (instance.getPublicIpAddress() == null) {
-                            System.err.println("Node " + instance.getInstanceId() + " had no public ip address, skipping");
+                            Log.info("Node " + instance.getInstanceId() + " had no public ip address, skipping");
                             continue;
                         }
                         map.put(instance.getInstanceId(), instance.getPublicIpAddress());
@@ -54,7 +55,7 @@ public class AwsListing implements InstanceListingInterface {
                 }
             }
         }
-        System.out.println("Located " + map.values().size() + " relevant instances on AWS");
+        Log.info("Located " + map.values().size() + " relevant instances on AWS");
         return map;
     }
 

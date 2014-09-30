@@ -85,7 +85,7 @@ public class OpenStackTagger implements InstanceListingInterface {
         NovaApi novaApi = ConfigTools.getNovaApi();
         Map<String, String> map = Maps.newHashMap();
         for (String zone : novaApi.getConfiguredZones()) {
-            System.out.println("Looking at zone: " + zone);
+            Log.info("Looking at zone: " + zone);
             // TODO: figure out what is going on with this weird nested structure
             ServerApi serverApiForZone = novaApi.getServerApiForZone(zone);
             PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
@@ -107,9 +107,9 @@ public class OpenStackTagger implements InstanceListingInterface {
     public static void main(String[] args) {
         OpenStackTagger lister = new OpenStackTagger(args);
         Map<String, String> instances = lister.getInstances();
-        System.out.println("Tagged the following instances:");
+        Log.stdoutWithTime("Tagged the following instances:");
         for (Entry<String, String> instance : instances.entrySet()) {
-            System.out.println(instance.getKey() + " " + instance.getValue());
+            Log.stdoutWithTime(instance.getKey() + " " + instance.getValue());
         }
     }
 

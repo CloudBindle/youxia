@@ -23,6 +23,7 @@ package io.cloudbindle.youxia.util;
  */
 public class Constants {
     public static final String STATE_TAG = "youxia.managed_state";
+    public static final String SLACK_URL = "youxia.slack_webhook";
 
     public enum STATE {
         SETTING_UP, READY

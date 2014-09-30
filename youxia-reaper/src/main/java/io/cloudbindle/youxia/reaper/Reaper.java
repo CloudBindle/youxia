@@ -25,6 +25,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.stream.JsonWriter;
+import io.cloudbindle.youxia.util.Log;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
@@ -136,7 +137,7 @@ public class Reaper {
         AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
         for (Entry<String, String> instance : instances.entrySet()) {
             if (instance.getValue() == null) {
-                System.out.println("Skipping instance with no ip address" + instance.getKey());
+                Log.info("Skipping instance with no ip address" + instance.getKey());
                 continue;
             }
             // terminate instances that did not finish deployment
@@ -148,7 +149,7 @@ public class Reaper {
                 for (Instance i : r.getInstances()) {
                     for (Tag tag : i.getTags()) {
                         if (tag.getKey().equals(Constants.STATE_TAG) && !tag.getValue().equals(Constants.STATE.READY.toString())) {
-                            System.out.println(instance.getKey() + " is not ready, likely an orphaned VM");
+                            Log.info(instance.getKey() + " is not ready, likely an orphaned VM");
                             instancesToKill.add(instance.getKey());
                             killed = true;
                         }
@@ -162,7 +163,7 @@ public class Reaper {
             // fake a settings
             String url = "http://" + instance.getValue() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
                     + youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT);
-            System.out.println("Looking at " + url);
+            Log.info("Looking at " + url);
             settings.put(SqwKeys.SW_REST_URL.getSettingKey(), url);
             MetadataWS ws = MetadataFactory.getWS(settings);
             // TODO: can we really not just get all workflow runs?
@@ -170,9 +171,9 @@ public class Reaper {
                 List<WorkflowRun> workflowRuns = ws.getWorkflowRunsByStatus(WorkflowRunStatus.cancelled);
                 workflowRuns.addAll(ws.getWorkflowRunsByStatus(WorkflowRunStatus.failed));
                 workflowRuns.addAll(ws.getWorkflowRunsByStatus(WorkflowRunStatus.completed));
-                System.out.println(instance.getKey() + " has " + workflowRuns.size() + " workflow runs");
+                Log.info(instance.getKey() + " has " + workflowRuns.size() + " workflow runs");
                 if (workflowRuns.size() >= options.valueOf(this.killLimit)) {
-                    System.out.println(instance.getKey() + " is at or above the kill limit");
+                    Log.info(instance.getKey() + " is at or above the kill limit");
                     instancesToKill.add(instance.getKey());
                 }
                 if (options.has(this.persistWR)) {
@@ -196,17 +197,17 @@ public class Reaper {
                     }
                 }
             } catch (AmazonClientException e) {
-                System.out.println("Skipping " + instance.getKey() + " " + instance.getValue() + " due to AmazonClient error");
+                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to AmazonClient error");
             } catch (JsonSyntaxException e) {
-                System.out.println("Skipping " + instance.getKey() + " " + instance.getValue() + " due to JSON error");
+                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to JSON error");
             } catch (RuntimeException e) {
-                System.out.println("Skipping " + instance.getKey() + " " + instance.getValue() + " due to connection error");
+                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to connection error");
             }
         }
 
         // consider batch size
         while (instancesToKill.size() > options.valueOf(this.batchSize)) {
-            System.out.println(instancesToKill.get(0) + " is removed from kill list due to batch size");
+            Log.info(instancesToKill.get(0) + " is removed from kill list due to batch size");
             instancesToKill.remove(0);
         }
 
@@ -224,7 +225,6 @@ public class Reaper {
             for (Item item : select.getItems()) {
                 gson.toJson(item, Item.class, writer);
             }
-            System.out.println();
             while (select.getNextToken() != null) {
                 select = simpleDBClient
                         .select(new SelectRequest("select * from `" + domainName + "`").withNextToken(select.getNextToken()));
@@ -241,7 +241,7 @@ public class Reaper {
 
     private List<Client> determineSensuUnhealthyClients() {
         List<Client> distressedClients;
-        System.out.println("Considering sensu information to identify distressed hosts");
+        Log.info("Considering sensu information to identify distressed hosts");
         // If sensu options are specified, talk to sensu and cross-reference health information
         SensuClient sensuClient = new SensuClient(options.valueOf(sensuHost), options.valueOf(sensuPort),
                 youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_USERNAME), youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD));
@@ -253,7 +253,7 @@ public class Reaper {
                 awsClients.add(client);
             }
         }
-        System.out.println("Found " + awsClients.size() + " AWS clients in sensu");
+        Log.info("Found " + awsClients.size() + " AWS clients in sensu");
         // determine number of clients in distress
         distressedClients = Lists.newArrayList();
         for (Client client : awsClients) {
@@ -278,13 +278,13 @@ public class Reaper {
         List<String> instancesToKill = deployer.assessClients();
         if (instancesToKill.size() > 0) {
             if (deployer.options.has(deployer.testMode)) {
-                System.out.println("Test mode:");
+                Log.info("Test mode:");
                 for (String instance : instancesToKill) {
-                    System.out.println("Would have killed: " + instance);
+                    Log.info("Would have killed: " + instance);
                 }
             } else {
-                System.out.println("Live mode:");
-                System.out.println("Killing " + StringUtils.join(instancesToKill, ','));
+                Log.info("Live mode:");
+                Log.stdoutWithTime("Killing " + StringUtils.join(instancesToKill, ','));
                 AmazonEC2 client = ConfigTools.getEC2Client();
                 TerminateInstancesRequest request = new TerminateInstancesRequest(instancesToKill);
                 client.terminateInstances(request);

@@ -19,6 +19,7 @@ package io.cloudbindle.youxia.listing;
 
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Log;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.jclouds.compute.ComputeServiceContext;
@@ -43,7 +44,7 @@ public class AwsJCloudsListing implements InstanceListingInterface {
                     if (node instanceof NodeMetadata) {
                         NodeMetadata nodeMetadata = (NodeMetadata) node;
                         if (nodeMetadata.getPublicAddresses().size() <= 0) {
-                            System.err.println("Node " + nodeMetadata.getProviderId() + " had no public ip address, skipping");
+                            Log.info("Node " + nodeMetadata.getProviderId() + " had no public ip address, skipping");
                             continue;
                         }
                         String ipAddress = nodeMetadata.getPublicAddresses().iterator().next();
@@ -53,7 +54,7 @@ public class AwsJCloudsListing implements InstanceListingInterface {
             }
         }
 
-        System.out.println("Located " + map.values().size() + " relevant instances on AWS");
+        Log.info("Located " + map.values().size() + " relevant instances on AWS");
         return map;
     }
 

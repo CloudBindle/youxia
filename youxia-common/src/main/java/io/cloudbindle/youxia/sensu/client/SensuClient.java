@@ -23,6 +23,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
+import io.cloudbindle.youxia.util.Log;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -86,9 +87,9 @@ public class SensuClient {
             throw new RuntimeException(ex);
         }
         HttpGet httpget = new HttpGet(uri);
-        System.out.println("Looking at " + httpget.toString());
+        Log.info("Looking at " + httpget.toString());
         try (CloseableHttpResponse response = httpclient.execute(httpget, context)) {
-            System.out.println(response.toString());
+            Log.info(response.toString());
             try (InputStreamReader reader = new InputStreamReader(response.getEntity().getContent(), StandardCharsets.UTF_8)) {
                 Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting()
                         .create();

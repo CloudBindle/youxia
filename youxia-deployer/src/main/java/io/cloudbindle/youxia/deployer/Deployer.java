@@ -17,6 +17,7 @@ import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.cloudbindle.youxia.util.Log;
 import io.cloudbindle.youxia.amazonaws.Requests;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.util.ConfigTools;
@@ -104,12 +105,12 @@ public class Deployer {
     private int assessClients() {
         AwsListing awsLister = new AwsListing();
         Map<String, String> map = awsLister.getInstances();
-        System.out.println("Found " + map.size() + " AWS clients");
+        Log.info("Found " + map.size() + " AWS clients");
 
         int clientsNeeded = options.valueOf(totalNodes) - map.size();
-        System.out.println("Need " + clientsNeeded + " more clients");
+        Log.info("Need " + clientsNeeded + " more clients");
         int clientsAfterBatching = Math.min(options.valueOf(this.batchSize), clientsNeeded);
-        System.out.println("After batch limit, we can requisition up to " + clientsAfterBatching + " this run");
+        Log.info("After batch limit, we can requisition up to " + clientsAfterBatching + " this run");
         return clientsAfterBatching;
     }
 
@@ -130,7 +131,7 @@ public class Deployer {
             if (spotPrice.getAvailabilityZone().equals(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE))
                     && spotPrice.getInstanceType().equals(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
                     && spotPrice.getProductDescription().contains("Linux")) {
-                System.out.println(spotPrice.toString());
+                Log.info(spotPrice.toString());
                 currentPrice = Float.valueOf(spotPrice.getSpotPrice());
                 break;
             }
@@ -203,7 +204,7 @@ public class Deployer {
             // Cancel all requests
             requests.cleanup();
 
-            System.out.println("Examining " + instanceIds.size() + " instances, " + StringUtils.join(instanceIds, ","));
+            Log.info("Examining " + instanceIds.size() + " instances, " + StringUtils.join(instanceIds, ","));
             AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
 
             List<Instance> returnInstances = Lists.newArrayList();
@@ -217,14 +218,14 @@ public class Deployer {
                 for (Reservation r : describeInstances.getReservations()) {
                     List<Instance> instances = r.getInstances();
                     for (Instance i : instances) {
-                        System.out.println(i.toString());
+                        Log.info(i.toString());
                         if (i.getState().getName().equals("running")) {
                             // next check health information
                             DescribeInstanceStatusResult describeInstanceStatus = eC2Client
                                     .describeInstanceStatus(new DescribeInstanceStatusRequest().withInstanceIds(i.getInstanceId()));
                             List<InstanceStatus> instanceStatuses = describeInstanceStatus.getInstanceStatuses();
                             for (InstanceStatus status : instanceStatuses) {
-                                System.out.println(status.toString());
+                                Log.info(status.toString());
                                 InstanceStatusSummary instanceStatus = status.getInstanceStatus();
                                 if (instanceStatus.getStatus().equals("ok")) {
                                     wait = false;
@@ -244,10 +245,10 @@ public class Deployer {
             return returnInstances;
         } catch (AmazonServiceException ase) {
             // Write out any exceptions that may have occurred.
-            System.out.println("Caught Exception: " + ase.getMessage());
-            System.out.println("Reponse Status Code: " + ase.getStatusCode());
-            System.out.println("Error Code: " + ase.getErrorCode());
-            System.out.println("Request ID: " + ase.getRequestId());
+            Log.error("Caught Exception: " + ase.getMessage());
+            Log.error("Reponse Status Code: " + ase.getStatusCode());
+            Log.error("Error Code: " + ase.getErrorCode());
+            Log.error("Request ID: " + ase.getRequestId());
             throw new RuntimeException(ase);
         } catch (InterruptedException ex) {
             throw new RuntimeException(ex);
@@ -275,8 +276,8 @@ public class Deployer {
                 }
                 Path createTempFile = Files.createTempFile("ansible", ".inventory");
                 FileUtils.writeStringToFile(createTempFile.toFile(), buffer.toString());
-                System.out.println("Ansible inventory:");
-                System.out.println(buffer.toString());
+                Log.info("Ansible inventory:");
+                Log.info(buffer.toString());
 
                 // 2. run ansible
                 CommandLine cmdLine = new CommandLine("ansible-playbook");
@@ -290,7 +291,7 @@ public class Deployer {
                 map.put("playbook", this.options.valueOf(this.playbook));
                 cmdLine.setSubstitutionMap(map);
 
-                System.out.println(cmdLine.toString());
+                Log.info(cmdLine.toString());
                 // kill ansible if it hangs for 15 minutes
                 final int waitTime = 15 * 60 * 1000;
                 ExecuteWatchdog watchdog = new ExecuteWatchdog(waitTime);
@@ -320,13 +321,14 @@ public class Deployer {
             }
             // safety check here
             if (readyInstances.size() > clientsToDeploy) {
-                System.out.println("Something has gone awry, more instances reported as ready than were provisioned, aborting ");
+                Log.info("Something has gone awry, more instances reported as ready than were provisioned, aborting ");
                 throw new RuntimeException("readyInstances incorrect information");
             }
             deployer.runAnsible(readyInstances); // this should throw an Exception on playbook failure
             AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
             // set managed state of instance to ready
             for (Instance i : readyInstances) {
+                Log.stdoutWithTime("Finishing configuring " + i.getInstanceId());
                 eC2Client.createTags(new CreateTagsRequest().withResources(i.getInstanceId()).withTags(
                         new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString())));
             }

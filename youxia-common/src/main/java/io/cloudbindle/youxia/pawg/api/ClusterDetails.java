@@ -185,6 +185,6 @@ public class ClusterDetails {
         Type mapType = new TypeToken<Map<String, ClusterDetails>>() {
         }.getType();
         Map<String, List<Map<String, String>>> map = gson.fromJson(readFileToString, mapType);
-        System.out.println(map);
+        System.out.println(map.toString());
     }
 }

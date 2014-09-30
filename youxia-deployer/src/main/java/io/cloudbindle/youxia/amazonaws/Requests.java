@@ -35,6 +35,7 @@ import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.SpotPlacement;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
+import io.cloudbindle.youxia.util.Log;
 import io.cloudbindle.youxia.util.ConfigTools;
 import java.util.ArrayList;
 import java.util.Date;
@@ -212,7 +213,7 @@ public class Requests {
         // Add all of the request ids to the hashset, so we can determine when they hit the
         // active state.
         for (SpotInstanceRequest requestResponse : requestResponses) {
-            System.out.println("Created Spot Request: " + requestResponse.getSpotInstanceRequestId());
+            Log.stdoutWithTime("Created Spot Request: " + requestResponse.getSpotInstanceRequestId());
             spotInstanceRequestIds.add(requestResponse.getSpotInstanceRequestId());
         }
     }
@@ -243,7 +244,7 @@ public class Requests {
         // Add the instance id into the instance id list, so we can potentially later
         // terminate that list.
         for (Instance instance : runResult.getReservation().getInstances()) {
-            System.out.println("Launched On-Demand Instance: " + instance.getInstanceId());
+            Log.stdoutWithTime("Launched On-Demand Instance: " + instance.getInstanceId());
             instanceIds.add(instance.getInstanceId());
         }
     }
@@ -263,7 +264,7 @@ public class Requests {
         DescribeSpotInstanceRequestsRequest describeRequest = new DescribeSpotInstanceRequestsRequest();
         describeRequest.setSpotInstanceRequestIds(spotInstanceRequestIds);
 
-        System.out.println("Checking to determine if Spot Bids have reached the active state...");
+        Log.info("Checking to determine if Spot Bids have reached the active state...");
 
         // Initialize variables.
         instanceIds = new ArrayList<>();
@@ -275,8 +276,7 @@ public class Requests {
 
             // Look through each request and determine if they are all in the active state.
             for (SpotInstanceRequest describeResponse : describeResponses) {
-                System.out.println(" " + describeResponse.getSpotInstanceRequestId() + " is in the " + describeResponse.getState()
-                        + " state.");
+                Log.info(" " + describeResponse.getSpotInstanceRequestId() + " is in the " + describeResponse.getState() + " state.");
 
                 // If the state is open, it hasn't changed since we attempted to request it.
                 // There is the potential for it to transition almost immediately to closed or
@@ -290,11 +290,11 @@ public class Requests {
             }
         } catch (AmazonServiceException e) {
             // Print out the error.
-            System.out.println("Error when calling describeSpotInstances");
-            System.out.println("Caught Exception: " + e.getMessage());
-            System.out.println("Reponse Status Code: " + e.getStatusCode());
-            System.out.println("Error Code: " + e.getErrorCode());
-            System.out.println("Request ID: " + e.getRequestId());
+            Log.error("Error when calling describeSpotInstances");
+            Log.error("Caught Exception: " + e.getMessage());
+            Log.error("Reponse Status Code: " + e.getStatusCode());
+            Log.error("Error Code: " + e.getErrorCode());
+            Log.error("Request ID: " + e.getRequestId());
 
             // If we have an exception, ensure we don't break out of the loop.
             // This prevents the scenario where there was blip on the wire.
@@ -321,10 +321,10 @@ public class Requests {
             ec2.createTags(createTagsRequest);
         } catch (AmazonServiceException e) {
             // Write out any exceptions that may have occurred.
-            System.out.println("Caught Exception: " + e.getMessage());
-            System.out.println("Reponse Status Code: " + e.getStatusCode());
-            System.out.println("Error Code: " + e.getErrorCode());
-            System.out.println("Request ID: " + e.getRequestId());
+            Log.error("Caught Exception: " + e.getMessage());
+            Log.error("Reponse Status Code: " + e.getStatusCode());
+            Log.error("Error Code: " + e.getErrorCode());
+            Log.error("Request ID: " + e.getRequestId());
         }
 
     }
@@ -357,31 +357,31 @@ public class Requests {
         if (this.spotInstanceRequestIds.size() > 0) {
             try {
                 // Cancel requests.
-                System.out.println("Cancelling requests.");
+                Log.info("Cancelling requests.");
                 CancelSpotInstanceRequestsRequest cancelRequest = new CancelSpotInstanceRequestsRequest(spotInstanceRequestIds);
                 ec2.cancelSpotInstanceRequests(cancelRequest);
             } catch (AmazonServiceException e) {
                 // Write out any exceptions that may have occurred.
-                System.out.println("Error cancelling instances");
-                System.out.println("Caught Exception: " + e.getMessage());
-                System.out.println("Reponse Status Code: " + e.getStatusCode());
-                System.out.println("Error Code: " + e.getErrorCode());
-                System.out.println("Request ID: " + e.getRequestId());
+                Log.error("Error cancelling instances");
+                Log.error("Caught Exception: " + e.getMessage());
+                Log.error("Reponse Status Code: " + e.getStatusCode());
+                Log.error("Error Code: " + e.getErrorCode());
+                Log.error("Request ID: " + e.getRequestId());
             }
         }
 
         // try {
         // // Terminate instances.
-        // System.out.println("Terminate instances");
+        // Log.stdoutWithTime("Terminate instances");
         // TerminateInstancesRequest terminateRequest = new TerminateInstancesRequest(instanceIds);
         // ec2.terminateInstances(terminateRequest);
         // } catch (AmazonServiceException e) {
         // // Write out any exceptions that may have occurred.
-        // System.out.println("Error terminating instances");
-        // System.out.println("Caught Exception: " + e.getMessage());
-        // System.out.println("Reponse Status Code: " + e.getStatusCode());
-        // System.out.println("Error Code: " + e.getErrorCode());
-        // System.out.println("Request ID: " + e.getRequestId());
+        // Log.stdoutWithTime("Error terminating instances");
+        // Log.stdoutWithTime("Caught Exception: " + e.getMessage());
+        // Log.stdoutWithTime("Reponse Status Code: " + e.getStatusCode());
+        // Log.stdoutWithTime("Error Code: " + e.getErrorCode());
+        // Log.stdoutWithTime("Request ID: " + e.getRequestId());
         // }
 
         // Delete all requests and instances that we have terminated.

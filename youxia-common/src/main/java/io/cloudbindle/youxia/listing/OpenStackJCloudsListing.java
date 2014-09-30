@@ -20,6 +20,7 @@ package io.cloudbindle.youxia.listing;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Log;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -44,7 +45,7 @@ public class OpenStackJCloudsListing implements InstanceListingInterface {
         NovaApi novaApi = ConfigTools.getNovaApi();
         Map<String, String> map = Maps.newHashMap();
         for (String zone : novaApi.getConfiguredZones()) {
-            System.out.println("Looking at zone: " + zone);
+            Log.info("Looking at zone: " + zone);
             // TODO: figure out what is going on with this weird nested structure
             ServerApi serverApiForZone = novaApi.getServerApiForZone(zone);
             PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
@@ -67,7 +68,7 @@ public class OpenStackJCloudsListing implements InstanceListingInterface {
             }
         }
 
-        System.out.println("Located " + map.values().size() + " relevant instances on OpenStack");
+        Log.info("Located " + map.values().size() + " relevant instances on OpenStack");
         return map;
     }
 
