@@ -111,6 +111,12 @@ A sample command is:
 
 This will merge a listing of managed VMs from AWS, OpenStack, and a manually generated JSON file. This component requires no ports aside from connectivity to AWS and Openstack. 
 
+##### Tagger
+
+This component is optional. If you have legacy VMs in OpenStack that you wish to put under management of youxia, unlike AWS, it does not appear possible to edit tags (called metadata in Openstack) from the Openstack GUI. Therefore, we provide this tool that lets you tag instances using a comma-separated listing of their IDs. Substitute your ids as required.
+
+    java -jar youxia-common/target/youxia-common-1.1.0-alpha.0-jar-with-dependencies.jar --instance-ids 768c2dfa-66c8-4e0b-8c87-c6d273285e91,a6bf4813-fc66-439d-a490-9b5618c1af05,73a1e754-3c37-43e3-ba55-aaa0e84984f2,25a1fe33-5637-44fc-84ed-6b88cc5871f6
+
 
 ## Other Links
 

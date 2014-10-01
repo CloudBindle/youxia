@@ -9,7 +9,6 @@ import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
-import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.simpledb.AmazonSimpleDBClient;
 import com.amazonaws.services.simpledb.model.CreateDomainRequest;
 import com.amazonaws.services.simpledb.model.Item;
@@ -135,7 +134,6 @@ public class Reaper {
         Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting().create();
         AmazonSimpleDBClient simpleDBClient;
         AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
-        AmazonS3Client s3Client = ConfigTools.getS3Client();
         for (Entry<String, String> instance : instances.entrySet()) {
             if (instance.getValue() == null) {
                 Log.info("Skipping instance with no ip address" + instance.getKey());

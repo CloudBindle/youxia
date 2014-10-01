@@ -16,13 +16,25 @@
  */
 package io.cloudbindle.youxia.deployer;
 
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.google.common.collect.Maps;
+import io.cloudbindle.youxia.listing.AwsListing;
+import io.cloudbindle.youxia.util.ConfigTools;
+import java.util.Map;
+import org.apache.commons.configuration.HierarchicalINIConfiguration;
+import static org.easymock.EasyMock.expect;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.junit.Assert.*;
 import org.junit.runner.RunWith;
+import static org.powermock.api.easymock.PowerMock.expectNew;
+import static org.powermock.api.easymock.PowerMock.createMockAndExpectNew;
+import static org.powermock.api.easymock.PowerMock.mockStatic;
+import static org.powermock.api.easymock.PowerMock.replay;
+import static org.powermock.api.mockito.PowerMockito.mock;
+import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
@@ -30,6 +42,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * @author dyuen
  */
 @RunWith(PowerMockRunner.class)
+@PrepareForTest({ ConfigTools.class, Deployer.class })
 public class DeployerTest {
 
     public DeployerTest() {
@@ -58,9 +71,30 @@ public class DeployerTest {
      */
     @Test(expected = RuntimeException.class)
     public void testHelp() throws Exception {
-        System.out.println("main");
+        System.out.println("help");
         String[] args = { "--help" };
         Deployer.main(args);
     }
 
+    @Test
+    public void testListingNoProvision() throws Exception {
+        mockStatic(ConfigTools.class);
+        AmazonEC2Client mockClient = mock(AmazonEC2Client.class);
+        AwsListing listing = createMockAndExpectNew(AwsListing.class);
+        HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
+        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig);
+        expect(ConfigTools.getEC2Client()).andReturn(mockClient);
+        expectNew(AwsListing.class).andReturn(listing);
+        Map<String, String> map = Maps.newTreeMap();
+        map.put("key1", "value1");
+        map.put("key2", "value2");
+        expect(listing.getInstances()).andReturn(map);
+        String[] args = { "--total-nodes-num", "2", "--max-spot-price", "2", "--batch-size", "5", "--ansible-playbook", "test-book.yml" };
+
+        replay(HierarchicalINIConfiguration.class);
+        replay(ConfigTools.class);
+        replay(listing, AwsListing.class);
+
+        Deployer.main(args);
+    }
 }

@@ -125,7 +125,6 @@ public class Deployer {
                 .withAvailabilityZone(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE))
                 .withInstanceTypes(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
                 .withProductDescriptions(youxiaConfig.getString(DEPLOYER_PRODUCT)));
-        // DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory();
         Float currentPrice = null;
         for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
             if (spotPrice.getAvailabilityZone().equals(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE))
