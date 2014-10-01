@@ -35,7 +35,11 @@ import io.seqware.common.model.WorkflowRunStatus;
 import io.seqware.pipeline.SqwKeys;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 import static java.lang.System.out;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +73,7 @@ public class Reaper {
     private final OptionSpecBuilder persistWR;
     public static final String WORKFLOW_RUNS = ".workflow_runs";
     private final OptionSpecBuilder listWR;
+    private final ArgumentAcceptingOptionSpec<String> outputFile;
 
     public Reaper(String[] args) {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
@@ -93,6 +98,8 @@ public class Reaper {
         this.killLimit = parser
                 .acceptsAll(Arrays.asList("kill-limit", "k"), "Number of finished workflow runs that triggers the kill limit")
                 .requiredUnless(this.listWR).withRequiredArg().ofType(Integer.class);
+        this.outputFile = parser.acceptsAll(Arrays.asList("output", "o"), "Save output to a json file").withRequiredArg()
+                .defaultsTo("output.json");
 
         try {
             this.options = parser.parse(args);
@@ -231,7 +238,17 @@ public class Reaper {
         AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
         Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).disableHtmlEscaping()
                 .setPrettyPrinting().create();
-        try (JsonWriter writer = new JsonWriter(new OutputStreamWriter(out, "UTF-8"))) {
+
+        Writer outWriter = new OutputStreamWriter(out, StandardCharsets.UTF_8);
+        if (options.has(outputFile)) {
+            try {
+                outWriter = Files.newBufferedWriter(Paths.get(options.valueOf(outputFile)), StandardCharsets.UTF_8);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+
+        try (JsonWriter writer = new JsonWriter(outWriter)) {
             writer.setIndent("\t");
             writer.beginArray();
             final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + WORKFLOW_RUNS;

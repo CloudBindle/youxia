@@ -13,6 +13,7 @@ import io.cloudbindle.youxia.util.ConfigTools;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -42,6 +43,7 @@ public class Generator {
     private final OptionSpecBuilder aggregateAWS;
     private final OptionSpecBuilder aggregateOpenStack;
     private final ArgumentAcceptingOptionSpec<String> aggregateJSON;
+    private final ArgumentAcceptingOptionSpec<String> outputFile;
 
     public Generator(String[] args) {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
@@ -54,6 +56,8 @@ public class Generator {
         this.aggregateOpenStack = parser.acceptsAll(Arrays.asList("openstack", "o"), "Aggregate tagged instances from OpenStack");
         this.aggregateJSON = parser.acceptsAll(Arrays.asList("json", "j"), "Aggregate tagged instances from a provided json")
                 .withRequiredArg();
+        this.outputFile = parser.acceptsAll(Arrays.asList("output", "o"), "Save output to a json file").withRequiredArg()
+                .defaultsTo("output.json");
 
         try {
             this.options = parser.parse(args);
@@ -73,6 +77,7 @@ public class Generator {
     }
 
     public static void main(String[] args) throws Exception {
+        // TODO: refactor this into proper object methods
         Generator generator = new Generator(args);
         Map<String, String> instances = Maps.newHashMap();
         if (generator.options.has(generator.aggregateAWS)) {
@@ -108,6 +113,11 @@ public class Generator {
             details.setWorkflowVersion(generator.youxiaConfig.getString(GENERATOR_WORKFLOW_VERSION));
             resultMap.put(entry.getKey(), details);
         }
-        System.out.println(gson.toJson(resultMap));
+        if (generator.options.has(generator.outputFile)) {
+            FileUtils.writeStringToFile(new File(generator.options.valueOf(generator.outputFile)), gson.toJson(resultMap),
+                    StandardCharsets.UTF_8);
+        } else {
+            System.out.println(gson.toJson(resultMap));
+        }
     }
 }

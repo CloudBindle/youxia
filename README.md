@@ -101,6 +101,8 @@ You can also just list information in SimpleDB to be used by the decider with:
 
     java -jar youxia-reaper/target/youxia-reaper-1.1.0-alpha.0-jar-with-dependencies.jar --list
 
+Note, if you want to run both the Reaper and the Generator, you will probably want to put them sequentially in a script run from your crontab so that the Deployer completes execution before the Reaper runs. It is actually possible for the Reaper to reap an instance that the Deployer is still deploying. 
+
 ##### Generator
 
 Fourth, you will probably want to setup the Generator component. The Generator component talks to AWS, OpenStack, and potentially a manually created JSON listing and merges them to produce a listing of valid VMs to schedule with.
