@@ -116,7 +116,7 @@ public class AwsListingTest {
 
         AwsListing awListing = new AwsListing();
         Map<String, String> result = awListing.getInstances();
-        Assert.assertTrue("result should be empty", result.isEmpty());
+        Assert.assertTrue("result should not be empty", !result.isEmpty());
 
         verifyAll();
     }
@@ -128,6 +128,7 @@ public class AwsListingTest {
         List<Tag> tags = Lists.newArrayList();
         tags.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, tagname));
         instance.setTags(tags);
+        instance.setPublicIpAddress("123.123.123.123");
         List<Instance> instances = Lists.newArrayList();
         instances.add(instance);
         reservation.setInstances(instances);
