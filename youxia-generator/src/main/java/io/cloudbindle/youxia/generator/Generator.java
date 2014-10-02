@@ -44,13 +44,14 @@ public class Generator {
     private final OptionSpecBuilder aggregateOpenStack;
     private final ArgumentAcceptingOptionSpec<String> aggregateJSON;
     private final ArgumentAcceptingOptionSpec<String> outputFile;
+    private final OptionSpecBuilder help;
 
     public Generator(String[] args) {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
         // TODO: validate that all required parameters are present
         OptionParser parser = new OptionParser();
 
-        parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
+        this.help = parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
 
         this.aggregateAWS = parser.acceptsAll(Arrays.asList("aws", "a"), "Aggregate tagged instances from AWS");
         this.aggregateOpenStack = parser.acceptsAll(Arrays.asList("openstack", "o"), "Aggregate tagged instances from OpenStack");
@@ -64,12 +65,15 @@ public class Generator {
             if (!options.hasOptions()) {
                 throw new RuntimeException("No options");
             }
+            if (options.has(help)) {
+                throw new RuntimeException("Show usage");
+            }
         } catch (RuntimeException e) {
             try {
                 final int helpNumColumns = 160;
                 parser.formatHelpWith(new BuiltinHelpFormatter(helpNumColumns, 2));
                 parser.printHelpOn(System.out);
-                System.exit(-1);
+                throw new RuntimeException("Showing usage");
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }

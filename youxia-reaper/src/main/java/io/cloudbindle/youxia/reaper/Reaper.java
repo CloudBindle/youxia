@@ -108,7 +108,7 @@ public class Reaper {
                 final int helpNumColumns = 160;
                 parser.formatHelpWith(new BuiltinHelpFormatter(helpNumColumns, 2));
                 parser.printHelpOn(System.out);
-                System.exit(-1);
+                throw new RuntimeException("Showing usage");
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }

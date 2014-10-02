@@ -27,6 +27,7 @@ import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Log;
 import java.util.Map;
 import java.util.Map.Entry;
+import org.apache.commons.configuration.HierarchicalINIConfiguration;
 
 /**
  * This lists instances available on AWS.
@@ -37,7 +38,8 @@ public class AwsListing implements InstanceListingInterface {
 
     @Override
     public Map<String, String> getInstances() {
-        String managedTag = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
+        HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
+        String managedTag = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
         Map<String, String> map = Maps.newHashMap();
         // TODO: we can probably constrain instance listing to one region or zone
