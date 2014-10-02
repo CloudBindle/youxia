@@ -206,7 +206,7 @@ public class Log {
      *            a {@link java.lang.String} object.
      */
     public static void stdout(final String message) {
-        Log.stdoutWithTime(message);
+        System.out.println(message);
         Log.sendToSlack(getCallerClassName(), message);
     }
 
@@ -247,7 +247,7 @@ public class Log {
      *            a {@link java.lang.String} object.
      */
     public static void stderr(final String message) {
-        Log.stderrWithTime(message);
+        System.err.println(message);
         Log.sendToSlack(getCallerClassName(), message);
     }
 

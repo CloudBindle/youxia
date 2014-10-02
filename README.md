@@ -30,6 +30,7 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	sensu_username = admin
 	sensu_password = XXXXX 
 	sensu_ip_address = XX.XX.XXX.XXX
+        sensu_port = 4567
 	aws_ssh_key = /home/dyuen/.ssh/oicr-aws-dyuen.pem
 	aws_key_name = oicr-aws-dyuen
         aws_security_group = launch-wizard-73
