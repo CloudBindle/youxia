@@ -64,12 +64,16 @@ public class OpenStackTagger implements InstanceListingInterface {
 
         try {
             this.options = parser.parse(args);
+            if (!options.hasOptions()) {
+                throw new OptionException(null) {
+                };
+            }
         } catch (OptionException e) {
             try {
                 final int helpNumColumns = 160;
                 parser.formatHelpWith(new BuiltinHelpFormatter(helpNumColumns, 2));
                 parser.printHelpOn(System.out);
-                System.exit(-1);
+                throw new RuntimeException("Displaying usage");
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }

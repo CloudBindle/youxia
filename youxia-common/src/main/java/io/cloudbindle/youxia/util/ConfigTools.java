@@ -42,6 +42,7 @@ public class ConfigTools {
 
     public static final String YOUXIA_SENSU_IP_ADDRESS = "youxia.sensu_ip_address";
     public static final String YOUXIA_AWS_SSH_KEY = "youxia.aws_ssh_key";
+    public static final String YOUXIA_SENSU_PORT = "youxia.sensu_port";
     public static final String YOUXIA_SENSU_PASSWORD = "youxia.sensu_password";
     public static final String YOUXIA_SENSU_USERNAME = "youxia.sensu_username";
     public static final String YOUXIA_ZONE = "youxia.zone";

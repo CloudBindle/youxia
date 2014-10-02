@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.commons.io.FileUtils;
 
 /**
@@ -176,6 +177,60 @@ public class ClusterDetails {
      */
     public void setMaxScheduledWorkflows(String maxScheduledWorkflows) {
         this.maxScheduledWorkflows = maxScheduledWorkflows;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final ClusterDetails other = (ClusterDetails) obj;
+        if (!Objects.equals(this.workflowAccession, other.workflowAccession)) {
+            return false;
+        }
+        if (!Objects.equals(this.workflowName, other.workflowName)) {
+            return false;
+        }
+        if (!Objects.equals(this.workflowVersion, other.workflowVersion)) {
+            return false;
+        }
+        if (!Objects.equals(this.username, other.username)) {
+            return false;
+        }
+        if (!Objects.equals(this.password, other.password)) {
+            return false;
+        }
+        if (!Objects.equals(this.webservice, other.webservice)) {
+            return false;
+        }
+        if (!Objects.equals(this.host, other.host)) {
+            return false;
+        }
+        if (!Objects.equals(this.maxWorkflows, other.maxWorkflows)) {
+            return false;
+        }
+        if (!Objects.equals(this.maxScheduledWorkflows, other.maxScheduledWorkflows)) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 73 * hash + Objects.hashCode(this.workflowAccession);
+        hash = 73 * hash + Objects.hashCode(this.workflowName);
+        hash = 73 * hash + Objects.hashCode(this.workflowVersion);
+        hash = 73 * hash + Objects.hashCode(this.username);
+        hash = 73 * hash + Objects.hashCode(this.password);
+        hash = 73 * hash + Objects.hashCode(this.webservice);
+        hash = 73 * hash + Objects.hashCode(this.host);
+        hash = 73 * hash + Objects.hashCode(this.maxWorkflows);
+        hash = 73 * hash + Objects.hashCode(this.maxScheduledWorkflows);
+        return hash;
     }
 
     public static void main(String[] args) throws IOException {

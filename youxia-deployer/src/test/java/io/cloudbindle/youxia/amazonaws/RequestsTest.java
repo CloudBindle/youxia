@@ -20,23 +20,17 @@ import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
 import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
-import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
 import io.cloudbindle.youxia.util.ConfigTools;
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.isA;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.junit.Assert.*;
 import org.junit.runner.RunWith;
-import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.isNotNull;
 import static org.powermock.api.easymock.PowerMock.mockStatic;
 import static org.powermock.api.easymock.PowerMock.replayAll;
@@ -68,6 +62,12 @@ public class RequestsTest {
 
     @Before
     public void setUp() {
+        mockStatic(ConfigTools.class);
+        this.mockClient = mock(AmazonEC2Client.class);
+        HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
+        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig);
+        expect(ConfigTools.getEC2Client()).andReturn(mockClient);
+        when(mockConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)).thenReturn("dummy_tag");
     }
 
     @After
@@ -76,16 +76,11 @@ public class RequestsTest {
 
     /**
      * Test of submitRequests method, of class Requests.
+     * 
+     * @throws java.lang.Exception
      */
     @Test
     public void testSubmitRequests() throws Exception {
-
-        mockStatic(ConfigTools.class);
-        this.mockClient = mock(AmazonEC2Client.class);
-        HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
-        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig);
-        expect(ConfigTools.getEC2Client()).andReturn(mockClient);
-        when(mockConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)).thenReturn("dummy_tag");
         RequestSpotInstancesResult result = mock(RequestSpotInstancesResult.class);
         SpotInstanceRequest resultRequest = mock(SpotInstanceRequest.class);
         when(mockClient.requestSpotInstances(isNotNull(RequestSpotInstancesRequest.class))).thenReturn(result);

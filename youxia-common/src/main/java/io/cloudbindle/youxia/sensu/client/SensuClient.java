@@ -34,6 +34,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
@@ -65,15 +66,35 @@ public class SensuClient {
         return Lists.newArrayList((Client[]) xs);
     }
 
+    public boolean deleteClient(String name) {
+        return deleteX("clients/" + name);
+    }
+
     public List<ClientHistory> getClientHistory(String name) {
         Object xs = getXs("clients/" + name + "/history", ClientHistory[].class);
         return Lists.newArrayList((ClientHistory[]) xs);
     }
 
+    private boolean deleteX(String path) {
+        URI uri;
+        try {
+            uri = builder.setPath("/" + path).build();
+        } catch (URISyntaxException ex) {
+            throw new RuntimeException(ex);
+        }
+        HttpDelete httpdelete = new HttpDelete(uri);
+        Log.info("Deleting at " + httpdelete.toString());
+        try (CloseableHttpResponse response = httpclient.execute(httpdelete, context)) {
+            Log.info(response.toString());
+            final int sensuSuccess = 202;
+            return response.getStatusLine().getStatusCode() == sensuSuccess;
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
     /**
-     * Get an arbitrary class from the sensu api
-     * 
-     * There's probably a better way to do this with generics.
+     * Get an arbitrary class from the sensu api *
      * 
      * @param path
      * @param targetClass

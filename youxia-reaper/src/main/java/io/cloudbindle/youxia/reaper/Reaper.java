@@ -19,6 +19,7 @@ import com.amazonaws.services.simpledb.model.SelectRequest;
 import com.amazonaws.services.simpledb.model.SelectResult;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -44,6 +45,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.BuiltinHelpFormatter;
 import joptsimple.OptionException;
@@ -62,11 +64,8 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class Reaper {
 
-    private static final int DEFAULT_SENSU_PORT = 4567;
     private final ArgumentAcceptingOptionSpec<Integer> batchSize;
-    private final ArgumentAcceptingOptionSpec<String> sensuHost;
-    private final ArgumentAcceptingOptionSpec<Integer> sensuPort;
-    private OptionSet options;
+    private final OptionSet options;
     private final ArgumentAcceptingOptionSpec<Integer> killLimit;
     private final OptionSpecBuilder testMode;
     private final HierarchicalINIConfiguration youxiaConfig;
@@ -74,6 +73,7 @@ public class Reaper {
     public static final String WORKFLOW_RUNS = ".workflow_runs";
     private final OptionSpecBuilder listWR;
     private final ArgumentAcceptingOptionSpec<String> outputFile;
+    private final OptionSpecBuilder useSensu;
 
     public Reaper(String[] args) {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
@@ -85,10 +85,7 @@ public class Reaper {
 
         this.batchSize = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring down at one time")
                 .withRequiredArg().ofType(Integer.class).defaultsTo(1);
-        this.sensuHost = parser.acceptsAll(Arrays.asList("sensu-host", "sh"), "URL for the sensu host").withRequiredArg()
-                .ofType(String.class).defaultsTo("localhost");
-        this.sensuPort = parser.acceptsAll(Arrays.asList("sensu-port", "sp"), "Port for the sensu server api").withRequiredArg()
-                .ofType(Integer.class).defaultsTo(DEFAULT_SENSU_PORT);
+        this.useSensu = parser.acceptsAll(Arrays.asList("sensu", "s"), "Cross-reference clients with sensu health information");
         this.testMode = parser.acceptsAll(Arrays.asList("test", "t"),
                 "In test mode, we only output instances that would be killed rather than actually kill them");
 
@@ -129,7 +126,7 @@ public class Reaper {
 
         // determine number of clients in distress
         List<Client> distressedClients = Lists.newArrayList();
-        if (options.has(sensuHost) && options.has(sensuPort)) {
+        if (options.has(useSensu)) {
             distressedClients = determineSensuUnhealthyClients();
         }
         // TODO: incoporate sensu information to determine instances to kill here
@@ -226,7 +223,7 @@ public class Reaper {
         }
 
         // consider batch size
-        while (instancesToKill.size() > options.valueOf(this.batchSize)) {
+        while (instancesToKill.size() > (options.has(this.batchSize) ? options.valueOf(this.batchSize) : Integer.MAX_VALUE)) {
             Log.info(instancesToKill.get(0) + " is removed from kill list due to batch size");
             instancesToKill.remove(0);
         }
@@ -270,12 +267,40 @@ public class Reaper {
 
     }
 
+    private void terminateSensuClients(List<String> providerIDs, boolean test) {
+        SensuClient sensuClient = new SensuClient(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS),
+                youxiaConfig.getInt(ConfigTools.YOUXIA_SENSU_PORT), youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_USERNAME),
+                youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD));
+        List<Client> clients = sensuClient.getClients();
+        Set<String> addressesToKill = Sets.newHashSet();
+
+        AwsListing listing = new AwsListing();
+        Map<String, String> instances = listing.getInstances();
+        for (Entry<String, String> entry : instances.entrySet()) {
+            if (providerIDs.contains(entry.getKey())) {
+                addressesToKill.add(entry.getValue());
+            }
+        }
+
+        for (Client client : clients) {
+            if (addressesToKill.contains(client.getAddress())) {
+                if (test) {
+                    Log.info("Would have deleted sensu client " + client.getName());
+                } else {
+                    boolean success = sensuClient.deleteClient(client.getName());
+                    Log.stdout("Deleting sensu client " + client.getName() + (success ? " succeeded" : "failed"));
+                }
+            }
+        }
+    }
+
     private List<Client> determineSensuUnhealthyClients() {
         List<Client> distressedClients;
         Log.info("Considering sensu information to identify distressed hosts");
         // If sensu options are specified, talk to sensu and cross-reference health information
-        SensuClient sensuClient = new SensuClient(options.valueOf(sensuHost), options.valueOf(sensuPort),
-                youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_USERNAME), youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD));
+        SensuClient sensuClient = new SensuClient(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS),
+                youxiaConfig.getInt(ConfigTools.YOUXIA_SENSU_PORT), youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_USERNAME),
+                youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD));
         List<Client> clients = sensuClient.getClients();
         List<Client> awsClients = Lists.newArrayList();
         for (Client client : clients) {
@@ -308,7 +333,8 @@ public class Reaper {
         }
         List<String> instancesToKill = deployer.assessClients();
         if (instancesToKill.size() > 0) {
-            if (deployer.options.has(deployer.testMode)) {
+            boolean test = deployer.options.has(deployer.testMode);
+            if (test) {
                 Log.info("Test mode:");
                 for (String instance : instancesToKill) {
                     Log.info("Would have killed: " + instance);
@@ -320,6 +346,7 @@ public class Reaper {
                 TerminateInstancesRequest request = new TerminateInstancesRequest(instancesToKill);
                 client.terminateInstances(request);
             }
+            deployer.terminateSensuClients(instancesToKill, test);
         }
     }
 }
