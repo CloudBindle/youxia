@@ -26,7 +26,6 @@ import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import static org.easymock.EasyMock.expect;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
-import org.jclouds.compute.domain.ComputeMetadata;
 import org.jclouds.compute.domain.ComputeType;
 import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.NodeMetadata;
