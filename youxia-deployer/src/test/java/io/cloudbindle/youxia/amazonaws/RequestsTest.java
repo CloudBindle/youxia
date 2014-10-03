@@ -17,16 +17,23 @@
 package io.cloudbindle.youxia.amazonaws;
 
 import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
 import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.google.common.collect.Lists;
 import io.cloudbindle.youxia.util.ConfigTools;
+import java.util.Date;
 import java.util.List;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import static org.easymock.EasyMock.expect;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
+import static org.junit.Assert.assertEquals;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -98,17 +105,32 @@ public class RequestsTest {
         verifyAll();
     }
 
-    // /**
-    // * Test of launchOnDemand method, of class Requests.
-    // */
-    // @Test
-    // public void testLaunchOnDemand() {
-    // System.out.println("launchOnDemand");
-    // Requests instance = null;
-    // instance.launchOnDemand();
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
+    /**
+     * Test of launchOnDemand method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testLaunchOnDemand() throws Exception {
+        RunInstancesResult runResult = mock(RunInstancesResult.class);
+        when(mockClient.runInstances(isNotNull(RunInstancesRequest.class))).thenReturn(runResult);
+        Reservation reservation = mock(Reservation.class);
+        when(runResult.getReservation()).thenReturn(reservation);
+        Instance instance = mock(Instance.class);
+        when(reservation.getInstances()).thenReturn(Lists.newArrayList(instance));
+        when(instance.getInstanceId()).thenReturn("42");
+
+        replayAll();
+
+        System.out.println("launchOnDemand");
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.launchOnDemand();
+
+        verifyAll();
+
+        Assert.assertTrue("instance id is incorrect", requests.getInstanceIds().equals(Lists.newArrayList("42")));
+    }
+
     //
     // /**
     // * Test of areAnyOpen method, of class Requests.
@@ -116,7 +138,7 @@ public class RequestsTest {
     // @Test
     // public void testAreAnyOpen() {
     // System.out.println("areAnyOpen");
-    // Requests instance = null;
+    // Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
     // boolean expResult = false;
     // boolean result = instance.areAnyOpen();
     // assertEquals(expResult, result);
@@ -131,7 +153,7 @@ public class RequestsTest {
     // public void testTagInstances() {
     // System.out.println("tagInstances");
     // List<Tag> tags = null;
-    // Requests instance = null;
+    // Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
     // instance.tagInstances(tags);
     // // TODO review the generated test code and remove the default call to fail.
     // fail("The test case is a prototype.");
@@ -144,168 +166,170 @@ public class RequestsTest {
     // public void testTagRequests() {
     // System.out.println("tagRequests");
     // List<Tag> tags = null;
-    // Requests instance = null;
+    // Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
     // instance.tagRequests(tags);
     // // TODO review the generated test code and remove the default call to fail.
     // fail("The test case is a prototype.");
     // }
     //
-    // /**
-    // * Test of cleanup method, of class Requests.
-    // */
-    // @Test
-    // public void testCleanup() {
-    // System.out.println("cleanup");
-    // Requests instance = null;
-    // instance.cleanup();
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of setRequestType method, of class Requests.
-    // */
-    // @Test
-    // public void testSetRequestType() {
-    // System.out.println("setRequestType");
-    // String type = "";
-    // Requests instance = null;
-    // instance.setRequestType(type);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of setValidPeriod method, of class Requests.
-    // */
-    // @Test
-    // public void testSetValidPeriod() {
-    // System.out.println("setValidPeriod");
-    // Date from = null;
-    // Date to = null;
-    // Requests instance = null;
-    // instance.setValidPeriod(from, to);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of setLaunchGroup method, of class Requests.
-    // */
-    // @Test
-    // public void testSetLaunchGroup() {
-    // System.out.println("setLaunchGroup");
-    // String launchGroup = "";
-    // Requests instance = null;
-    // instance.setLaunchGroup(launchGroup);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of setAvailabilityZoneGroup method, of class Requests.
-    // */
-    // @Test
-    // public void testSetAvailabilityZoneGroup() {
-    // System.out.println("setAvailabilityZoneGroup");
-    // String azGroup = "";
-    // Requests instance = null;
-    // instance.setAvailabilityZoneGroup(azGroup);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of setAvailabilityZone method, of class Requests.
-    // */
-    // @Test
-    // public void testSetAvailabilityZone() {
-    // System.out.println("setAvailabilityZone");
-    // String az = "";
-    // Requests instance = null;
-    // instance.setAvailabilityZone(az);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of setPlacementGroup method, of class Requests.
-    // */
-    // @Test
-    // public void testSetPlacementGroup() {
-    // System.out.println("setPlacementGroup");
-    // String pg = "";
-    // Requests instance = null;
-    // instance.setPlacementGroup(pg);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of setDeleteOnTermination method, of class Requests.
-    // */
-    // @Test
-    // public void testSetDeleteOnTermination() {
-    // System.out.println("setDeleteOnTermination");
-    // boolean terminate = false;
-    // Requests instance = null;
-    // instance.setDeleteOnTermination(terminate);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of getNumInstances method, of class Requests.
-    // */
-    // @Test
-    // public void testGetNumInstances() {
-    // System.out.println("getNumInstances");
-    // Requests instance = null;
-    // int expResult = 0;
-    // int result = instance.getNumInstances();
-    // assertEquals(expResult, result);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of setNumInstances method, of class Requests.
-    // */
-    // @Test
-    // public void testSetNumInstances() {
-    // System.out.println("setNumInstances");
-    // int numInstances = 0;
-    // Requests instance = null;
-    // instance.setNumInstances(numInstances);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of getInstanceIds method, of class Requests.
-    // */
-    // @Test
-    // public void testGetInstanceIds() {
-    // System.out.println("getInstanceIds");
-    // Requests instance = null;
-    // ArrayList<String> expResult = null;
-    // ArrayList<String> result = instance.getInstanceIds();
-    // assertEquals(expResult, result);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
-    //
-    // /**
-    // * Test of setInstanceIds method, of class Requests.
-    // */
-    // @Test
-    // public void testSetInstanceIds() {
-    // System.out.println("setInstanceIds");
-    // ArrayList<String> instanceIds = null;
-    // Requests instance = null;
-    // instance.setInstanceIds(instanceIds);
-    // // TODO review the generated test code and remove the default call to fail.
-    // fail("The test case is a prototype.");
-    // }
+    /**
+     * Test of cleanup method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testCleanup() throws Exception {
+        System.out.println("cleanup");
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.cleanup();
+    }
+
+    /**
+     * Test of setRequestType method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testSetRequestType() throws Exception {
+        System.out.println("setRequestType");
+        String type = "";
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.setRequestType(type);
+
+    }
+
+    /**
+     * Test of setValidPeriod method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testSetValidPeriod() throws Exception {
+        System.out.println("setValidPeriod");
+        Date from = new Date();
+        Date to = new Date();
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.setValidPeriod(from, to);
+
+    }
+
+    /**
+     * Test of setLaunchGroup method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testSetLaunchGroup() throws Exception {
+        System.out.println("setLaunchGroup");
+        String launchGroup = "";
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.setLaunchGroup(launchGroup);
+    }
+
+    /**
+     * Test of setAvailabilityZoneGroup method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testSetAvailabilityZoneGroup() throws Exception {
+        System.out.println("setAvailabilityZoneGroup");
+        String azGroup = "";
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.setAvailabilityZoneGroup(azGroup);
+
+    }
+
+    /**
+     * Test of setAvailabilityZone method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testSetAvailabilityZone() throws Exception {
+        System.out.println("setAvailabilityZone");
+        String az = "";
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.setAvailabilityZone(az);
+    }
+
+    /**
+     * Test of setPlacementGroup method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testSetPlacementGroup() throws Exception {
+        System.out.println("setPlacementGroup");
+        String pg = "";
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.setPlacementGroup(pg);
+    }
+
+    /**
+     * Test of setDeleteOnTermination method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testSetDeleteOnTermination() throws Exception {
+        System.out.println("setDeleteOnTermination");
+        boolean terminate = false;
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.setDeleteOnTermination(terminate);
+    }
+
+    /**
+     * Test of getNumInstances method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testGetNumInstances() throws Exception {
+        System.out.println("getNumInstances");
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        int expResult = 0;
+        int result = requests.getNumInstances();
+    }
+
+    /**
+     * Test of setNumInstances method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testSetNumInstances() throws Exception {
+        System.out.println("setNumInstances");
+        int numInstances = 0;
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.setNumInstances(numInstances);
+    }
+
+    /**
+     * Test of getInstanceIds method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testGetInstanceIds() throws Exception {
+        System.out.println("getInstanceIds");
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        List<String> expResult = Lists.newArrayList();
+        List<String> result = requests.getInstanceIds();
+        assertEquals(expResult, result);
+    }
+
+    /**
+     * Test of setInstanceIds method, of class Requests.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testSetInstanceIds() throws Exception {
+        System.out.println("setInstanceIds");
+        List<String> instanceIds = Lists.newArrayList();
+        Requests requests = new Requests("instanceType", "amiId", "1.0", "securityGroup", 5, "keyName");
+        requests.setInstanceIds(instanceIds);
+    }
 
 }

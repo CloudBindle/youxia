@@ -48,8 +48,8 @@ import java.util.List;
  */
 public class Requests {
     private AmazonEC2 ec2;
-    private ArrayList<String> instanceIds = Lists.newArrayList();
-    private ArrayList<String> spotInstanceRequestIds = Lists.newArrayList();
+    private List<String> instanceIds = Lists.newArrayList();
+    private List<String> spotInstanceRequestIds = Lists.newArrayList();
     private String instanceType;
     private String amiID;
     private String bidPrice;
@@ -473,7 +473,7 @@ public class Requests {
     /**
      * @return the instanceIds
      */
-    public ArrayList<String> getInstanceIds() {
+    public List<String> getInstanceIds() {
         return instanceIds;
     }
 
@@ -481,7 +481,7 @@ public class Requests {
      * @param instanceIds
      *            the instanceIds to set
      */
-    public void setInstanceIds(ArrayList<String> instanceIds) {
+    public void setInstanceIds(List<String> instanceIds) {
         this.instanceIds = instanceIds;
     }
 
