@@ -1,5 +1,8 @@
 package io.cloudbindle.youxia.sensu.api;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * 
  * @author dyuen
@@ -9,6 +12,7 @@ public class Client {
     private String address;
     private String[] subscriptions;
     private Environment environment;
+    private long timestamp;
 
     /**
      * @return the name
@@ -70,6 +74,21 @@ public class Client {
         this.environment = environment;
     }
 
+    /**
+     * @return the timestamp
+     */
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    /**
+     * @param timestamp
+     *            the timestamp to set
+     */
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
+
     public class Environment {
 
         private String ansibleSystemVendor;
@@ -105,6 +124,40 @@ public class Client {
             this.ansibleProductName = ansibleProductName;
         }
 
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final Client other = (Client) obj;
+        if (!Objects.equals(this.name, other.name)) {
+            return false;
+        }
+        if (!Objects.equals(this.address, other.address)) {
+            return false;
+        }
+        if (!Arrays.deepEquals(this.subscriptions, other.subscriptions)) {
+            return false;
+        }
+        if (!Objects.equals(this.environment, other.environment)) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 3;
+        hash = 41 * hash + Objects.hashCode(this.name);
+        hash = 41 * hash + Objects.hashCode(this.address);
+        hash = 41 * hash + Arrays.deepHashCode(this.subscriptions);
+        hash = 41 * hash + Objects.hashCode(this.environment);
+        return hash;
     }
 
 }

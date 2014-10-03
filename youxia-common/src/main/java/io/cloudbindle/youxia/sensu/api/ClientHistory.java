@@ -17,6 +17,9 @@
 
 package io.cloudbindle.youxia.sensu.api;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
  * 
  * @author dyuen
@@ -35,7 +38,8 @@ public class ClientHistory {
     }
 
     /**
-     * @param check the check to set
+     * @param check
+     *            the check to set
      */
     public void setCheck(String check) {
         this.check = check;
@@ -49,7 +53,8 @@ public class ClientHistory {
     }
 
     /**
-     * @param history the history to set
+     * @param history
+     *            the history to set
      */
     public void setHistory(int[] history) {
         this.history = history;
@@ -63,7 +68,8 @@ public class ClientHistory {
     }
 
     /**
-     * @param lastExecution the lastExecution to set
+     * @param lastExecution
+     *            the lastExecution to set
      */
     public void setLastExecution(Long lastExecution) {
         this.lastExecution = lastExecution;
@@ -77,10 +83,45 @@ public class ClientHistory {
     }
 
     /**
-     * @param lastStatus the lastStatus to set
+     * @param lastStatus
+     *            the lastStatus to set
      */
     public void setLastStatus(int lastStatus) {
         this.lastStatus = lastStatus;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 59 * hash + Objects.hashCode(this.check);
+        hash = 59 * hash + Arrays.hashCode(this.history);
+        hash = 59 * hash + Objects.hashCode(this.lastExecution);
+        hash = 59 * hash + this.lastStatus;
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final ClientHistory other = (ClientHistory) obj;
+        if (!Objects.equals(this.check, other.check)) {
+            return false;
+        }
+        if (!Arrays.equals(this.history, other.history)) {
+            return false;
+        }
+        if (!Objects.equals(this.lastExecution, other.lastExecution)) {
+            return false;
+        }
+        if (this.lastStatus != other.lastStatus) {
+            return false;
+        }
+        return true;
     }
 
 }
