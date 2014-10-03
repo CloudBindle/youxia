@@ -26,14 +26,12 @@ import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_ACCES
 import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_NAME;
 import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_VERSION;
 import io.cloudbindle.youxia.listing.AwsJCloudsListing;
-import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
 import io.cloudbindle.youxia.pawg.api.ClusterDetails;
 import io.cloudbindle.youxia.util.ConfigTools;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
