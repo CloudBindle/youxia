@@ -16,15 +16,47 @@
  */
 package io.cloudbindle.youxia.generator;
 
+import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import static io.cloudbindle.youxia.generator.Generator.GENERATOR_MAX_SCHEDULED_WORKFLOWS;
+import static io.cloudbindle.youxia.generator.Generator.GENERATOR_MAX_WORKFLOWS;
+import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_ACCESSION;
+import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_NAME;
+import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_VERSION;
+import io.cloudbindle.youxia.listing.AwsJCloudsListing;
+import io.cloudbindle.youxia.listing.AwsListing;
+import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
+import io.cloudbindle.youxia.pawg.api.ClusterDetails;
 import io.cloudbindle.youxia.util.ConfigTools;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import org.apache.commons.configuration.HierarchicalINIConfiguration;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import static org.easymock.EasyMock.expect;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import static org.powermock.api.easymock.PowerMock.createMockAndExpectNew;
+import static org.powermock.api.easymock.PowerMock.mockStatic;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import static org.powermock.api.easymock.PowerMock.replayAll;
+import static org.powermock.api.easymock.PowerMock.verifyAll;
+import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
  * 
@@ -33,6 +65,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ ConfigTools.class, Generator.class })
 public class GeneratorTest {
+    private File manualFile;
 
     public GeneratorTest() {
     }
@@ -46,11 +79,17 @@ public class GeneratorTest {
     }
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
+        mockStatic(ConfigTools.class);
+        String testString = IOUtils.toString(Generator.class.getResourceAsStream("double_cluster.json"));
+        Path tempFile = Files.createTempFile("inventory", ".json");
+        FileUtils.write(tempFile.toFile(), testString);
+        this.manualFile = tempFile.toFile();
     }
 
     @After
     public void tearDown() {
+        this.manualFile.deleteOnExit();
     }
 
     /**
@@ -63,5 +102,80 @@ public class GeneratorTest {
         System.out.println("help");
         String[] args = { "--help" };
         Generator.main(args);
+    }
+
+    @Test
+    public void testAggregateAllOnlyJsonContents() throws IOException, Exception {
+        mockOutConfig();
+
+        AwsJCloudsListing listing1 = createMockAndExpectNew(AwsJCloudsListing.class);
+        OpenStackJCloudsListing listing2 = createMockAndExpectNew(OpenStackJCloudsListing.class);
+
+        Map<String, String> result1 = Maps.newHashMap();
+        expect(listing1.getInstances()).andReturn(result1);
+        expect(listing2.getInstances()).andReturn(result1);
+
+        Path tempFile = Files.createTempFile("output", ".json");
+        String[] args = { "--aws", "--openstack", "--json", this.manualFile.getAbsolutePath(), "--output", tempFile.toString() };
+
+        replayAll();
+
+        Generator.main(args);
+
+        Gson gson = new GsonBuilder().create();
+        String readFileToString = FileUtils.readFileToString(tempFile.toFile(), StandardCharsets.UTF_8);
+        Type mapType = new TypeToken<Map<String, ClusterDetails>>() {
+        }.getType();
+        Map<String, ClusterDetails> map = gson.fromJson(readFileToString, mapType);
+        Assert.assertTrue(readFileToString, map.entrySet().size() == 2);
+
+        verifyAll();
+    }
+
+    @Test
+    public void testAggregateAll() throws IOException, Exception {
+        mockOutConfig();
+
+        AwsJCloudsListing listing1 = createMockAndExpectNew(AwsJCloudsListing.class);
+        OpenStackJCloudsListing listing2 = createMockAndExpectNew(OpenStackJCloudsListing.class);
+
+        Map<String, String> result1 = Maps.newHashMap();
+        result1.put("Wong_Fei-hong", "123.123.123.123");
+        result1.put("Ip_Man", "124.124.124.124");
+        Map<String, String> result2 = Maps.newHashMap();
+        result2.put("Ouyang_Feng", "125.125.125.125");
+        result2.put("Murong_Yang", "126.126.126.126");
+        expect(listing1.getInstances()).andReturn(result1);
+        expect(listing2.getInstances()).andReturn(result2);
+
+        Path tempFile = Files.createTempFile("output", ".json");
+        String[] args = { "--aws", "--openstack", "--json", this.manualFile.getAbsolutePath(), "--output", tempFile.toString() };
+
+        replayAll();
+
+        Generator.main(args);
+
+        Gson gson = new GsonBuilder().create();
+        String readFileToString = FileUtils.readFileToString(tempFile.toFile(), StandardCharsets.UTF_8);
+        Type mapType = new TypeToken<Map<String, ClusterDetails>>() {
+        }.getType();
+        Map<String, ClusterDetails> map = gson.fromJson(readFileToString, mapType);
+        Assert.assertTrue(readFileToString, map.entrySet().size() == 6);
+
+        verifyAll();
+    }
+
+    private void mockOutConfig() {
+        HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
+        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig);
+        when(mockConfig.getString(GENERATOR_MAX_SCHEDULED_WORKFLOWS)).thenReturn("1 billion");
+        when(mockConfig.getString(GENERATOR_MAX_WORKFLOWS)).thenReturn("1 billion");
+        when(mockConfig.getString(ConfigTools.SEQWARE_REST_PASS)).thenReturn("password");
+        when(mockConfig.getString(ConfigTools.SEQWARE_REST_USER)).thenReturn("username");
+        when(mockConfig.getString(ConfigTools.SEQWARE_REST_PORT)).thenReturn("1234");
+        when(mockConfig.getString(ConfigTools.SEQWARE_REST_ROOT)).thenReturn("123.123.123.123");
+        when(mockConfig.getString(GENERATOR_WORKFLOW_ACCESSION)).thenReturn("1");
+        when(mockConfig.getString(GENERATOR_WORKFLOW_NAME)).thenReturn("workflow name");
+        when(mockConfig.getString(GENERATOR_WORKFLOW_VERSION)).thenReturn("1");
     }
 }

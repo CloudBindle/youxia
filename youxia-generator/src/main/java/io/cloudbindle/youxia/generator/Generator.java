@@ -54,7 +54,7 @@ public class Generator {
         this.help = parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
 
         this.aggregateAWS = parser.acceptsAll(Arrays.asList("aws", "a"), "Aggregate tagged instances from AWS");
-        this.aggregateOpenStack = parser.acceptsAll(Arrays.asList("openstack", "o"), "Aggregate tagged instances from OpenStack");
+        this.aggregateOpenStack = parser.acceptsAll(Arrays.asList("openstack", "op"), "Aggregate tagged instances from OpenStack");
         this.aggregateJSON = parser.acceptsAll(Arrays.asList("json", "j"), "Aggregate tagged instances from a provided json")
                 .withRequiredArg();
         this.outputFile = parser.acceptsAll(Arrays.asList("output", "o"), "Save output to a json file").withRequiredArg()
