@@ -416,7 +416,7 @@
                         <id>enforce</id>
                         <configuration>
                             <rules>
-                                <DependencyConvergence/>
+                                <DependencyConvergence />
                                 <requirePluginVersions>
                                     <message>Best Practice is to always define plugin versions!</message>
                                 </requirePluginVersions>
@@ -427,7 +427,7 @@
                                         <exclude>io.cloudbindle:*</exclude>
                                     </excludes>
                                 </requireReleaseDeps>
-                                <requireUpperBoundDeps/>
+                                <requireUpperBoundDeps />
                             </rules>
                         </configuration>
                         <goals>
