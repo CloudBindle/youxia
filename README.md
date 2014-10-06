@@ -10,6 +10,7 @@ For most tools, you will need to have a valid Amazon Web Services developer acco
 1. Java contributions must be formatted using SeqWare's Eclipse formatting file. See https://seqware.github.io/docs/100-coding-standards/ for more details. Contributions that do not follow this formatting will be rejected. 
 2. Test your build against Checkstyle, a few Maven checks for consistent dependencies, and a high priority findbugs check using <code>mvn clean install</code>
 3. Check your build status on jenkins
+4. Releases use the standard maven release:prepare release:perform plugins
 
 ## Users
 
