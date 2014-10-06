@@ -18,7 +18,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <github.url>scm:git:git@github.com:CloudBindle/bindle.git</github.url>
+        <github.url>scm:git:git@github.com:CloudBindle/youxia.git</github.url>
         <httpcomponents-version>4.3.1</httpcomponents-version>
         <seqware-version>1.1.0-alpha.3</seqware-version>
         <jclouds.version>1.8.0</jclouds.version>
