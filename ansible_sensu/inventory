@@ -1,4 +1,4 @@
-[sensu-servers]
+[sensu-server]
 sensu-server	ansible_ssh_host=54.197.75.85	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/root/george_aws.pem
 
 [master]
