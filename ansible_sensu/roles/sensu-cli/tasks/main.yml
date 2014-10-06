@@ -1,0 +1,24 @@
+---
+- name: Uninstall ruby1.8
+  apt: name=ruby1.8 state=absent
+
+- name: Uninstall rubygems
+  apt: name=rubygems state=absent
+
+- name: Install ruby1.9.3
+  apt: name=ruby1.9.3 state=present
+
+- name: Install sensu-cli gem
+  gem: name=sensu-cli state=present
+
+- name: Create directory holding the settings for Sensu-cli
+  file: path=/etc/sensu/sensu-cli owner=root group=root state=directory mode=0755
+
+- name: Remove the default settings file for Sensu-cli
+  file: path=/root/.sensu/settings.rb state=absent
+
+- name: Create file with correct settings for sensu-cli
+  template: src=settings.json.j2 dest=/etc/sensu/sensu-cli/settings.rb owner=root mode=400
+
+- name: Create the link to the sensu-cli binary
+  file: src=/root/.gem/ruby/1.9.1/bin/sensu-cli dest=/usr/bin/sensu-cli state=link

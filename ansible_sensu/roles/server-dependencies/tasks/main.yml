@@ -5,6 +5,12 @@
 - name: Install erlang
   apt: name=erlang-nox state=latest
 
+- name: Install NTP
+  apt: name=ntp state=latest
+
+- name: Start NTP on boot
+  service: name=ntp state=started enabled=yes
+
 - name: Install python-apt
   apt: name=python-apt state=latest
 

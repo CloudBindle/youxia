@@ -4,12 +4,34 @@
   template: src=client.json.j2 dest=/etc/sensu/conf.d/client.json
   notify: restart sensu-client
 
+- name: Install rubygems
+  apt: name=rubygems state=latest
+  when: ansible_distribution_release == "precise"
+
+- name: Install ruby
+  apt: name=ruby state=latest
+  when: ansible_distribution_release == "trusty"
+
+
+- name: Install sensu-plugin gem
+  gem: name=sensu-plugin state=latest
+  when: ansible_distribution_release == "precise"
+
 - name: Install check-procs plugin 
   get_url: 
     dest=/etc/sensu/plugins/check-procs.rb 
     url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/processes/check-procs.rb
     mode=755
   notify: restart sensu-client
+
+
+- name: Install check-ntp plugin 
+  get_url: 
+    dest=/etc/sensu/plugins/check-ntp.rb 
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/system/check-ntp.rb
+    mode=755
+  notify: restart sensu-client
+
   
 - name: Install check-cmd plugin 
   get_url: 
@@ -18,6 +40,43 @@
     mode=755
   notify: restart sensu-client
   
+- name: Install check-cpu plugin 
+  get_url: 
+    dest=/etc/sensu/plugins/check-cpu.rb 
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/system/check-cpu.rb
+    mode=755
+  notify: restart sensu-client
+
+- name: Install check-fs-writable plugin 
+  get_url: 
+    dest=/etc/sensu/plugins/check-fs-writable.rb 
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/system/check-fs-writable.rb
+    mode=755
+  notify: restart sensu-client
+
+- name: Install check-mem plugin 
+  get_url: 
+    dest=/etc/sensu/plugins/check-mem.sh 
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/system/check-mem.sh
+    mode=755
+  notify: restart sensu-client
+
+
+- name: Install check-disk-capacity plugin 
+  get_url: 
+    dest=/etc/sensu/plugins/disk-capacity-metrics.rb
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/system/disk-capacity-metrics.rb
+    mode=755
+  notify: restart sensu-client
+
+
+- name: Install check-disk plugin 
+  get_url: 
+    dest=/etc/sensu/plugins/check-disk.rb
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/system/check-disk.rb
+    mode=755
+  notify: restart sensu-client
+
 - name: Activate client services
   service: name={{ item }} state=started enabled=yes
   with_items:

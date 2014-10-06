@@ -1,2 +1,3 @@
 ---
+sensu_server: 54.197.75.85
 rabbit_password: "seqware"
