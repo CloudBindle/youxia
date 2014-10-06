@@ -31,30 +31,30 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	sensu_username = admin
 	sensu_password = XXXXX 
 	sensu_ip_address = XX.XX.XXX.XXX
-        sensu_port = 4567
+	sensu_port = 4567
 	aws_ssh_key = /home/dyuen/.ssh/oicr-aws-dyuen.pem
 	aws_key_name = oicr-aws-dyuen
-        aws_security_group = launch-wizard-73
+	aws_security_group = launch-wizard-73
 	openstack_username = sweng:dyuen	
 	openstack_password = XXXXX
 	openstack_endpoint = http://sweng.os.oicr.on.ca:5000/v2.0/
 	zone = us-east-1a
 	managed_tag = drunken_master
 	slack_webhook = https://XXXX.slack.com/services/hooks/incoming-webhook?token=XXXXXX
-
+	
 	[deployer]
 	ami_image = ami-90da15f8
 	instance_type = m1.xlarge
-        security_group = launch-wizard-73
-        product = Linux/UNIX
-
-
+	security_group = launch-wizard-73
+	product = Linux/UNIX
+	
+	
 	[seqware]
 	rest_user = admin@admin.com
 	rest_pass = XXXXX
 	rest_port = 8080
 	rest_root = SeqWareWebService
-
+	
 	[generator]
 	max_scheduled_workflows = 1
 	max_workflows = 1
@@ -67,7 +67,7 @@ Next, you will need to setup the various components on AWS. Note that you will n
 For our security group, we needed to expose the following ports: 
 
 * all TCP traffic between nodes in the security group should be allowed (this uses private ip addresses as sources)
-* all TCP traffic from the public sensu-server up address should be allowed (this uses the public ip address as a source)
+* all TCP traffic from the public sensu-server ip address should be allowed (this uses the public ip address as a source)
 * SSH should be open across the board
 * port 3000 (uchiwa), 4567 (rabbitmq) and 5671 (sensu-api) should be open from your institution
 
