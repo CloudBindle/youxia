@@ -70,7 +70,6 @@ public class Reaper {
     private final OptionSpecBuilder testMode;
     private final HierarchicalINIConfiguration youxiaConfig;
     private final OptionSpecBuilder persistWR;
-    public static final String WORKFLOW_RUNS = ".workflow_runs";
     private final OptionSpecBuilder listWR;
     private final ArgumentAcceptingOptionSpec<String> outputFile;
     private final OptionSpecBuilder useSensu;
@@ -181,7 +180,7 @@ public class Reaper {
                 }
                 if (options.has(this.persistWR)) {
                     simpleDBClient = ConfigTools.getSimpleDBClient();
-                    final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + WORKFLOW_RUNS;
+                    final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + Constants.WORKFLOW_RUNS;
                     ListDomainsResult listDomains = simpleDBClient.listDomains();
                     if (!listDomains.getDomainNames().contains(domainName)) {
                         simpleDBClient.createDomain(new CreateDomainRequest(domainName));
@@ -192,7 +191,7 @@ public class Reaper {
                         Map<String, Object> fromJson = gson.fromJson(json, Map.class);
                         for (Entry<String, Object> field : fromJson.entrySet()) {
                             // split up the ini file to ensure it makes it into the DB
-                            if (field.getKey().equals("ini_file")) {
+                            if (field.getKey().equals(Constants.INI_FILE)) {
                                 String iniFile = (String) field.getValue();
                                 String[] iniFileLines = iniFile.split("\n");
                                 for (String iniFileLine : iniFileLines) {
@@ -231,6 +230,7 @@ public class Reaper {
         return instancesToKill;
     }
 
+
     private void listWorkflowRuns() {
         AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
         Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).disableHtmlEscaping()
@@ -248,7 +248,7 @@ public class Reaper {
         try (JsonWriter writer = new JsonWriter(outWriter)) {
             writer.setIndent("\t");
             writer.beginArray();
-            final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + WORKFLOW_RUNS;
+            final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + Constants.WORKFLOW_RUNS;
             SelectResult select = simpleDBClient.select(new SelectRequest("select * from `" + domainName + "`"));
             for (Item item : select.getItems()) {
                 gson.toJson(item, Item.class, writer);
