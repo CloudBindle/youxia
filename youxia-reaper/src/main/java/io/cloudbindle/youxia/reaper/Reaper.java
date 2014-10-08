@@ -204,7 +204,9 @@ public class Reaper {
                                 }
                             } else {
                                 // check to see if the item is too big, if so split it up
-                                ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), field.getValue().toString(), true);
+                                final int maximumLength = 1024;
+                                ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), StringUtils.abbreviate(field
+                                        .getValue().toString(), maximumLength), true);
                                 PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
                                         + run.getSwAccession(), Lists.newArrayList(attr));
                                 simpleDBClient.putAttributes(request);
@@ -213,11 +215,11 @@ public class Reaper {
                     }
                 }
             } catch (AmazonClientException e) {
-                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to AmazonClient error");
+                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to AmazonClient error", e);
             } catch (JsonSyntaxException e) {
-                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to JSON error");
+                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to JSON error", e);
             } catch (RuntimeException e) {
-                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to runtime error");
+                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to runtime error", e);
             }
         }
 
@@ -229,7 +231,6 @@ public class Reaper {
 
         return instancesToKill;
     }
-
 
     private void listWorkflowRuns() {
         AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();

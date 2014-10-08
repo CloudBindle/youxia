@@ -126,16 +126,17 @@ public class Decider {
                 if (attribute.getName().equals("status")) {
                     status = attribute.getValue();
                 }
-                if (attribute.getValue().equals(Constants.INI_FILE + ".greetings")) {
+                if (attribute.getName().equals(Constants.INI_FILE + ".greeting")) {
                     greetings = attribute.getValue();
                 }
-                if (greetings == null || status == null) {
-                    Log.error("Workflow run " + item.getName() + " did not have greetings or a status");
-                    continue;
-                }
-                if ("failed".equals(status) || "completed".equals(status)) {
-                    this.potentialGreetings.remove(greetings);
-                }
+            }
+            if (greetings == null || status == null) {
+                Log.error("Workflow run " + item.getName() + " did not have greeting or a status");
+                Log.error("greeting: " + greetings + " status: " + status);
+                continue;
+            }
+            if ("failed".equals(status) || "completed".equals(status)) {
+                this.potentialGreetings.remove(greetings);
             }
         }
         Log.stdout(this.potentialGreetings.size() + " potential greetings left after filtering");
@@ -186,11 +187,11 @@ public class Decider {
                 if (options.has(testMode)) {
                     Log.stdout("Would have scheduled onto " + entry.getKey() + " with greeting " + greeting);
                 } else {
+                    // TODO: hardcode the schedule to master until the generator is fixed
                     Log.stdout("Scheduled onto " + entry.getKey() + " with greeting " + greeting);
                     ReturnValue scheduleInstalledBundle = scheduler.scheduleInstalledBundle(entry.getValue().getWorkflowAccession(),
                             Lists.newArrayList(tempFile.getAbsolutePath()), false, new ArrayList<String>(), new ArrayList<String>(),
-                            new ArrayList<String>(), entry.getValue().getHost(), Engines.TYPES.oozie_sge.getCliString(),
-                            new HashSet<Integer>());
+                            new ArrayList<String>(), "master", Engines.TYPES.oozie_sge.getCliString(), new HashSet<Integer>());
                     if (scheduleInstalledBundle.getExitStatus() != ReturnValue.SUCCESS) {
                         throw new RuntimeException("Failed scheduling");
                     }
