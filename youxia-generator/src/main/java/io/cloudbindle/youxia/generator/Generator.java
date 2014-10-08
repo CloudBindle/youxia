@@ -105,7 +105,8 @@ public class Generator {
 
         for (Entry<String, String> entry : instances.entrySet()) {
             ClusterDetails details = new ClusterDetails();
-            details.setHost(entry.getValue());
+            // this is crummy and hard-coded for now
+            details.setHost("master");
             details.setMaxScheduledWorkflows(generator.youxiaConfig.getString(GENERATOR_MAX_SCHEDULED_WORKFLOWS));
             details.setMaxWorkflows(generator.youxiaConfig.getString(GENERATOR_MAX_WORKFLOWS));
             details.setPassword(generator.youxiaConfig.getString(ConfigTools.SEQWARE_REST_PASS));
