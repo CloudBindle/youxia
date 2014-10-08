@@ -1,0 +1,8 @@
+---  
+deployer_minute_cron_interval: 0,15,30,45
+reaper_minute_cron_interval: 5,20,35,50
+max_spot_price: 2
+batch_size: 1
+total_num_nodes: 5
+youxia_version: 1.1.0-alpha.1
+

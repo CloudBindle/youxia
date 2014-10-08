@@ -1,14 +1,12 @@
 # reaper/tasks/main.yml
 ---
-- name: Create the cron job for the reaper
-  cron: name="reaper cron job" minute= {{ reaper_minute_cron_interval }} job="java -jar ~/youxia-reaper/target/youxia-reaper-1.1.0-alpha.1-jar-with-dependencies.jar --kill-limit 5 --persist"
 
 - name: Create the reaper directory
   file: path=~/youxia-reaper/target/ owner=ubuntu group=ubuntu mode=0755 state=directory
 
 - name: Copy the jar file
   get_url:
-    dest=~/youxia-reaper/target/youxia-reaper-1.1.0-alpha.1-jar-with-dependencies.jar
-    url=https://seqwaremaven.oicr.on.ca/artifactory/seqware-release/io/cloudbindle/youxia-reaper/1.1.0-alpha.1/youxia-reaper-1.1.0-alpha.1-jar-with-dependencies.jar
+    dest=~/youxia-reaper/target/youxia-reaper-{{ youxia_version }}-jar-with-dependencies.jar
+    url=https://seqwaremaven.oicr.on.ca/artifactory/seqware-release/io/cloudbindle/youxia-reaper/{{ youxia_version }}/youxia-reaper-{{ youxia_version }}-jar-with-dependencies.jar
     mode=755
-  notify: restart cron jobs
+    #notify: restart cron jobs (not checked in or implemented)

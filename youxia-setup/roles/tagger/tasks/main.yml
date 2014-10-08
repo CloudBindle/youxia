@@ -5,6 +5,6 @@
 
 - name: Copy the jar file
   get_url:
-    dest=~/youxia-common/target/youxia-common-1.1.0-alpha.1-jar-with-dependencies.jar
-    url=https://seqwaremaven.oicr.on.ca/artifactory/seqware-release/io/cloudbindle/youxia-common/1.1.0-alpha.1/youxia-common-1.1.0-alpha.1-jar-with-dependencies.jar
+    dest=~/youxia-common/target/youxia-common-{{ youxia_version }}-jar-with-dependencies.jar
+    url=https://seqwaremaven.oicr.on.ca/artifactory/seqware-release/io/cloudbindle/youxia-common/{{ youxia_version }}/youxia-common-{{ youxia_version }}-jar-with-dependencies.jar
     mode=755
