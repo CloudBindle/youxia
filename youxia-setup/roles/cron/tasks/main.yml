@@ -1,7 +1,20 @@
 # cron/tasks/main.yml
 ---
-#- name: Create the cron job for the deployer
-#  cron: name="deployer cron job" minute={{ deployer_minute_cron_interval }} job="java -jar ~/youxia-deployer/target/youxia-deployer-{{ youxia_version}}-jar-with-dependencies.jar  --ansible-playbook ansible_sensu/site.yml --max_spot_price {{ max_spot_price }}  --batch_size {{ batch_size }} --total_nodes_num {{ total_num_nodes }}"
+- name: Set up youxia cron and log directory
+  file: path={{ item.path }} state={{ item.state }} owner={{ item.owner }} mode={{ item.mode}} group={{ item.group }}
+  with_items:
+    - { state: 'directory', path: '~{{ user_name }}/logs', owner: '{{ user_name }}', group: '{{ user_name }}', mode: '0700' }
+    - { state: 'directory', path: '~{{ user_name }}/crons', owner: '{{ user_name }}', group: '{{ user_name }}', mode: '0700' }
+    - { state: 'directory', path: '~{{ user_name }}/state', owner: '{{ user_name }}', group: '{{ user_name }}', mode: '0700' }
 
-#- name: Create the cron job for the reaper
-#  cron: name="reaper cron job" minute={{ reaper_minute_cron_interval }} job="java -jar ~/youxia-reaper/target/youxia-reaper-{{ youxia_version }}-jar-with-dependencies.jar --kill-limit 5 --persist"
+    
+- name: Template status cron
+  template: src=status.j2 dest=~{{ user_name }}/crons/status.cron owner={{ user_name }}
+  
+- name: Set up youxia cron permissions
+  file: path={{ item.path }} state={{ item.state }} owner={{ item.owner }} mode={{ item.mode}} group={{ item.group }}
+  with_items:
+  - { state: 'file', path: '~{{ user_name }}/crons/status.cron', owner: '{{ user_name }}', group: '{{ user_name }}', mode: '0700' }
+
+- name: Setup status cron
+  cron: name="status cron" job="~{{ user_name }}/crons/status.cron >> ~{{ user_name }}/logs/status.log" state=present user={{ user_name }} minute=*/15

@@ -178,13 +178,7 @@ public class Decider {
                     + "# manual output is provided as an example of a workflow parameter that modifies output behaviour. \n"
                     + "# If false, the workflow will create output files in a directory specified by output_prefix/output_dir/workflowname_version/RANDOM/ where RANDOM is an integer. \n"
                     + "# If true, the workflow places the files at output_prefix/output_dir and may overwrite existing files.\" \n"
-                    + "manual_output=false\n"
-                    + "\n"
-                    + "seqware_bundle_version_number=${sqw.bundle-seqware-version}\n"
-                    + "\n"
-                    + "# Optional: This controls the default number of lines of stdout and stderr that jobs in a workflow will report as metadata\n"
-                    + "# Otherwise, the default in GenericCommandRunner will be used (currently, 10)  \n"
-                    + "seqware-output-lines-number=20";
+                    + "manual_output=false\n" + "\n" + "seqware_bundle_version_number=${sqw.bundle-seqware-version}\n" + "\n";
             File tempFile;
             try {
                 tempFile = Files.createTempFile("workflow", "ini").toFile();

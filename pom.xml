@@ -20,7 +20,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <github.url>scm:git:git@github.com:CloudBindle/youxia.git</github.url>
         <httpcomponents-version>4.3.1</httpcomponents-version>
-        <seqware-version>1.1.0-alpha.3</seqware-version>
+        <seqware-version>1.1.0-alpha.4-SNAPSHOT</seqware-version>
         <jclouds.version>1.8.0</jclouds.version>
         <powermock.version>1.5.6</powermock.version>
     </properties>
@@ -170,7 +170,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.1</version>
+		<version>3.3.2</version>
             </dependency>
             <dependency>
                 <groupId>com.github.seqware</groupId>
@@ -445,6 +445,7 @@
                                     <failWhenParentIsSnapshot>false</failWhenParentIsSnapshot>
                                     <excludes>
                                         <exclude>io.cloudbindle:*</exclude>
+                                        <exclude>com.github.seqware:*</exclude>
                                     </excludes>
                                 </requireReleaseDeps>
                                 <requireUpperBoundDeps />

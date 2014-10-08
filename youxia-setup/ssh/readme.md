@@ -1,2 +1,2 @@
-Install your pem key used to communicate with new instances here under the name "deployer.pem"
+Install your pem key used to communicate with new instances here.
 Do not check it in.

@@ -12,9 +12,6 @@
 
 - name: Copy over youxia config
   copy: src=aws_config dest=~/.aws/config
-  
-- name: Setup .ssh directory
-  file: state=directory path=~/.ssh
 
 - name: Copy over pem key for deployer
-  copy: src=deployer.pem dest=~/.ssh/deployer.pem 
+  copy: src=ssh/ dest=~/.ssh mode=0600
