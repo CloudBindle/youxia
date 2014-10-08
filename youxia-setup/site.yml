@@ -1,0 +1,13 @@
+---
+# setup infrastructure node running reaper, deployer and all other Bindle functions
+- hosts: infra
+  sudo: True
+  roles: 
+    - { role: creds }
+    - { role: java, java_provider: Cloudera }
+    - { role: ansible }
+    - { role: reaper }
+    - { role: deployer }
+    - { role: generator }
+    - { role: tagger }
+

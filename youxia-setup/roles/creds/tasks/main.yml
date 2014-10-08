@@ -1,0 +1,7 @@
+# creds/tasks/main.yml
+---
+  notify: restart cron jobs
+
+- name: Template over youxia config
+  template: src=youxia_config.json.j2 dest=~/.youxia/config
+  notify: restart cron jobs

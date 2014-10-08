@@ -1,0 +1,14 @@
+# deployer/tasks/main.yml
+---
+- name: Create the cron job for the deployer
+  cron: name="deployer cron job" minute= {{ deployer_minute_cron_interval }} job="java -jar ~/youxia-deployer/target/youxia-deployer-1.1.0-alpha.1-jar-with-dependencies.jar  --ansible-playbook ansible_sensu/site.yml --max-spot-price {{ max-spot-price }}  --batch-size {{ batch-size }} --total-nodes-num {{ total-num-nodes }}"
+
+- name: Create the deployer directory
+  file: path=~/youxia-deployer/target/ owner=ubuntu group=ubuntu mode=0755 state=directory
+
+- name: Copy the jar file
+  get_url:
+    dest=~/youxia-deployer/target/youxia-deployer-1.1.0-alpha.1-jar-with-dependencies.jar
+    url=https://seqwaremaven.oicr.on.ca/artifactory/seqware-release/io/cloudbindle/youxia-deployer/1.1.0-alpha.1/youxia-deployer-1.1.0-alpha.1-jar-with-dependencies.jar
+    mode=755
+  notify: restart cron jobs

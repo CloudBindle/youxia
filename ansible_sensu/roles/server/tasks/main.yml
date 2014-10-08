@@ -12,6 +12,19 @@
   template: src=checks.json.j2 dest=/etc/sensu/conf.d/checks.json
   notify: restart sensu server services
   
+- name: Disk usage metrics
+  template: src=disk-usage-metrics.json.j2 dest=/etc/sensu/conf.d/disk-usage-metrics.json
+  notify: restart sensu server services
+
+- name: Disk usage metrics
+  template: src=load-metrics.json.j2 dest=/etc/sensu/conf.d/load-metrics.json
+  notify: restart sensu server services
+
+
+- name: Disk usage metrics
+  template: src=interface-metrics.json.j2 dest=/etc/sensu/conf.d/interface-metrics.json
+  notify: restart sensu server services
+
 - name: Ensure state of server services
   service: name={{ item }} state=started enabled=yes
   with_items:

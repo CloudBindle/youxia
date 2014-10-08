@@ -1,0 +1,13 @@
+# ansible/tasks/main.yml
+---
+- name: Copy over the AWS key used to start instances
+  file: path=~ owner=ubuntu group=ubuntu mode=0400
+
+- name: Install Ansible pre-req
+  apt: pkg=software-properties-common state=present
+
+- name: Install Ansible PPA
+  apt_repository: repo='ppa:ansible/ansible'
+
+- name: Install Ansible package
+  apt: pkg=ansible update_cache=yes

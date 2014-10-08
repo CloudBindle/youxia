@@ -24,6 +24,26 @@
     mode=755
   notify: restart sensu-client
 
+- name: Install load metrics
+  get_url: 
+    dest=/etc/sensu/plugins/load-metrics.rb 
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/system/load-metrics.rb
+    mode=755
+  notify: restart sensu-client
+
+- name: Install interface metrics
+  get_url: 
+    dest=/etc/sensu/plugins/interface-metrics.rb 
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/system/interface-metrics.rb
+    mode=755
+  notify: restart sensu-client
+
+- name: Install disk metrics
+  get_url: 
+    dest=/etc/sensu/plugins/disk-usage-metrics.rb 
+    url=https://raw.github.com/sensu/sensu-community-plugins/master/plugins/system/disk-usage-metrics.rb
+    mode=755
+  notify: restart sensu-client
 
 - name: Install check-ntp plugin 
   get_url: 
