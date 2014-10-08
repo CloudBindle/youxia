@@ -99,16 +99,16 @@ public class BWABlackListConverter {
             if (attribute.getName().equals("status")) {
                 status = attribute.getValue();
             }
-            if (attribute.getValue().equals(Constants.INI_FILE + ".sample_id")) {
+            if (attribute.getName().equals(Constants.INI_FILE + ".sample_id")) {
                 sampleID = attribute.getValue();
             }
-            if (sampleID == null || status == null) {
-                Log.error("Workflow run " + item.getName() + " did not have sample_id or a status");
-                continue;
-            }
-            if ("failed".equals(status) || "completed".equals(status)) {
-                writer.write(sampleID + '\n');
-            }
+        }
+        if (sampleID == null || status == null) {
+            Log.error("Workflow run " + item.getName() + " did not have sample_id or a status");
+            Log.error("sample_id: " + sampleID + " status: " + status);
+        }
+        if ("failed".equals(status) || "completed".equals(status)) {
+            writer.write(sampleID + '\n');
         }
     }
 
