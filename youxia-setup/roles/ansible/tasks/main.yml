@@ -1,7 +1,7 @@
 # ansible/tasks/main.yml
 ---
 - name: Copy over the AWS key used to start instances
-  file: path=~ owner=ubuntu group=ubuntu mode=0400
+  copy: src=aws.pem dest=~ owner=ubuntu group=ubuntu mode=0400
 
 - name: Install Ansible pre-req
   apt: pkg=software-properties-common state=present
