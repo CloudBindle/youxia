@@ -1,12 +1,9 @@
 [sensu-server]
-sensu-server	ansible_ssh_host=23.22.238.129	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/oicr-aws-dyuen.pem
+sensu-server	ansible_ssh_host=54.172.118.217	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/root/george_aws.pem
 
 [master]
-master1		ansible_ssh_host=10.5.74.122	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem
-master2         ansible_ssh_host=54.161.234.94	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/oicr-aws-dyuen.pem
+test		ansible_ssh_host=54.172.28.47  ansible_ssh_user=ubuntu ansible_ssh_private_key_file=/root/george_aws.pem
 
-[worker]
-worker1		ansible_ssh_host=10.5.74.123	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem
-worker2		ansible_ssh_host=10.5.74.124	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem
-worker3		ansible_ssh_host=10.5.74.125	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/home/dyuen/.ssh/sweng-dyuen.pem
+#[worker]
+#worker1		ansible_ssh_host=10.5.74.123	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=
 

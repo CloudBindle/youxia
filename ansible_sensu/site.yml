@@ -22,6 +22,7 @@
     - { role: server-dependencies }
     - { role: base }
     - { role: server }
+    - { role: sensu-cli }
     - { role: client, subscriptions: "\"common\"" }
 
 - hosts: worker 

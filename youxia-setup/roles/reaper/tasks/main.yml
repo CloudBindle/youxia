@@ -1,0 +1,12 @@
+# reaper/tasks/main.yml
+---
+
+- name: Create the reaper directory
+  file: path=~/youxia-reaper/target/ owner=ubuntu group=ubuntu mode=0755 state=directory
+
+- name: Copy the jar file
+  get_url:
+    dest=~/youxia-reaper/target/youxia-reaper-{{ youxia_version }}-jar-with-dependencies.jar
+    url=https://seqwaremaven.oicr.on.ca/artifactory/seqware-release/io/cloudbindle/youxia-reaper/{{ youxia_version }}/youxia-reaper-{{ youxia_version }}-jar-with-dependencies.jar
+    mode=755
+    #notify: restart cron jobs (not checked in or implemented)
