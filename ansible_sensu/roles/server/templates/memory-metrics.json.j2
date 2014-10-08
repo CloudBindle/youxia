@@ -1,0 +1,11 @@
+{
+  "checks": {
+    "memory-metrics": {
+      "type": "metric",
+      "command": "memory-metrics.rb",
+      "interval": 10,
+      "subscribers": ["common"],
+      "handlers": ["relay"]
+    }
+  }
+}

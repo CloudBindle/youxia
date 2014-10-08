@@ -25,6 +25,10 @@
   template: src=interface-metrics.json.j2 dest=/etc/sensu/conf.d/interface-metrics.json
   notify: restart sensu server services
 
+- name: Memory usage metrics
+  template: src=memory-metrics.json.j2 dest=/etc/sensu/conf.d/memory-metrics.json
+  notify: restart sensu server services
+
 - name: Ensure state of server services
   service: name={{ item }} state=started enabled=yes
   with_items:
