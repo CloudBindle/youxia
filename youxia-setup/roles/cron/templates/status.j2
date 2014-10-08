@@ -1,0 +1,10 @@
+#!/bin/bash
+
+
+java -jar youxia-deployer/target/youxia-deployer-{{ youxia_version }}-jar-with-dependencies.jar --ansible-playbook /home/ubuntu/youxia/ansible_sensu/site.yml --max-spot-price {{ max_spot_price }} --batch-size {{ batch_size }} --total-nodes-num {{ total_num_nodes }}
+java -jar youxia-reaper/target/youxia-reaper-{{ youxia_version }}-jar-with-dependencies.jar --kill-limit 5 --persist
+java -jar youxia-generator/target/youxia-generator-{{ youxia_version }}-jar-with-dependencies.jar --aws --output /home/{{ user_name }}/state/instances.json
+java -cp youxia-reaper/target/youxia-reaper-{{ youxia_version }}-jar-with-dependencies.jar io.cloudbindle.youxia.reaper.BWABlackListConverter   --output /home/{{ user_name }}/state/blacklist.txt
+
+# mock decider, would not be used in a real production system
+java -jar youxia-decider/target/youxia-decider-{{ youxia_version }}-jar-with-dependencies.jar  --instance-json /home/{{ user_name }}/state/instances.json

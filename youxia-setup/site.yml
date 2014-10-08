@@ -30,4 +30,6 @@
     - { role: deployer }
     - { role: generator }
     - { role: tagger }
+    - { role: decider }
+    - { role: cron }
 
