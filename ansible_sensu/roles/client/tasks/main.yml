@@ -104,6 +104,10 @@
     mode=755
   notify: restart sensu-client
 
+- name: Copy over Gluster peer status check
+  copy: src=check-gluster.sh dest=/etc/sensu/plugins/check-gluster.sh mode=0755
+  notify: restart sensu-client
+
 - name: Activate client services
   service: name={{ item }} state=started enabled=yes
   with_items:

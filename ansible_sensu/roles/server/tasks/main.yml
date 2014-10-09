@@ -7,6 +7,10 @@
 - name: Template over sensu api config
   template: src=api.json.j2 dest=/etc/sensu/conf.d/api.json
   notify: restart sensu server services
+
+- name: Template over Graphite relay config
+  template: src=relay.json.j2 dest=/etc/sensu/conf.d/relay.json
+  notify: restart sensu server services
     
 - name: Template checks
   template: src=checks.json.j2 dest=/etc/sensu/conf.d/checks.json
@@ -16,12 +20,11 @@
   template: src=disk-usage-metrics.json.j2 dest=/etc/sensu/conf.d/disk-usage-metrics.json
   notify: restart sensu server services
 
-- name: Disk usage metrics
+- name: CPU load metrics
   template: src=load-metrics.json.j2 dest=/etc/sensu/conf.d/load-metrics.json
   notify: restart sensu server services
 
-
-- name: Disk usage metrics
+- name: Interface metrics
   template: src=interface-metrics.json.j2 dest=/etc/sensu/conf.d/interface-metrics.json
   notify: restart sensu server services
 
@@ -35,3 +38,17 @@
     - sensu-server
     - sensu-api
     - redis-server
+
+- name: Create the directory structure needed by the Graphite relay
+  file: path=/etc/sensu/extensions/{{item}} owner=root group=root mode=0755 state=directory
+  with_items:
+    - mutators
+    - handlers
+
+- name: Copy over relay.rb needed by Graphite data collection
+  copy: src=relay.rb dest=/etc/sensu/extensions/handlers/relay.rb mode=0644
+  notify: restart sensu server services
+
+- name: Copy over metrics.rb needed by Graphite data collection
+  copy: src=metrics.rb dest=/etc/sensu/extensions/mutators/metrics.rb mode=0644
+  notify: restart sensu server services

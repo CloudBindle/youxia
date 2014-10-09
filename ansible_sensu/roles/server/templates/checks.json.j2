@@ -85,6 +85,12 @@
       "interval": 60,
       "subscribers": [ "master" ]
     },
+    "gluster_peer_check": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-gluster.sh",
+      "interval": 60,
+      "subscribers": [ "master" ]
+    },
     "seqware_check": {
       "handlers": ["default"],
       "command": "/etc/sensu/plugins/check-cmd.rb --command \"sudo -H -u seqware bash -c '/home/seqware/bin/seqware check'\"",

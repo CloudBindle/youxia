@@ -1,5 +1,6 @@
 [sensu-server]
-sensu-server	ansible_ssh_host=54.172.118.217	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/root/george_aws.pem
+#sensu-server	ansible_ssh_host=54.172.118.217	ansible_ssh_user=ubuntu	ansible_ssh_private_key_file=/root/george_aws.pem
+sensu-server	ansible_ssh_host=192.168.56.102	ansible_ssh_user=ubuntu
 
 [master]
 test		ansible_ssh_host=54.172.28.47  ansible_ssh_user=ubuntu ansible_ssh_private_key_file=/root/george_aws.pem
