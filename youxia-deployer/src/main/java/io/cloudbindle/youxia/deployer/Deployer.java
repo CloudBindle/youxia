@@ -17,11 +17,11 @@ import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.cloudbindle.youxia.util.Log;
 import io.cloudbindle.youxia.amazonaws.Requests;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
+import io.cloudbindle.youxia.util.Log;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -208,38 +208,21 @@ public class Deployer {
 
             List<Instance> returnInstances = Lists.newArrayList();
             boolean wait;
+            // Initialize the timer to now.
+            startTimer = Calendar.getInstance();
             do {
-                wait = true;
-                returnInstances.clear();
-                DescribeInstancesRequest describeInstancesRequest = new DescribeInstancesRequest();
-                describeInstancesRequest.setInstanceIds(instanceIds);
-                DescribeInstancesResult describeInstances = eC2Client.describeInstances(describeInstancesRequest);
-                for (Reservation r : describeInstances.getReservations()) {
-                    List<Instance> instances = r.getInstances();
-                    for (Instance i : instances) {
-                        Log.info(i.toString());
-                        if (i.getState().getName().equals("running")) {
-                            // next check health information
-                            DescribeInstanceStatusResult describeInstanceStatus = eC2Client
-                                    .describeInstanceStatus(new DescribeInstanceStatusRequest().withInstanceIds(i.getInstanceId()));
-                            List<InstanceStatus> instanceStatuses = describeInstanceStatus.getInstanceStatuses();
-                            for (InstanceStatus status : instanceStatuses) {
-                                Log.info(status.toString());
-                                InstanceStatusSummary instanceStatus = status.getInstanceStatus();
-                                if (instanceStatus.getStatus().equals("ok")) {
-                                    wait = false;
-                                }
-                            }
-                        }
-                        returnInstances.add(i);
-                    }
-                }
+                wait = determineRunningInstances(instanceIds, eC2Client, returnInstances);
+                // Initialize the timer to now, and then subtract 15 minutes, so we can
+                // compare to see if we have exceeded 15 minutes compared to the startTime.
+                final int wait15Minutes = -15;
+                nowTimer = Calendar.getInstance();
+                nowTimer.add(Calendar.MINUTE, wait15Minutes);
                 if (wait) {
                     Thread.sleep(SLEEP_CYCLE);
                 } else {
                     break;
                 }
-            } while (true);
+            } while (!nowTimer.after(startTimer));
 
             return returnInstances;
         } catch (AmazonServiceException ase) {
@@ -254,6 +237,46 @@ public class Deployer {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
+    }
+
+    /**
+     * Populate a list of returnInstances and return true iff all instanceIds are running and ok
+     * 
+     * @param instanceIds
+     * @param eC2Client
+     * @param returnInstances
+     * @return
+     */
+    private boolean determineRunningInstances(List<String> instanceIds, AmazonEC2Client eC2Client, List<Instance> returnInstances) {
+        returnInstances.clear();
+        boolean wait = false;
+        DescribeInstancesRequest describeInstancesRequest = new DescribeInstancesRequest();
+        describeInstancesRequest.setInstanceIds(instanceIds);
+        DescribeInstancesResult describeInstances = eC2Client.describeInstances(describeInstancesRequest);
+        for (Reservation r : describeInstances.getReservations()) {
+            List<Instance> instances = r.getInstances();
+            for (Instance i : instances) {
+                Log.info(i.toString());
+                if (i.getState().getName().equals("running")) {
+                    // next check health information
+                    DescribeInstanceStatusResult describeInstanceStatus = eC2Client
+                            .describeInstanceStatus(new DescribeInstanceStatusRequest().withInstanceIds(i.getInstanceId()));
+                    List<InstanceStatus> instanceStatuses = describeInstanceStatus.getInstanceStatuses();
+                    for (InstanceStatus status : instanceStatuses) {
+                        Log.info(status.toString());
+                        InstanceStatusSummary instanceStatus = status.getInstanceStatus();
+                        if (instanceStatus.getStatus().equals("ok")) {
+                            returnInstances.add(i);
+                        } else {
+                            wait = true;
+                        }
+                    }
+                } else {
+                    wait = true;
+                }
+            }
+        }
+        return wait;
     }
 
     private void runAnsible(List<Instance> readyInstances) {
@@ -285,8 +308,8 @@ public class Deployer {
                 cmdLine.addArgument("-i");
                 cmdLine.addArgument("${file}");
                 cmdLine.addArgument("${playbook}");
-                HashMap map = new HashMap();
-                map.put("file", createTempFile);
+                HashMap<String, String> map = new HashMap<>();
+                map.put("file", createTempFile.toAbsolutePath().toString());
                 map.put("playbook", this.options.valueOf(this.playbook));
                 cmdLine.setSubstitutionMap(map);
 

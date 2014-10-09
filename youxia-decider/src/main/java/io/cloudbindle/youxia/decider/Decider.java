@@ -191,7 +191,7 @@ public class Decider {
                     Log.stdout("Scheduled onto " + entry.getKey() + " with greeting " + greeting);
                     ReturnValue scheduleInstalledBundle = scheduler.scheduleInstalledBundle(entry.getValue().getWorkflowAccession(),
                             Lists.newArrayList(tempFile.getAbsolutePath()), false, new ArrayList<String>(), new ArrayList<String>(),
-                            new ArrayList<String>(), "master", Engines.TYPES.oozie_sge.getCliString(), new HashSet<Integer>());
+                            new ArrayList<String>(), "master", Engines.TYPES.oozie_sge.getCliString(), new HashSet<Integer>(), true);
                     if (scheduleInstalledBundle.getExitStatus() != ReturnValue.SUCCESS) {
                         throw new RuntimeException("Failed scheduling");
                     }

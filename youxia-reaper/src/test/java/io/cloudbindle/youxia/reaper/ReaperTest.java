@@ -20,6 +20,7 @@ import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
@@ -27,7 +28,6 @@ import com.amazonaws.services.ec2.model.TerminateInstancesResult;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.listing.AwsListing;
-import io.cloudbindle.youxia.sensu.client.SensuClient;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.seqware.common.model.WorkflowRunStatus;
 import java.io.IOException;
@@ -42,6 +42,9 @@ import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.entity.BasicHttpEntity;
+import org.apache.http.localserver.LocalTestServer;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.protocol.HttpRequestHandler;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.isA;
 import org.junit.After;
@@ -61,9 +64,6 @@ import static org.powermock.api.mockito.PowerMockito.when;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.apache.http.localserver.LocalTestServer;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.protocol.HttpRequestHandler;
 
 /**
  * 
@@ -162,7 +162,14 @@ public class ReaperTest {
         List<WorkflowRun> list = Lists.newArrayList();
         list.add(new WorkflowRun());
         expect(metadata.getWorkflowRunsByStatus(isA(WorkflowRunStatus.class))).andReturn(list).anyTimes();
-        when(client.terminateInstances(isNotNull(TerminateInstancesRequest.class))).thenReturn(mock(TerminateInstancesResult.class));
+        TerminateInstancesResult terminateInstancesResult = mock(TerminateInstancesResult.class);
+        when(client.terminateInstances(isNotNull(TerminateInstancesRequest.class))).thenReturn(terminateInstancesResult);
+        // here we describe terminated instances
+        InstanceState state = new InstanceState();
+        state.withName("terminated");
+        instance.setState(state);
+        when(client.describeInstances(isNotNull(DescribeInstancesRequest.class))).thenReturn(
+                new DescribeInstancesResult().withReservations(reservation));
 
         replayAll();
         Reaper.main(args);

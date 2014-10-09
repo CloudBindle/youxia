@@ -1,7 +1,6 @@
 package io.cloudbindle.youxia.reaper;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
@@ -42,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -73,6 +73,7 @@ public class Reaper {
     private final OptionSpecBuilder listWR;
     private final ArgumentAcceptingOptionSpec<String> outputFile;
     private final OptionSpecBuilder useSensu;
+    private static final long SLEEP_CYCLE = 60000;
 
     public Reaper(String[] args) {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
@@ -325,6 +326,51 @@ public class Reaper {
         return distressedClients;
     }
 
+    public void terminateInstances(List<String> instancesToKill) {
+        AmazonEC2Client client = ConfigTools.getEC2Client();
+        TerminateInstancesRequest request = new TerminateInstancesRequest(instancesToKill);
+        client.terminateInstances(request);
+
+        // Initialize the timer to now.
+        Calendar startTimer = Calendar.getInstance();
+        Calendar nowTimer;
+        boolean wait;
+        do {
+            wait = determineTerminatedInstances(instancesToKill, client);
+            // Initialize the timer to now, and then subtract 15 minutes, so we can
+            // compare to see if we have exceeded 15 minutes compared to the startTime.
+            final int wait15Minutes = -15;
+            nowTimer = Calendar.getInstance();
+            nowTimer.add(Calendar.MINUTE, wait15Minutes);
+            if (wait) {
+                try {
+                    Thread.sleep(SLEEP_CYCLE);
+                } catch (InterruptedException ex) {
+                    Log.error("InterruptedException", ex);
+                }
+            } else {
+                break;
+            }
+        } while (!nowTimer.after(startTimer));
+    }
+
+    private boolean determineTerminatedInstances(List<String> instanceIds, AmazonEC2Client eC2Client) {
+        boolean wait = false;
+        DescribeInstancesRequest describeInstancesRequest = new DescribeInstancesRequest();
+        describeInstancesRequest.setInstanceIds(instanceIds);
+        DescribeInstancesResult describeInstances = eC2Client.describeInstances(describeInstancesRequest);
+        for (Reservation r : describeInstances.getReservations()) {
+            List<Instance> instances = r.getInstances();
+            for (Instance i : instances) {
+                Log.info(i.toString());
+                if (!i.getState().getName().equals("terminated")) {
+                    wait = true;
+                }
+            }
+        }
+        return wait;
+    }
+
     public static void main(String[] args) throws Exception {
 
         Reaper deployer = new Reaper(args);
@@ -343,9 +389,7 @@ public class Reaper {
             } else {
                 Log.info("Live mode:");
                 Log.stdoutWithTime("Killing " + StringUtils.join(instancesToKill, ','));
-                AmazonEC2 client = ConfigTools.getEC2Client();
-                TerminateInstancesRequest request = new TerminateInstancesRequest(instancesToKill);
-                client.terminateInstances(request);
+                deployer.terminateInstances(instancesToKill);
             }
             deployer.terminateSensuClients(instancesToKill, test);
         }
