@@ -25,7 +25,7 @@ import static io.cloudbindle.youxia.generator.Generator.GENERATOR_MAX_WORKFLOWS;
 import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_ACCESSION;
 import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_NAME;
 import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_VERSION;
-import io.cloudbindle.youxia.listing.AwsJCloudsListing;
+import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
 import io.cloudbindle.youxia.pawg.api.ClusterDetails;
 import io.cloudbindle.youxia.util.ConfigTools;
@@ -49,12 +49,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.powermock.api.easymock.PowerMock.createMockAndExpectNew;
 import static org.powermock.api.easymock.PowerMock.mockStatic;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import static org.powermock.api.easymock.PowerMock.replayAll;
 import static org.powermock.api.easymock.PowerMock.verifyAll;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
  * 
@@ -106,12 +106,12 @@ public class GeneratorTest {
     public void testAggregateAllOnlyJsonContents() throws IOException, Exception {
         mockOutConfig();
 
-        AwsJCloudsListing listing1 = createMockAndExpectNew(AwsJCloudsListing.class);
+        AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
         OpenStackJCloudsListing listing2 = createMockAndExpectNew(OpenStackJCloudsListing.class);
 
         Map<String, String> result1 = Maps.newHashMap();
-        expect(listing1.getInstances()).andReturn(result1);
-        expect(listing2.getInstances()).andReturn(result1);
+        expect(listing1.getInstances(true)).andReturn(result1);
+        expect(listing2.getInstances(true)).andReturn(result1);
 
         Path tempFile = Files.createTempFile("output", ".json");
         String[] args = { "--aws", "--openstack", "--json", this.manualFile.getAbsolutePath(), "--output", tempFile.toString() };
@@ -134,7 +134,7 @@ public class GeneratorTest {
     public void testAggregateAll() throws IOException, Exception {
         mockOutConfig();
 
-        AwsJCloudsListing listing1 = createMockAndExpectNew(AwsJCloudsListing.class);
+        AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
         OpenStackJCloudsListing listing2 = createMockAndExpectNew(OpenStackJCloudsListing.class);
 
         Map<String, String> result1 = Maps.newHashMap();
@@ -143,8 +143,8 @@ public class GeneratorTest {
         Map<String, String> result2 = Maps.newHashMap();
         result2.put("Ouyang_Feng", "125.125.125.125");
         result2.put("Murong_Yang", "126.126.126.126");
-        expect(listing1.getInstances()).andReturn(result1);
-        expect(listing2.getInstances()).andReturn(result2);
+        expect(listing1.getInstances(true)).andReturn(result1);
+        expect(listing2.getInstances(true)).andReturn(result2);
 
         Path tempFile = Files.createTempFile("output", ".json");
         String[] args = { "--aws", "--openstack", "--json", this.manualFile.getAbsolutePath(), "--output", tempFile.toString() };

@@ -40,7 +40,7 @@ import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 public class OpenStackJCloudsListing implements InstanceListingInterface {
 
     @Override
-    public Map<String, String> getInstances() {
+    public Map<String, String> getInstances(boolean liveInstances) {
         String managedTag = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
         NovaApi novaApi = ConfigTools.getNovaApi();
         Map<String, String> map = Maps.newHashMap();
@@ -58,6 +58,7 @@ public class OpenStackJCloudsListing implements InstanceListingInterface {
                             /**
                              * TODO: This is unfortunate, but it looks like Openstack doesn't actually know which ip addresses assigned to
                              * an instance if public or private. On ours, it looks like the second one, but this is totally unreliable.
+                             * TODO: this iterator should also return return live instances when liveInstances and all when !
                              **/
                             Iterator<Entry<String, Address>> iterator = server.getAddresses().entries().iterator();
                             iterator.next();
@@ -74,7 +75,7 @@ public class OpenStackJCloudsListing implements InstanceListingInterface {
 
     public static void main(String[] args) {
         OpenStackJCloudsListing lister = new OpenStackJCloudsListing();
-        Map<String, String> instances = lister.getInstances();
+        Map<String, String> instances = lister.getInstances(true);
         for (Entry<String, String> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());
         }

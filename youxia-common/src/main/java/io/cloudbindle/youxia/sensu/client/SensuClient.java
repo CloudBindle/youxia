@@ -87,7 +87,8 @@ public class SensuClient {
         try (CloseableHttpResponse response = httpclient.execute(httpdelete, context)) {
             Log.info(response.toString());
             final int sensuSuccess = 202;
-            return response.getStatusLine().getStatusCode() == sensuSuccess;
+            final int sensuMissing = 404;
+            return response.getStatusLine().getStatusCode() == sensuSuccess || response.getStatusLine().getStatusCode() == sensuMissing;
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }

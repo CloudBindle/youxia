@@ -104,7 +104,7 @@ public class Deployer {
      */
     private int assessClients() {
         AwsListing awsLister = new AwsListing();
-        Map<String, String> map = awsLister.getInstances();
+        Map<String, String> map = awsLister.getInstances(true);
         Log.info("Found " + map.size() + " AWS clients");
 
         int clientsNeeded = options.valueOf(totalNodes) - map.size();
@@ -163,6 +163,7 @@ public class Deployer {
             requests.setAvailabilityZone(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE));
             // Create the list of tags we want to create and tag any associated requests.
             ArrayList<Tag> tags = new ArrayList<>();
+            tags.add(new Tag("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)));
             tags.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)));
             tags.add(new Tag(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()));
             // Initialize the timer to now.
@@ -351,8 +352,9 @@ public class Deployer {
             // set managed state of instance to ready
             for (Instance i : readyInstances) {
                 Log.stdoutWithTime("Finishing configuring " + i.getInstanceId());
-                eC2Client.createTags(new CreateTagsRequest().withResources(i.getInstanceId()).withTags(
-                        new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString())));
+                eC2Client.createTags(new CreateTagsRequest().withResources(i.getInstanceId())
+                        .withTags(new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString()))
+                        .withTags(new Tag(Constants.SENSU_NAME, i.getInstanceId())));
             }
         }
     }

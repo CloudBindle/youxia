@@ -2,6 +2,7 @@ package io.cloudbindle.youxia.reaper;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
@@ -18,7 +19,6 @@ import com.amazonaws.services.simpledb.model.SelectRequest;
 import com.amazonaws.services.simpledb.model.SelectResult;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -41,7 +41,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -121,7 +120,7 @@ public class Reaper {
     private List<String> assessClients() {
 
         AwsListing lister = new AwsListing();
-        Map<String, String> instances = lister.getInstances();
+        Map<String, String> instances = lister.getInstances(true);
         List<String> instancesToKill = Lists.newArrayList();
 
         // determine number of clients in distress
@@ -269,23 +268,18 @@ public class Reaper {
 
     }
 
-    private void terminateSensuClients(List<String> providerIDs, boolean test) {
+    private void terminateSensuClients(boolean test) {
         SensuClient sensuClient = new SensuClient(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS),
                 youxiaConfig.getInt(ConfigTools.YOUXIA_SENSU_PORT), youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_USERNAME),
                 youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD));
         List<Client> clients = sensuClient.getClients();
-        Set<String> addressesToKill = Sets.newHashSet();
 
         AwsListing listing = new AwsListing();
-        Map<String, String> instances = listing.getInstances();
-        for (Entry<String, String> entry : instances.entrySet()) {
-            if (providerIDs.contains(entry.getKey())) {
-                addressesToKill.add(entry.getValue());
-            }
-        }
+        Map<String, String> instances = listing.getInstances(false);
+        Set<String> namesToKill = instances.keySet();
 
         for (Client client : clients) {
-            if (addressesToKill.contains(client.getAddress())) {
+            if (namesToKill.contains(client.getName())) {
                 if (test) {
                     Log.info("Would have deleted sensu client " + client.getName());
                 } else {
@@ -328,47 +322,14 @@ public class Reaper {
 
     public void terminateInstances(List<String> instancesToKill) {
         AmazonEC2Client client = ConfigTools.getEC2Client();
+
+        // first, mark instances for death
+        Log.stdoutWithTime("Marking instances for death " + StringUtils.join(instancesToKill, ","));
+        client.createTags(new CreateTagsRequest().withResources(instancesToKill).withTags(
+                new Tag(Constants.STATE_TAG, Constants.STATE.MARKED_FOR_DEATH.toString())));
+
         TerminateInstancesRequest request = new TerminateInstancesRequest(instancesToKill);
         client.terminateInstances(request);
-
-        // Initialize the timer to now.
-        Calendar startTimer = Calendar.getInstance();
-        Calendar nowTimer;
-        boolean wait;
-        do {
-            wait = determineTerminatedInstances(instancesToKill, client);
-            // Initialize the timer to now, and then subtract 15 minutes, so we can
-            // compare to see if we have exceeded 15 minutes compared to the startTime.
-            final int wait15Minutes = -15;
-            nowTimer = Calendar.getInstance();
-            nowTimer.add(Calendar.MINUTE, wait15Minutes);
-            if (wait) {
-                try {
-                    Thread.sleep(SLEEP_CYCLE);
-                } catch (InterruptedException ex) {
-                    Log.error("InterruptedException", ex);
-                }
-            } else {
-                break;
-            }
-        } while (!nowTimer.after(startTimer));
-    }
-
-    private boolean determineTerminatedInstances(List<String> instanceIds, AmazonEC2Client eC2Client) {
-        boolean wait = false;
-        DescribeInstancesRequest describeInstancesRequest = new DescribeInstancesRequest();
-        describeInstancesRequest.setInstanceIds(instanceIds);
-        DescribeInstancesResult describeInstances = eC2Client.describeInstances(describeInstancesRequest);
-        for (Reservation r : describeInstances.getReservations()) {
-            List<Instance> instances = r.getInstances();
-            for (Instance i : instances) {
-                Log.info(i.toString());
-                if (!i.getState().getName().equals("terminated")) {
-                    wait = true;
-                }
-            }
-        }
-        return wait;
     }
 
     public static void main(String[] args) throws Exception {
@@ -379,8 +340,8 @@ public class Reaper {
             return;
         }
         List<String> instancesToKill = deployer.assessClients();
+        boolean test = deployer.options.has(deployer.testMode);
         if (instancesToKill.size() > 0) {
-            boolean test = deployer.options.has(deployer.testMode);
             if (test) {
                 Log.info("Test mode:");
                 for (String instance : instancesToKill) {
@@ -391,7 +352,7 @@ public class Reaper {
                 Log.stdoutWithTime("Killing " + StringUtils.join(instancesToKill, ','));
                 deployer.terminateInstances(instancesToKill);
             }
-            deployer.terminateSensuClients(instancesToKill, test);
         }
+        deployer.terminateSensuClients(test);
     }
 }

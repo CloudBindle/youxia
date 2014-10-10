@@ -5,7 +5,7 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import io.cloudbindle.youxia.listing.AwsJCloudsListing;
+import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.listing.InstanceListingInterface;
 import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
 import io.cloudbindle.youxia.pawg.api.ClusterDetails;
@@ -85,12 +85,12 @@ public class Generator {
         Generator generator = new Generator(args);
         Map<String, String> instances = Maps.newHashMap();
         if (generator.options.has(generator.aggregateAWS)) {
-            InstanceListingInterface lister = new AwsJCloudsListing();
-            instances.putAll(lister.getInstances());
+            InstanceListingInterface lister = new AwsListing();
+            instances.putAll(lister.getInstances(true));
         }
         if (generator.options.has(generator.aggregateOpenStack)) {
             InstanceListingInterface lister = new OpenStackJCloudsListing();
-            instances.putAll(lister.getInstances());
+            instances.putAll(lister.getInstances(true));
         }
 
         Map<String, ClusterDetails> resultMap = Maps.newHashMap();

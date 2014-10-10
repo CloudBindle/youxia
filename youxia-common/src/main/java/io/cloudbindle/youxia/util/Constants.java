@@ -23,6 +23,7 @@ package io.cloudbindle.youxia.util;
  */
 public class Constants {
     public static final String STATE_TAG = "youxia.managed_state";
+    public static final String SENSU_NAME = "youxia.sensu_name";
     public static final String SLACK_URL = "youxia.slack_webhook";
     /**
      * Combined with managed tag to define domain names for simpledb
@@ -31,7 +32,7 @@ public class Constants {
     public static final String INI_FILE = "ini_file";
 
     public enum STATE {
-        SETTING_UP, READY
+        SETTING_UP, READY, MARKED_FOR_DEATH
     }
 
 }

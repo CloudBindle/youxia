@@ -29,7 +29,9 @@ public interface InstanceListingInterface {
     /**
      * Retrieves a map between a unique identifier and public ip address
      * 
+     * @param liveInstances
+     *            return live instances if true, dead instances if false
      * @return
      */
-    Map<String, String> getInstances();
+    Map<String, String> getInstances(boolean liveInstances);
 }
