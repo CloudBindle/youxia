@@ -284,7 +284,7 @@ public class Reaper {
                     Log.info("Would have deleted sensu client " + client.getName());
                 } else {
                     boolean success = sensuClient.deleteClient(client.getName());
-                    Log.stdout("Deleting sensu client " + client.getName() + (success ? " succeeded" : "failed"));
+                    Log.info("Deleting sensu client " + client.getName() + (success ? " succeeded" : "failed"));
                 }
             }
         }
