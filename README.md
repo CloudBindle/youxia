@@ -87,7 +87,7 @@ Second, you will probably want to setup the Deployer component. The deployer com
 
 A sample command:
 
-    java -jar youxia-deployer/target/youxia-deployer-1.1.0-alpha.0-jar-with-dependencies.jar --ansible-playbook ansible_sensu/site.yml --max-spot-price 1 --batch-size 1 --total-nodes-num 10
+    java -jar youxia-deployer/target/youxia-deployer-*-jar-with-dependencies.jar --ansible-playbook ansible_sensu/site.yml --max-spot-price 1 --batch-size 1 --total-nodes-num 10
 
 This indicates that you will pay a maximum spot price of 1, deploy a maximum of 1 VM per execution, up to a maximum of 10 managed nodes on AWS. You will probably want to put the jar and playbook somewhere on your deployer host. You may also want to update your crontab with the command at an appropriate interval on an appropriate host.
 
@@ -97,11 +97,11 @@ Third, you will probably want to setup the Reaper component. The Reaper componen
 
 A sample command (omit the test to actually kill instances) to kill instances when they have run 5 workflow runs to completion and persist workflow run information to simpleDB:
 
-    java -jar youxia-reaper/target/youxia-reaper-1.1.0-alpha.0-jar-with-dependencies.jar --kill-limit 5 --persist --test
+    java -jar youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar --kill-limit 5 --persist --test
 
 You can also just list information in SimpleDB to be used by the decider with:
 
-    java -jar youxia-reaper/target/youxia-reaper-1.1.0-alpha.0-jar-with-dependencies.jar --list
+    java -jar youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar --list
 
 Note, if you want to run both the Reaper and the Generator, you will probably want to put them sequentially in a script run from your crontab so that the Deployer completes execution before the Reaper runs. It is actually possible for the Reaper to reap an instance that the Deployer is still deploying. 
 
@@ -111,7 +111,7 @@ Fourth, you will probably want to setup the Generator component. The Generator c
 
 A sample command is:
 
-    java -jar youxia-generator/target/youxia-generator-1.1.0-alpha.0-jar-with-dependencies.jar --aws --openstack --json youxia-common/src/test/resources/io/cloudbindle/youxia/pawg/api/single_cluster.json
+    java -jar youxia-generator/target/youxia-generator-*-jar-with-dependencies.jar --aws --openstack --json youxia-common/src/test/resources/io/cloudbindle/youxia/pawg/api/single_cluster.json
 
 This will merge a listing of managed VMs from AWS, OpenStack, and a manually generated JSON file. This component requires no ports aside from connectivity to AWS and Openstack. 
 
@@ -119,19 +119,19 @@ This will merge a listing of managed VMs from AWS, OpenStack, and a manually gen
 
 This component is optional. If you have legacy VMs in OpenStack that you wish to put under management of youxia, unlike AWS, it does not appear possible to edit tags (called metadata in Openstack) from the Openstack GUI. Therefore, we provide this tool that lets you tag instances using a comma-separated listing of their IDs. Substitute your ids as required.
 
-    java -jar youxia-common/target/youxia-common-1.1.0-alpha.0-jar-with-dependencies.jar --instance-ids 768c2dfa-66c8-4e0b-8c87-c6d273285e91,a6bf4813-fc66-439d-a490-9b5618c1af05,73a1e754-3c37-43e3-ba55-aaa0e84984f2,25a1fe33-5637-44fc-84ed-6b88cc5871f6
+    java -jar youxia-common/target/youxia-common-*-jar-with-dependencies.jar --instance-ids 768c2dfa-66c8-4e0b-8c87-c6d273285e91,a6bf4813-fc66-439d-a490-9b5618c1af05,73a1e754-3c37-43e3-ba55-aaa0e84984f2,25a1fe33-5637-44fc-84ed-6b88cc5871f6
 
 ##### Mock Decider
 
 This component can be used to test clusters by scheduling HelloWorld workflows
 
-    java -jar youxia-decider/target/youxia-decider-1.1.0-alpha.1-SNAPSHOT-jar-with-dependencies.jar --instance-json cluster.json
+    java -jar youxia-decider/target/youxia-decider-*-jar-with-dependencies.jar --instance-json cluster.json
 
 ##### BWA Blacklist Converter 
 
 This component mutates the JSON for workflows stored in SimpleDB into the blacklist format used by BWA deciders
 
-    java -cp youxia-reaper/target/youxia-reaper-1.1.0-alpha.1-SNAPSHOT-jar-with-dependencies.jar io.cloudbindle.youxia.reaper.BWABlackListConverter   --output blacklist.txt
+    java -cp youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar io.cloudbindle.youxia.reaper.BWABlackListConverter   --output blacklist.txt
 
 
 ## Other Links

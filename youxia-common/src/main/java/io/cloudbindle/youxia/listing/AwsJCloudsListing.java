@@ -27,14 +27,14 @@ import org.jclouds.compute.domain.ComputeMetadata;
 import org.jclouds.compute.domain.NodeMetadata;
 
 /**
- * This lists instances available on AWS.
+ * This lists instances available on AWS. Not feature complete.
  * 
  * @author dyuen
  */
 public class AwsJCloudsListing implements InstanceListingInterface {
 
     @Override
-    public Map<String, String> getInstances() {
+    public Map<String, String> getInstances(boolean liveInstances) {
         String managedTag = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
         ComputeServiceContext context = ConfigTools.getAmazonComputeContext();
         Map<String, String> map = Maps.newHashMap();
@@ -43,7 +43,7 @@ public class AwsJCloudsListing implements InstanceListingInterface {
                 if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
                     if (node instanceof NodeMetadata) {
                         NodeMetadata nodeMetadata = (NodeMetadata) node;
-                        if (nodeMetadata.getPublicAddresses().size() <= 0) {
+                        if (liveInstances && nodeMetadata.getPublicAddresses().size() <= 0) {
                             Log.info("Node " + nodeMetadata.getProviderId() + " had no public ip address, skipping");
                             continue;
                         }
@@ -60,7 +60,7 @@ public class AwsJCloudsListing implements InstanceListingInterface {
 
     public static void main(String[] args) {
         AwsJCloudsListing lister = new AwsJCloudsListing();
-        Map<String, String> instances = lister.getInstances();
+        Map<String, String> instances = lister.getInstances(true);
         for (Entry<String, String> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());
         }

@@ -24,6 +24,7 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Constants;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
@@ -65,7 +66,7 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing instance = new AwsListing();
-        Map<String, String> result = instance.getInstances();
+        Map<String, String> result = instance.getInstances(true);
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -90,7 +91,7 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing awListing = new AwsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, String> result = awListing.getInstances(true);
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -115,22 +116,68 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing awListing = new AwsListing();
-        Map<String, String> result = awListing.getInstances();
-        Assert.assertTrue("result should not be empty", !result.isEmpty());
+        Map<String, String> result = awListing.getInstances(true);
+        Assert.assertTrue("result size incorrect " + result.size(), result.size() == 2);
+
+        verifyAll();
+    }
+
+    /**
+     * Test of getInstances method, of class AwsListing.
+     * 
+     * @throws java.lang.Exception
+     */
+    @Test
+    public void testDeadInstances() throws Exception {
+        mockStatic(ConfigTools.class);
+        AmazonEC2Client mockClient = mock(AmazonEC2Client.class);
+        HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
+        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig);
+        expect(ConfigTools.getEC2Client()).andReturn(mockClient);
+        when(mockConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)).thenReturn("dummy_tag");
+
+        setupReservationsWithTag(mockClient, "dummy_tag");
+
+        replayAll();
+
+        AwsListing awListing = new AwsListing();
+        Map<String, String> result = awListing.getInstances(false);
+        Assert.assertTrue("result should not be empty " + result.size(), result.size() == 1);
 
         verifyAll();
     }
 
     private void setupReservationsWithTag(AmazonEC2Client mockClient, String tagname) throws AmazonClientException {
         Reservation reservation = new Reservation();
-        Instance instance = new Instance();
-        instance.setInstanceId("randomID");
+
+        Instance instance0 = new Instance();
+        instance0.setInstanceId("randomID0");
         List<Tag> tags = Lists.newArrayList();
         tags.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, tagname));
-        instance.setTags(tags);
-        instance.setPublicIpAddress("123.123.123.123");
+        tags.add(new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString()));
+        instance0.setTags(tags);
+        instance0.setPublicIpAddress("123.123.123.123");
+
+        Instance instance1 = new Instance();
+        instance1.setInstanceId("randomID1");
+        List<Tag> tags1 = Lists.newArrayList();
+        tags1.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, tagname));
+        tags1.add(new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString()));
+        instance1.setTags(tags1);
+        instance1.setPublicIpAddress("123.123.123.124");
+
+        Instance instance2 = new Instance();
+        instance0.setInstanceId("randomID2");
+        List<Tag> tags2 = Lists.newArrayList();
+        tags2.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, tagname));
+        tags2.add(new Tag(Constants.STATE_TAG, Constants.STATE.MARKED_FOR_DEATH.toString()));
+        instance2.setTags(tags2);
+        instance2.setPublicIpAddress("123.123.123.125");
+
         List<Instance> instances = Lists.newArrayList();
-        instances.add(instance);
+        instances.add(instance0);
+        instances.add(instance1);
+        instances.add(instance2);
         reservation.setInstances(instances);
         when(mockClient.describeInstances()).thenReturn(new DescribeInstancesResult().withReservations(reservation));
     }

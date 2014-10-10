@@ -29,8 +29,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import static org.powermock.api.easymock.PowerMock.expectNew;
 import static org.powermock.api.easymock.PowerMock.createMockAndExpectNew;
+import static org.powermock.api.easymock.PowerMock.expectNew;
 import static org.powermock.api.easymock.PowerMock.mockStatic;
 import static org.powermock.api.easymock.PowerMock.replay;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -88,7 +88,7 @@ public class DeployerTest {
         Map<String, String> map = Maps.newTreeMap();
         map.put("key1", "value1");
         map.put("key2", "value2");
-        expect(listing.getInstances()).andReturn(map);
+        expect(listing.getInstances(true)).andReturn(map);
         String[] args = { "--total-nodes-num", "2", "--max-spot-price", "2", "--batch-size", "5", "--ansible-playbook", "test-book.yml" };
 
         replay(HierarchicalINIConfiguration.class);

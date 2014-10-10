@@ -24,6 +24,7 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -37,23 +38,41 @@ import org.apache.commons.configuration.HierarchicalINIConfiguration;
 public class AwsListing implements InstanceListingInterface {
 
     @Override
-    public Map<String, String> getInstances() {
+    public Map<String, String> getInstances(boolean liveInstances) {
         HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
-        String managedTag = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
+        String managedTagValue = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
         Map<String, String> map = Maps.newHashMap();
         // TODO: we can probably constrain instance listing to one region or zone
         DescribeInstancesResult describeInstancesResult = ec2.describeInstances();
         for (Reservation reservation : describeInstancesResult.getReservations()) {
             for (Instance instance : reservation.getInstances()) {
+                Tag managedTag = null;
+                Tag managedState = null;
                 for (Tag tag : instance.getTags()) {
-                    if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
+                    if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTagValue)) {
+                        managedTag = tag;
+                    }
+                    if (tag.getKey().equals(Constants.STATE_TAG)) {
+                        managedState = tag;
+                    }
+                }
+                if (managedTag != null && managedState != null) {
+                    if (liveInstances) {
+                        if (!(managedState.getValue().equals(Constants.STATE.READY.toString()) || managedState.getValue().equals(
+                                Constants.STATE.SETTING_UP.toString()))) {
+                            continue;
+                        }
                         if (instance.getPublicIpAddress() == null) {
                             Log.info("Node " + instance.getInstanceId() + " had no public ip address, skipping");
                             continue;
                         }
-                        map.put(instance.getInstanceId(), instance.getPublicIpAddress());
+                    } else {
+                        if (!managedState.getValue().equals(Constants.STATE.MARKED_FOR_DEATH.toString())) {
+                            continue;
+                        }
                     }
+                    map.put(instance.getInstanceId(), instance.getPublicIpAddress());
                 }
             }
         }
@@ -63,7 +82,7 @@ public class AwsListing implements InstanceListingInterface {
 
     public static void main(String[] args) {
         AwsListing lister = new AwsListing();
-        Map<String, String> instances = lister.getInstances();
+        Map<String, String> instances = lister.getInstances(true);
         for (Entry<String, String> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());
         }

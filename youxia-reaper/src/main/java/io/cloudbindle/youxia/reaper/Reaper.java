@@ -1,8 +1,8 @@
 package io.cloudbindle.youxia.reaper;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
@@ -19,7 +19,6 @@ import com.amazonaws.services.simpledb.model.SelectRequest;
 import com.amazonaws.services.simpledb.model.SelectResult;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -73,6 +72,7 @@ public class Reaper {
     private final OptionSpecBuilder listWR;
     private final ArgumentAcceptingOptionSpec<String> outputFile;
     private final OptionSpecBuilder useSensu;
+    private static final long SLEEP_CYCLE = 60000;
 
     public Reaper(String[] args) {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
@@ -120,7 +120,7 @@ public class Reaper {
     private List<String> assessClients() {
 
         AwsListing lister = new AwsListing();
-        Map<String, String> instances = lister.getInstances();
+        Map<String, String> instances = lister.getInstances(true);
         List<String> instancesToKill = Lists.newArrayList();
 
         // determine number of clients in distress
@@ -204,7 +204,9 @@ public class Reaper {
                                 }
                             } else {
                                 // check to see if the item is too big, if so split it up
-                                ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), field.getValue().toString(), true);
+                                final int maximumLength = 1024;
+                                ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), StringUtils.abbreviate(field
+                                        .getValue().toString(), maximumLength), true);
                                 PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
                                         + run.getSwAccession(), Lists.newArrayList(attr));
                                 simpleDBClient.putAttributes(request);
@@ -213,11 +215,11 @@ public class Reaper {
                     }
                 }
             } catch (AmazonClientException e) {
-                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to AmazonClient error");
+                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to AmazonClient error", e);
             } catch (JsonSyntaxException e) {
-                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to JSON error");
+                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to JSON error", e);
             } catch (RuntimeException e) {
-                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to runtime error");
+                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to runtime error", e);
             }
         }
 
@@ -229,7 +231,6 @@ public class Reaper {
 
         return instancesToKill;
     }
-
 
     private void listWorkflowRuns() {
         AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
@@ -267,28 +268,23 @@ public class Reaper {
 
     }
 
-    private void terminateSensuClients(List<String> providerIDs, boolean test) {
+    private void terminateSensuClients(boolean test) {
         SensuClient sensuClient = new SensuClient(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS),
                 youxiaConfig.getInt(ConfigTools.YOUXIA_SENSU_PORT), youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_USERNAME),
                 youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD));
         List<Client> clients = sensuClient.getClients();
-        Set<String> addressesToKill = Sets.newHashSet();
 
         AwsListing listing = new AwsListing();
-        Map<String, String> instances = listing.getInstances();
-        for (Entry<String, String> entry : instances.entrySet()) {
-            if (providerIDs.contains(entry.getKey())) {
-                addressesToKill.add(entry.getValue());
-            }
-        }
+        Map<String, String> instances = listing.getInstances(false);
+        Set<String> namesToKill = instances.keySet();
 
         for (Client client : clients) {
-            if (addressesToKill.contains(client.getAddress())) {
+            if (namesToKill.contains(client.getName())) {
                 if (test) {
                     Log.info("Would have deleted sensu client " + client.getName());
                 } else {
                     boolean success = sensuClient.deleteClient(client.getName());
-                    Log.stdout("Deleting sensu client " + client.getName() + (success ? " succeeded" : "failed"));
+                    Log.info("Deleting sensu client " + client.getName() + (success ? " succeeded" : "failed"));
                 }
             }
         }
@@ -324,6 +320,18 @@ public class Reaper {
         return distressedClients;
     }
 
+    public void terminateInstances(List<String> instancesToKill) {
+        AmazonEC2Client client = ConfigTools.getEC2Client();
+
+        // first, mark instances for death
+        Log.stdoutWithTime("Marking instances for death " + StringUtils.join(instancesToKill, ","));
+        client.createTags(new CreateTagsRequest().withResources(instancesToKill).withTags(
+                new Tag(Constants.STATE_TAG, Constants.STATE.MARKED_FOR_DEATH.toString())));
+
+        TerminateInstancesRequest request = new TerminateInstancesRequest(instancesToKill);
+        client.terminateInstances(request);
+    }
+
     public static void main(String[] args) throws Exception {
 
         Reaper deployer = new Reaper(args);
@@ -332,8 +340,8 @@ public class Reaper {
             return;
         }
         List<String> instancesToKill = deployer.assessClients();
+        boolean test = deployer.options.has(deployer.testMode);
         if (instancesToKill.size() > 0) {
-            boolean test = deployer.options.has(deployer.testMode);
             if (test) {
                 Log.info("Test mode:");
                 for (String instance : instancesToKill) {
@@ -342,11 +350,9 @@ public class Reaper {
             } else {
                 Log.info("Live mode:");
                 Log.stdoutWithTime("Killing " + StringUtils.join(instancesToKill, ','));
-                AmazonEC2 client = ConfigTools.getEC2Client();
-                TerminateInstancesRequest request = new TerminateInstancesRequest(instancesToKill);
-                client.terminateInstances(request);
+                deployer.terminateInstances(instancesToKill);
             }
-            deployer.terminateSensuClients(instancesToKill, test);
         }
+        deployer.terminateSensuClients(test);
     }
 }

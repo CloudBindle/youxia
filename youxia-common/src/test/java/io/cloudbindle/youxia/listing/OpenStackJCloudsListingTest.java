@@ -90,7 +90,7 @@ public class OpenStackJCloudsListingTest {
         replayAll();
 
         OpenStackJCloudsListing instance = new OpenStackJCloudsListing();
-        Map<String, String> result = instance.getInstances();
+        Map<String, String> result = instance.getInstances(true);
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -111,7 +111,7 @@ public class OpenStackJCloudsListingTest {
         replayAll();
 
         OpenStackJCloudsListing awListing = new OpenStackJCloudsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, String> result = awListing.getInstances(true);
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -132,7 +132,7 @@ public class OpenStackJCloudsListingTest {
         replayAll();
 
         OpenStackJCloudsListing awListing = new OpenStackJCloudsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, String> result = awListing.getInstances(true);
         Assert.assertTrue("result should not be empty", !result.isEmpty());
 
         verifyAll();

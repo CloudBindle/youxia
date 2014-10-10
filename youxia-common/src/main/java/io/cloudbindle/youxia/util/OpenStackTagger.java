@@ -81,7 +81,7 @@ public class OpenStackTagger implements InstanceListingInterface {
     }
 
     @Override
-    public Map<String, String> getInstances() {
+    public Map<String, String> getInstances(boolean liveInstances) {
         String managedTag = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
         List<String> valuesOf = options.valuesOf(instances);
         Set<String> instanceSet = Sets.newHashSet(valuesOf);
@@ -100,6 +100,7 @@ public class OpenStackTagger implements InstanceListingInterface {
                     if (instanceSet.contains(server.getId())) {
                         ImmutableMap<String, String> metadata = ImmutableMap.of(ConfigTools.YOUXIA_MANAGED_TAG, managedTag);
                         serverApiForZone.setMetadata(server.getId(), metadata);
+                        // TODO: listing should only bother tagging active instances
                         map.put(server.getId(), server.getAccessIPv4());
                     }
                 }
@@ -110,7 +111,7 @@ public class OpenStackTagger implements InstanceListingInterface {
 
     public static void main(String[] args) {
         OpenStackTagger lister = new OpenStackTagger(args);
-        Map<String, String> instances = lister.getInstances();
+        Map<String, String> instances = lister.getInstances(true);
         Log.stdoutWithTime("Tagged the following instances:");
         for (Entry<String, String> instance : instances.entrySet()) {
             Log.stdoutWithTime(instance.getKey() + " " + instance.getValue());
