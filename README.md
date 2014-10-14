@@ -38,6 +38,7 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	openstack_username = sweng:dyuen	
 	openstack_password = XXXXX
 	openstack_endpoint = http://sweng.os.oicr.on.ca:5000/v2.0/
+	region = us-east-1 
 	zone = us-east-1a
 	managed_tag = drunken_master
 	slack_webhook = https://XXXX.slack.com/services/hooks/incoming-webhook?token=XXXXXX

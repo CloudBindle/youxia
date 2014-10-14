@@ -20,6 +20,8 @@ package io.cloudbindle.youxia.util;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.auth.profile.ProfilesConfigFile;
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.simpledb.AmazonSimpleDBClient;
@@ -45,6 +47,7 @@ public class ConfigTools {
     public static final String YOUXIA_SENSU_PORT = "youxia.sensu_port";
     public static final String YOUXIA_SENSU_PASSWORD = "youxia.sensu_password";
     public static final String YOUXIA_SENSU_USERNAME = "youxia.sensu_username";
+    public static final String YOUXIA_REGION = "youxia.region";
     public static final String YOUXIA_ZONE = "youxia.zone";
     public static final String YOUXIA_AWS_KEY_NAME = "youxia.aws_key_name";
     public static final String YOUXIA_OPENSTACK_USERNAME = "youxia.openstack_username";
@@ -123,15 +126,24 @@ public class ConfigTools {
     }
 
     public static AmazonSimpleDBClient getSimpleDBClient() {
-        return new AmazonSimpleDBClient(getAWSCredentialProvider());
+        Regions region = getRegion();
+        return Region.getRegion(region).createClient(AmazonSimpleDBClient.class, getAWSCredentialProvider(), null);
+    }
+
+    private static Regions getRegion() {
+        HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
+        Regions region = Regions.fromName(youxiaConfig.getString(YOUXIA_REGION));
+        return region;
     }
 
     public static AmazonEC2Client getEC2Client() {
-        return new AmazonEC2Client(getAWSCredentialProvider());
+        Regions region = getRegion();
+        return Region.getRegion(region).createClient(AmazonEC2Client.class, getAWSCredentialProvider(), null);
     }
 
     public static AmazonS3Client getS3Client() {
-        return new AmazonS3Client(getAWSCredentialProvider());
+        Regions region = getRegion();
+        return Region.getRegion(region).createClient(AmazonS3Client.class, getAWSCredentialProvider(), null);
     }
 
 }
