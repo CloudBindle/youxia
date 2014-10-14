@@ -34,7 +34,6 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	sensu_port = 4567
 	aws_ssh_key = /home/dyuen/.ssh/oicr-aws-dyuen.pem
 	aws_key_name = oicr-aws-dyuen
-	aws_security_group = launch-wizard-73
 	openstack_username = sweng:dyuen	
 	openstack_password = XXXXX
 	openstack_endpoint = http://sweng.os.oicr.on.ca:5000/v2.0/

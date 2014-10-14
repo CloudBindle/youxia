@@ -4,8 +4,8 @@ This deploys all the bindle deployment components.
 
 # Usage:
 
-0. Spin up a ubuntu instance
-1. Setup a deployer.pem in the ssh directory
+0. Spin up a ubuntu instance (I used a m3.xlarge with a 64GB root partition)
+1. Copy a pem private key to the ssh directory
 2. Fill out a aws config file in aws_config
 3. Fill out a youxia config file in youxia_config
 
