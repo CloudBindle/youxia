@@ -196,11 +196,13 @@ public class Reaper {
                                 String[] iniFileLines = iniFile.split("\n");
                                 for (String iniFileLine : iniFileLines) {
                                     String[] keyValue = StringUtils.split(iniFileLine, "=", 2);
-                                    ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey() + "." + keyValue[0], keyValue[1],
-                                            true);
-                                    PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
-                                            + run.getSwAccession(), Lists.newArrayList(attr));
-                                    simpleDBClient.putAttributes(request);
+                                    if (keyValue.length >= 2) {
+                                        ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey() + "." + keyValue[0],
+                                                keyValue[1], true);
+                                        PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
+                                                + run.getSwAccession(), Lists.newArrayList(attr));
+                                        simpleDBClient.putAttributes(request);
+                                    }
                                 }
                             } else {
                                 // check to see if the item is too big, if so split it up
