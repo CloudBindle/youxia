@@ -16,8 +16,9 @@ For most tools, you will need to have a valid Amazon Web Services developer acco
 
 ### Configuration
 
-As a prerequisite, please install ansible. You can use the [directions](https://github.com/CloudBindle/Bindle/blob/develop/README.md) from the Bindle project.
-You should also look at the instructions for ansible\_sensu. At a minimum, you will need to generate your SSL certificates with the script in ansible\_sensu/ssl from that directory.
+The steps for deploying youxia are stored in an Ansible playbook at [youxia-setup](https://github.com/CloudBindle/youxia/tree/develop/youxia-setup). Note the dependencies contained within such as Ansible and Java 7. 
+
+As an alternative to building in an environment with access to Maven 3.0.4 and Java 7, you can also download our built artifacts from [Artifactory](https://seqwaremaven.oicr.on.ca/artifactory/seqware-release/io/cloudbindle/).
 
 First, configure your AWS security credentials in a <code>.aws/config</code> file in your home directory. For example:
 
