@@ -191,6 +191,7 @@ public class Reaper {
                         Map<String, Object> fromJson = gson.fromJson(json, Map.class);
                         for (Entry<String, Object> field : fromJson.entrySet()) {
                             // split up the ini file to ensure it makes it into the DB
+                            final int maximumLength = 1024;
                             if (field.getKey().equals(Constants.INI_FILE)) {
                                 String iniFile = (String) field.getValue();
                                 String[] iniFileLines = iniFile.split("\n");
@@ -198,7 +199,7 @@ public class Reaper {
                                     String[] keyValue = StringUtils.split(iniFileLine, "=", 2);
                                     if (keyValue.length >= 2) {
                                         ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey() + "." + keyValue[0],
-                                                keyValue[1], true);
+                                                StringUtils.abbreviate(keyValue[1], maximumLength), true);
                                         PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
                                                 + run.getSwAccession(), Lists.newArrayList(attr));
                                         simpleDBClient.putAttributes(request);
@@ -206,7 +207,6 @@ public class Reaper {
                                 }
                             } else {
                                 // check to see if the item is too big, if so split it up
-                                final int maximumLength = 1024;
                                 ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), StringUtils.abbreviate(field
                                         .getValue().toString(), maximumLength), true);
                                 PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
