@@ -22,6 +22,8 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.BlockDeviceMapping;
 import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.DescribeImagesRequest;
+import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsResult;
 import com.amazonaws.services.ec2.model.EbsBlockDevice;
@@ -35,15 +37,15 @@ import com.amazonaws.services.ec2.model.SpotInstanceRequest;
 import com.amazonaws.services.ec2.model.SpotPlacement;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
-import io.cloudbindle.youxia.util.Log;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Log;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 /**
  * A forked version of Amazon AWS's sample client.
- * 
+ *
  * @author dyuen
  */
 public class Requests {
@@ -67,7 +69,7 @@ public class Requests {
 
     /**
      * Public constructor.
-     * 
+     *
      * @param instanceType
      * @param amiID
      * @param securityGroup
@@ -85,7 +87,7 @@ public class Requests {
      * The only information needed to create a client are security credentials consisting of the AWS Access Key ID and Secret Access Key.
      * All other configuration, such as the service endpoints, are performed automatically. Client parameters, such as proxies, can be
      * specified in an optional ClientConfiguration object when constructing a client.
-     * 
+     *
      * @see com.amazonaws.auth.BasicAWSCredentials
      * @see com.amazonaws.auth.PropertiesCredentials
      * @see com.amazonaws.ClientConfiguration
@@ -106,11 +108,11 @@ public class Requests {
 
     /**
      * The submit method will create 1 x one-time t1.micro request with a maximum bid price of $0.03 using the Amazon Linux AMI.
-     * 
+     *
      * Note the AMI id may change after the release of this code sample, and it is important to use the latest. You can find the latest
      * version by logging into the AWS Management console, and attempting to perform a launch. You will be presented with AMI options, one
      * of which will be Amazon Linux. Simply use that AMI id.
-     * 
+     *
      */
     public void submitRequests() {
         // ==========================================================================//
@@ -129,6 +131,10 @@ public class Requests {
         // Amazon Linux AMI id or another of your choosing.
         LaunchSpecification launchSpecification = new LaunchSpecification();
         launchSpecification.setImageId(amiID);
+
+        List<BlockDeviceMapping> blockDeviceMappings = getBlockMappings();
+        launchSpecification.setBlockDeviceMappings(blockDeviceMappings);
+
         launchSpecification.setInstanceType(instanceType);
         launchSpecification.setKeyName(keyName);
 
@@ -182,6 +188,7 @@ public class Requests {
 
         // If we should delete the EBS boot partition on termination.
         if (!deleteOnTermination) {
+            Log.error("Disabling delete on termination is incompatible with BlockDeviceMapping passthrough");
             // Create the block device mapping to describe the root partition.
             BlockDeviceMapping blockDeviceMapping = new BlockDeviceMapping();
             blockDeviceMapping.setDeviceName("/dev/sda1");
@@ -218,6 +225,22 @@ public class Requests {
         }
     }
 
+    private List<BlockDeviceMapping> getBlockMappings() {
+        // copy block mapping from image to new launch specification to ensure that devices make it through
+        DescribeImagesRequest ir = new DescribeImagesRequest();
+        ir.setImageIds(Lists.newArrayList(amiID));
+        DescribeImagesResult describeImagesResult = ec2.describeImages(ir);
+        List<BlockDeviceMapping> blockDeviceMappings = describeImagesResult.getImages().get(0).getBlockDeviceMappings();
+        // turn off encrypted flag, not sure why it might be specified for snapshots but it seems tto crash at runtime with
+        // "Exception in thread "main" java.lang.RuntimeException: com.amazonaws.AmazonServiceException: Parameter encrypted is invalid. You cannot specify the encrypted flag if specifying a snapshot id in a block device mapping."
+        for (BlockDeviceMapping mapping : blockDeviceMappings) {
+            if (mapping.getEbs() != null) {
+                mapping.getEbs().setEncrypted(null);
+            }
+        }
+        return blockDeviceMappings;
+    }
+
     public void launchOnDemand() {
         // ============================================================================================//
         // ====================================== Launch an On-Demand Instance ========================//
@@ -229,6 +252,11 @@ public class Requests {
         RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
         runInstancesRequest.setInstanceType(instanceType);
         runInstancesRequest.setImageId(amiID);
+
+        // pass through block mappings from image since amazon weirdly overwrites config here
+        List<BlockDeviceMapping> blockDeviceMappings = getBlockMappings();
+        runInstancesRequest.setBlockDeviceMappings(blockDeviceMappings);
+
         runInstancesRequest.setMinCount(this.getNumInstances());
         runInstancesRequest.setMaxCount(this.getNumInstances());
         runInstancesRequest.setKeyName(keyName);
@@ -252,7 +280,7 @@ public class Requests {
     /**
      * The areOpen method will determine if any of the requests that were started are still in the open state. If all of them have
      * transitioned to either active, cancelled, or closed, then this will return false.
-     * 
+     *
      * @return
      */
     public boolean areAnyOpen() {
@@ -306,7 +334,7 @@ public class Requests {
 
     /**
      * Tag any of the resources we specify.
-     * 
+     *
      * @param resources
      * @param tags
      */
@@ -331,7 +359,7 @@ public class Requests {
 
     /**
      * Tags all of the instances started with this object with the tags specified.
-     * 
+     *
      * @param tags
      */
     public void tagInstances(List<Tag> tags) {
@@ -340,7 +368,7 @@ public class Requests {
 
     /**
      * Tags all of the requests started with this object with the tags specified.
-     * 
+     *
      * @param tags
      */
     public void tagRequests(List<Tag> tags) {
@@ -391,7 +419,7 @@ public class Requests {
 
     /**
      * Sets the request type to either persistent or one-time.
-     * 
+     *
      * @param type
      */
     public void setRequestType(String type) {
@@ -400,7 +428,7 @@ public class Requests {
 
     /**
      * Sets the valid to and from time. If you set either value to null or "" then the period will not be set.
-     * 
+     *
      * @param from
      * @param to
      */
@@ -411,7 +439,7 @@ public class Requests {
 
     /**
      * Sets the launch group to be used. If you set this to null or "" then launch group will be used.
-     * 
+     *
      * @param launchGroup
      */
     public void setLaunchGroup(String launchGroup) {
@@ -420,7 +448,7 @@ public class Requests {
 
     /**
      * Sets the availability zone group to be used. If you set this to null or "" then availability zone group will be used.
-     * 
+     *
      * @param azGroup
      */
     public void setAvailabilityZoneGroup(String azGroup) {
@@ -429,7 +457,7 @@ public class Requests {
 
     /**
      * Sets the availability zone to be used. If you set this to null or "" then availability zone will be used.
-     * 
+     *
      * @param az
      */
     public void setAvailabilityZone(String az) {
@@ -438,7 +466,7 @@ public class Requests {
 
     /**
      * Sets the placementGroupName to be used. If you set this to null or "" then no placementgroup will be used.
-     * 
+     *
      * @param pg
      */
     public void setPlacementGroup(String pg) {
@@ -448,7 +476,7 @@ public class Requests {
     /**
      * This sets the deleteOnTermination flag, so that we can determine whether or not we should delete the root partition if the instance
      * is interrupted or terminated.
-     * 
+     *
      * @param terminate
      */
     public void setDeleteOnTermination(boolean terminate) {

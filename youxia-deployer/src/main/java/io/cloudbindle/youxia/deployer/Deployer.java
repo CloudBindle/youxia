@@ -47,7 +47,7 @@ import org.apache.commons.lang.StringUtils;
 
 /**
  * This class maintains a fleet of amazon instances dependent on state retrieved from sensu.
- * 
+ *
  * Before you run this code, be sure to fill in your ~/.youxia/config and ~/.aws/config
  */
 public class Deployer {
@@ -82,7 +82,7 @@ public class Deployer {
                 .withRequiredArg().ofType(Integer.class).required();
         this.playbook = parser
                 .acceptsAll(Arrays.asList("ansible-playbook", "a"), "If specified, ansible will be run using the specified playbook")
-                .withRequiredArg().ofType(String.class).required();
+                .withRequiredArg().ofType(String.class);
         try {
             this.options = parser.parse(args);
         } catch (OptionException e) {
@@ -99,7 +99,7 @@ public class Deployer {
 
     /**
      * Determine the number of clients that we need to spawn.
-     * 
+     *
      * @return
      */
     private int assessClients() {
@@ -116,7 +116,7 @@ public class Deployer {
 
     /**
      * This checks to see whether the current spot price is reasonable.
-     * 
+     *
      * @return
      */
     private boolean isReadyToRequestSpotInstances() {
@@ -149,7 +149,7 @@ public class Deployer {
     /**
      * Request spot instances, incorporates code from
      * https://github.com/amazonwebservices/aws-sdk-for-java/blob/master/src/samples/AmazonEC2SpotInstances-Advanced/GettingStartedApp.java
-     * 
+     *
      * @param numInstances
      * @param skipWait
      * @return
@@ -242,7 +242,7 @@ public class Deployer {
 
     /**
      * Populate a list of returnInstances and return true iff all instanceIds are running and ok
-     * 
+     *
      * @param instanceIds
      * @param eC2Client
      * @param returnInstances

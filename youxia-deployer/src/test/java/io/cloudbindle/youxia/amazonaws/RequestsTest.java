@@ -17,6 +17,9 @@
 package io.cloudbindle.youxia.amazonaws;
 
 import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.DescribeImagesRequest;
+import com.amazonaws.services.ec2.model.DescribeImagesResult;
+import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
 import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
@@ -48,7 +51,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * 
+ *
  * @author dyuen
  */
 @RunWith(PowerMockRunner.class)
@@ -83,7 +86,7 @@ public class RequestsTest {
 
     /**
      * Test of submitRequests method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -91,6 +94,9 @@ public class RequestsTest {
         RequestSpotInstancesResult result = mock(RequestSpotInstancesResult.class);
         SpotInstanceRequest resultRequest = mock(SpotInstanceRequest.class);
         when(mockClient.requestSpotInstances(isNotNull(RequestSpotInstancesRequest.class))).thenReturn(result);
+        DescribeImagesResult describeImagesResult = new DescribeImagesResult();
+        describeImagesResult.withImages(new Image());
+        when(mockClient.describeImages(isNotNull(DescribeImagesRequest.class))).thenReturn(describeImagesResult);
         List<SpotInstanceRequest> list = Lists.newArrayList();
         list.add(resultRequest);
         when(result.getSpotInstanceRequests()).thenReturn(list);
@@ -107,13 +113,16 @@ public class RequestsTest {
 
     /**
      * Test of launchOnDemand method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
     public void testLaunchOnDemand() throws Exception {
         RunInstancesResult runResult = mock(RunInstancesResult.class);
         when(mockClient.runInstances(isNotNull(RunInstancesRequest.class))).thenReturn(runResult);
+        DescribeImagesResult describeImagesResult = new DescribeImagesResult();
+        describeImagesResult.withImages(new Image());
+        when(mockClient.describeImages(isNotNull(DescribeImagesRequest.class))).thenReturn(describeImagesResult);
         Reservation reservation = mock(Reservation.class);
         when(runResult.getReservation()).thenReturn(reservation);
         Instance instance = mock(Instance.class);
@@ -174,7 +183,7 @@ public class RequestsTest {
     //
     /**
      * Test of cleanup method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -186,7 +195,7 @@ public class RequestsTest {
 
     /**
      * Test of setRequestType method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -200,7 +209,7 @@ public class RequestsTest {
 
     /**
      * Test of setValidPeriod method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -215,7 +224,7 @@ public class RequestsTest {
 
     /**
      * Test of setLaunchGroup method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -228,7 +237,7 @@ public class RequestsTest {
 
     /**
      * Test of setAvailabilityZoneGroup method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -242,7 +251,7 @@ public class RequestsTest {
 
     /**
      * Test of setAvailabilityZone method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -255,7 +264,7 @@ public class RequestsTest {
 
     /**
      * Test of setPlacementGroup method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -268,7 +277,7 @@ public class RequestsTest {
 
     /**
      * Test of setDeleteOnTermination method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -281,7 +290,7 @@ public class RequestsTest {
 
     /**
      * Test of getNumInstances method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -294,7 +303,7 @@ public class RequestsTest {
 
     /**
      * Test of setNumInstances method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -307,7 +316,7 @@ public class RequestsTest {
 
     /**
      * Test of getInstanceIds method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -321,7 +330,7 @@ public class RequestsTest {
 
     /**
      * Test of setInstanceIds method, of class Requests.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
