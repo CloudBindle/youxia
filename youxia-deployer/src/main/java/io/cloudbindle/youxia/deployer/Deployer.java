@@ -64,6 +64,7 @@ public class Deployer {
     public static final String DEPLOYER_PRODUCT = "deployer.product";
 
     private final ArgumentAcceptingOptionSpec<String> playbook;
+    private final ArgumentAcceptingOptionSpec<String> extraVarsSpec;
 
     public Deployer(String[] args) {
         // record configuration
@@ -83,6 +84,11 @@ public class Deployer {
         this.playbook = parser
                 .acceptsAll(Arrays.asList("ansible-playbook", "a"), "If specified, ansible will be run using the specified playbook")
                 .withRequiredArg().ofType(String.class);
+        this.extraVarsSpec = parser
+                .acceptsAll(Arrays.asList("ansible-extra-vars", "e"),
+                        "If specified, ansible will use the specified variables in YAML/JSON format").withRequiredArg()
+                .ofType(String.class);
+
         try {
             this.options = parser.parse(args);
         } catch (OptionException e) {
@@ -309,6 +315,10 @@ public class Deployer {
                 cmdLine.addArgument("-i");
                 cmdLine.addArgument("${file}");
                 cmdLine.addArgument("${playbook}");
+                if (options.has(this.extraVarsSpec)) {
+                    cmdLine.addArgument("-e");
+                    cmdLine.addArgument("\"@" + options.valueOf(this.extraVarsSpec) + "\"");
+                }
                 HashMap<String, String> map = new HashMap<>();
                 map.put("file", createTempFile.toAbsolutePath().toString());
                 map.put("playbook", this.options.valueOf(this.playbook));
