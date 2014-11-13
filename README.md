@@ -92,6 +92,17 @@ A sample command:
 
 This indicates that you will pay a maximum spot price of 1, deploy a maximum of 1 VM per execution, up to a maximum of 10 managed nodes on AWS. You will probably want to put the jar and playbook somewhere on your deployer host. You may also want to update your crontab with the command at an appropriate interval on an appropriate host.
 
+Note that it is possible to pass variables in yaml or json format to the ansible playbook using an extra parameter. For example, with the following variable file:
+
+	{
+	"lvm_device_whitelist" : "/dev/xvdc,/dev/xvdd,/dev/xvde,/dev/xvdf",
+	"single_node_lvm" : true
+	}
+
+You could use:
+
+    java -jar youxia-deployer/target/youxia-deployer-*-jar-with-dependencies.jar --ansible-playbook /home/ubuntu/youxia/ansible_sensu/site.yml --max-spot-price 0.001 --batch-size 1 --total-nodes-num 1 -e /home/ubuntu/crons/deployer_variables.json
+
 ##### Reaper
 
 Third, you will probably want to setup the Reaper component. The Reaper component talks to managed instances to persist their workflow run information to SimpleDB, determine whether VMs have reached their kill-limit, and kills them if necessary after potentially cross-referencing with sensu data. 
