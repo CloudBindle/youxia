@@ -15,5 +15,5 @@ This deploys all the bindle deployment components.
 
    or without key checking and overriding the version of youxia used
 
-        ANSIBLE_HOST_KEY_CHECKING=False  ansible-playbook -vvvv -i inventory site.yml --extra-vars '{"youxia_version":"1.1.0-alpha.4"}'
+        ANSIBLE_HOST_KEY_CHECKING=False  ansible-playbook -i inventory site.yml --extra-vars '{"youxia_version":"1.1.0-alpha.4"}'
 
