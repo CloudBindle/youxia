@@ -25,6 +25,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.stream.JsonWriter;
 import io.cloudbindle.youxia.listing.AwsListing;
+import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
 import io.cloudbindle.youxia.sensu.client.SensuClient;
@@ -119,7 +120,7 @@ public class Reaper {
      */
     private List<String> assessClients() {
 
-        AwsListing lister = new AwsListing();
+        AwsListing lister = ListingFactory.createAWSListing();
         Map<String, String> instances = lister.getInstances(true);
         List<String> instancesToKill = Lists.newArrayList();
 
@@ -276,7 +277,7 @@ public class Reaper {
                 youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD));
         List<Client> clients = sensuClient.getClients();
 
-        AwsListing listing = new AwsListing();
+        AwsListing listing = ListingFactory.createAWSListing();
         Map<String, String> instances = listing.getInstances(false);
         Set<String> namesToKill = instances.keySet();
 

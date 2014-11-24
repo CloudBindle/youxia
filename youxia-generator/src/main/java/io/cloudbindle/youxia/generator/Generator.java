@@ -5,9 +5,8 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import io.cloudbindle.youxia.listing.AwsListing;
-import io.cloudbindle.youxia.listing.InstanceListingInterface;
-import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing;
+import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.pawg.api.ClusterDetails;
 import io.cloudbindle.youxia.util.ConfigTools;
 import java.io.File;
@@ -28,7 +27,7 @@ import org.apache.commons.io.FileUtils;
 /**
  * The generator aggregates inventory information based on instances tagged in AWS, manually created JSON files, and instance metadata on
  * Openstack.
- * 
+ *
  * Before you run this code, be sure to fill in your ~/.youxia/config and ~/.aws/config
  */
 public class Generator {
@@ -85,11 +84,11 @@ public class Generator {
         Generator generator = new Generator(args);
         Map<String, String> instances = Maps.newHashMap();
         if (generator.options.has(generator.aggregateAWS)) {
-            InstanceListingInterface lister = new AwsListing();
+            AbstractInstanceListing lister = ListingFactory.createAWSListing();
             instances.putAll(lister.getInstances(true));
         }
         if (generator.options.has(generator.aggregateOpenStack)) {
-            InstanceListingInterface lister = new OpenStackJCloudsListing();
+            AbstractInstanceListing lister = ListingFactory.createOpenStackListing();
             instances.putAll(lister.getInstances(true));
         }
 

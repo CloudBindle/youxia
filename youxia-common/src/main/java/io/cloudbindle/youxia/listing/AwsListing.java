@@ -32,10 +32,11 @@ import org.apache.commons.configuration.HierarchicalINIConfiguration;
 
 /**
  * This lists instances available on AWS.
- * 
+ *
  * @author dyuen
  */
-public class AwsListing implements InstanceListingInterface {
+public class AwsListing extends AbstractInstanceListing {
+
 
     @Override
     public Map<String, String> getInstances(boolean liveInstances) {
@@ -47,33 +48,17 @@ public class AwsListing implements InstanceListingInterface {
         DescribeInstancesResult describeInstancesResult = ec2.describeInstances();
         for (Reservation reservation : describeInstancesResult.getReservations()) {
             for (Instance instance : reservation.getInstances()) {
-                Tag managedTag = null;
-                Tag managedState = null;
+                String managedTag = null;
+                String managedState = null;
                 for (Tag tag : instance.getTags()) {
                     if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTagValue)) {
-                        managedTag = tag;
+                        managedTag = tag.getValue();
                     }
                     if (tag.getKey().equals(Constants.STATE_TAG)) {
-                        managedState = tag;
+                        managedState = tag.getValue();
                     }
                 }
-                if (managedTag != null && managedState != null) {
-                    if (liveInstances) {
-                        if (!(managedState.getValue().equals(Constants.STATE.READY.toString()) || managedState.getValue().equals(
-                                Constants.STATE.SETTING_UP.toString()))) {
-                            continue;
-                        }
-                        if (instance.getPublicIpAddress() == null) {
-                            Log.info("Node " + instance.getInstanceId() + " had no public ip address, skipping");
-                            continue;
-                        }
-                    } else {
-                        if (!managedState.getValue().equals(Constants.STATE.MARKED_FOR_DEATH.toString())) {
-                            continue;
-                        }
-                    }
-                    map.put(instance.getInstanceId(), instance.getPublicIpAddress());
-                }
+                handleMapping(managedTag, managedState, liveInstances, instance.getInstanceId(), instance.getPublicIpAddress(), map);
             }
         }
         Log.info("Located " + map.values().size() + " relevant instances on AWS");
@@ -81,7 +66,7 @@ public class AwsListing implements InstanceListingInterface {
     }
 
     public static void main(String[] args) {
-        AwsListing lister = new AwsListing();
+        AwsListing lister = ListingFactory.createAWSListing();
         Map<String, String> instances = lister.getInstances(true);
         for (Entry<String, String> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());

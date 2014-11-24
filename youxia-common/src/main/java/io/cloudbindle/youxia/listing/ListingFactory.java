@@ -14,24 +14,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 package io.cloudbindle.youxia.listing;
 
-import java.util.Map;
-
 /**
- * This is an interface for classes that list available instances on AWS, Openstack, vCloud, etc.
- * 
+ *
  * @author dyuen
  */
-public interface InstanceListingInterface {
+public class ListingFactory {
 
-    /**
-     * Retrieves a map between a unique identifier and public ip address
-     * 
-     * @param liveInstances
-     *            return live instances if true, dead instances if false
-     * @return
-     */
-    Map<String, String> getInstances(boolean liveInstances);
+    public static OpenStackJCloudsListing createOpenStackListing() {
+        return new OpenStackJCloudsListing();
+    }
+
+    public static AwsListing createAWSListing() {
+        return new AwsListing();
+    }
+
 }

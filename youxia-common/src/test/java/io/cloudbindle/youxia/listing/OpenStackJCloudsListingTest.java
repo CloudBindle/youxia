@@ -22,6 +22,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Constants;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
@@ -44,7 +45,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * 
+ *
  * @author dyuen
  */
 @RunWith(PowerMockRunner.class)
@@ -53,7 +54,7 @@ public class OpenStackJCloudsListingTest {
 
     /**
      * Test of getInstances method, of class AwsListing.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -98,7 +99,7 @@ public class OpenStackJCloudsListingTest {
 
     /**
      * Test of getInstances method, of class AwsListing.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -119,7 +120,7 @@ public class OpenStackJCloudsListingTest {
 
     /**
      * Test of getInstances method, of class AwsListing.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -155,6 +156,7 @@ public class OpenStackJCloudsListingTest {
         Server server = mock(Server.class);
         Map<String, String> tags = Maps.newHashMap();
         tags.put(ConfigTools.YOUXIA_MANAGED_TAG, tagname);
+        tags.put(Constants.STATE_TAG, Constants.STATE.READY.toString());
         Multimap<String, Address> multiMap = ArrayListMultimap.create();
         multiMap.put("blah1", Address.createV4("123.123.123.123"));
         multiMap.put("blah2", Address.createV4("123.123.123.123"));

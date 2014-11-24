@@ -20,6 +20,7 @@ package io.cloudbindle.youxia.listing;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
 import java.util.Iterator;
 import java.util.Map;
@@ -33,15 +34,15 @@ import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 
 /**
  * This lists instances available on OpenStack.
- * 
- * 
+ *
+ *
  * @author dyuen
  */
-public class OpenStackJCloudsListing implements InstanceListingInterface {
+public class OpenStackJCloudsListing extends AbstractInstanceListing {
 
     @Override
     public Map<String, String> getInstances(boolean liveInstances) {
-        String managedTag = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
+        String managedTagValue = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
         NovaApi novaApi = ConfigTools.getNovaApi();
         Map<String, String> map = Maps.newHashMap();
         for (String zone : novaApi.getConfiguredZones()) {
@@ -53,18 +54,27 @@ public class OpenStackJCloudsListing implements InstanceListingInterface {
             for (IterableWithMarker<Server> iterable : toList) {
                 ImmutableList<Server> toList1 = iterable.toList();
                 for (Server server : toList1) {
+                    String managedTag = null;
+                    String managedState = null;
                     for (Entry<String, String> tag : server.getMetadata().entrySet()) {
-                        if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
-                            /**
-                             * TODO: This is unfortunate, but it looks like Openstack doesn't actually know which ip addresses assigned to
-                             * an instance if public or private. On ours, it looks like the second one, but this is totally unreliable.
-                             * TODO: this iterator should also return return live instances when liveInstances and all when !
-                             **/
-                            Iterator<Entry<String, Address>> iterator = server.getAddresses().entries().iterator();
-                            iterator.next();
-                            map.put(server.getId(), iterator.next().getValue().getAddr());
+                        if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTagValue)) {
+                            managedTag = tag.getValue();
+                        }
+                        if (tag.getKey().equals(Constants.STATE_TAG)) {
+                            managedState = tag.getValue();
                         }
                     }
+                    /**
+                     * TODO: This is unfortunate, but it looks like Openstack doesn't actually know which ip addresses assigned to an
+                     * instance if public or private. On ours, it looks like the second one, but this is totally unreliable. TODO: this
+                     * iterator should also return return live instances when liveInstances and all when not
+                     **/
+                    Iterator<Entry<String, Address>> iterator = server.getAddresses().entries().iterator();
+                    iterator.next();
+                    String id = server.getId();
+                    String address = iterator.next().getValue().getAddr();
+
+                    handleMapping(managedTag, managedState, liveInstances, id, address, map);
                 }
             }
         }
@@ -74,7 +84,7 @@ public class OpenStackJCloudsListing implements InstanceListingInterface {
     }
 
     public static void main(String[] args) {
-        OpenStackJCloudsListing lister = new OpenStackJCloudsListing();
+        OpenStackJCloudsListing lister = ListingFactory.createOpenStackListing();
         Map<String, String> instances = lister.getInstances(true);
         for (Entry<String, String> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());
