@@ -2,8 +2,20 @@
 - name: Install redis
   apt: name=redis-server state=latest
 
+- name: Download deb package for erlang repo
+  get_url: 
+    dest=/tmp
+    url=http://packages.erlang-solutions.com/erlang-solutions_1.0_all.deb
+    mode=755
+  
+- name: Install deb package for erlang repo
+  apt: deb=/tmp/erlang-solutions_1.0_all.deb
+
+- name: Download key for erlang repo
+  apt_key: url=http://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc state=present
+
 - name: Install erlang
-  apt: name=erlang-nox state=latest
+  apt: name=erlang-nox state=latest update_cache=yes
 
 - name: Install NTP
   apt: name=ntp state=latest
