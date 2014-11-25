@@ -25,7 +25,6 @@ import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -60,6 +59,7 @@ import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.options.TemplateOptions;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
+import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.openstack.nova.v2_0.domain.Server;
 import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 
@@ -403,11 +403,17 @@ public class Deployer {
         if (options.has(this.openStackMode)) {
             ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi();
             ComputeService computeService = genericOpenStackApi.getComputeService();
-            TemplateOptions templateOptions = TemplateOptions.Builder.networks(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID))
+            // have to use the specific api here to designate a keypair, weird
+            TemplateOptions templateOptions = NovaTemplateOptions.Builder
+                    .networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)))
                     .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                     .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
-                    .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString())
-                    .installPrivateKey(FileUtils.readFileToString(new File(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_SSH_KEY))));
+                    .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
+                    .keyPairName(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME)).blockOnComplete(true);
+            // .overrideLoginUser("ubuntu")
+            // .blockOnComplete(true)
+            // .overrideLoginCredentials(null)
+            // .blockUntilRunning(true);
 
             Template template = computeService
                     .templateBuilder()
