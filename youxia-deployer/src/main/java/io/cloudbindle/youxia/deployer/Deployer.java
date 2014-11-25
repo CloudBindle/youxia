@@ -407,7 +407,7 @@ public class Deployer {
                     .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                     .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                     .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString())
-                    .installPrivateKey(FileUtils.readFileToString(new File(youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY))));
+                    .installPrivateKey(FileUtils.readFileToString(new File(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_SSH_KEY))));
 
             Template template = computeService
                     .templateBuilder()
