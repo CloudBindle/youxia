@@ -425,6 +425,7 @@ public class Deployer {
             System.out.println("Finished requesting VMs, starting arbitrary wait");
             // wait is in minutes
             Thread.sleep(youxiaConfig.getInt(DEPLOYER_OPENSTACK_ARBITRARY_WAIT));
+            System.out.println("Completed arbitrary wait");
 
             ids = runAnsible(nodesInGroup);
 
