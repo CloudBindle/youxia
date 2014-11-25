@@ -15,6 +15,8 @@ import com.amazonaws.services.ec2.model.InstanceStatusSummary;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.Tag;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.amazonaws.Requests;
@@ -23,6 +25,7 @@ import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -48,10 +52,16 @@ import org.apache.commons.exec.Executor;
 import org.apache.commons.exec.PumpStreamHandler;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.jclouds.collect.IterableWithMarker;
+import org.jclouds.collect.PagedIterable;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
+import org.jclouds.compute.options.TemplateOptions;
+import org.jclouds.openstack.nova.v2_0.NovaApi;
+import org.jclouds.openstack.nova.v2_0.domain.Server;
+import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 
 /**
  * This class maintains a fleet of amazon instances dependent on state retrieved from sensu.
@@ -71,8 +81,10 @@ public class Deployer {
     public static final String DEPLOYER_SECURITY_GROUP = "deployer.security_group";
     public static final String DEPLOYER_PRODUCT = "deployer.product";
     public static final String DEPLOYER_OPENSTACK_IMAGE_ID = "deployer_openstack.image_id";
-    public static final String DEPLOYER_OPENSTACK_INSTANCE_TYPE = "deployer_openstack.instance_type";
+    public static final String DEPLOYER_OPENSTACK_MIN_CORES = "deployer_openstack.min_cores";
+    public static final String DEPLOYER_OPENSTACK_MIN_RAM = "deployer_openstack.min_ram";
     public static final String DEPLOYER_OPENSTACK_SECURITY_GROUP = "deployer_openstack.security_group";
+    public static final String DEPLOYER_OPENSTACK_NETWORK_ID = "deployer_openstack.network_id";
 
     private final ArgumentAcceptingOptionSpec<String> playbook;
     private final ArgumentAcceptingOptionSpec<String> extraVarsSpec;
@@ -134,7 +146,7 @@ public class Deployer {
             lister = ListingFactory.createAWSListing();
         }
         Map<String, String> map = lister.getInstances(true);
-        Log.info("Found " + map.size() + " AWS clients");
+        Log.info("Found " + map.size() + " clients");
 
         int clientsNeeded = options.valueOf(totalNodes) - map.size();
         Log.info("Need " + clientsNeeded + " more clients");
@@ -309,12 +321,29 @@ public class Deployer {
         return wait;
     }
 
-    private void runAnsible(List<Instance> readyInstances) {
+    private Set<String> runAnsible(List<Instance> readyInstances) {
+        Set<String> ids = new HashSet<>();
         Map<String, String> instanceMap = new HashMap<>();
         for (Instance s : readyInstances) {
+            ids.add(s.getInstanceId());
             instanceMap.put(s.getInstanceId(), s.getPublicIpAddress());
         }
         runAnsible(instanceMap);
+        return ids;
+    }
+
+    private Set<String> runAnsible(Set<? extends NodeMetadata> nodeMetadata) {
+        Set<String> ids = new HashSet<>();
+        Map<String, String> instanceMap = new HashMap<>();
+        for (NodeMetadata node : nodeMetadata) {
+            ids.add(node.getId());
+            if (node.getPrivateAddresses().isEmpty()) {
+                throw new RuntimeException("Node " + node.getId() + " was not assigned an ip address");
+            }
+            instanceMap.put(node.getId(), node.getPrivateAddresses().iterator().next());
+        }
+        runAnsible(instanceMap);
+        return ids;
     }
 
     private void runAnsible(Map<String, String> instanceMap) {
@@ -370,14 +399,47 @@ public class Deployer {
     }
 
     private void runDeployment(int clientsToDeploy) throws Exception {
+        Set<String> ids;
         if (options.has(this.openStackMode)) {
             ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi();
             ComputeService computeService = genericOpenStackApi.getComputeService();
-            Template template = computeService.templateBuilder().imageId(youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID))
-                    .hardwareId(youxiaConfig.getString(DEPLOYER_OPENSTACK_INSTANCE_TYPE)).build();
-            Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group?", clientsToDeploy, template);
+            TemplateOptions templateOptions = TemplateOptions.Builder.networks(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID))
+                    .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
+                    .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
+                    .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString())
+                    .installPrivateKey(FileUtils.readFileToString(new File(youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY))));
+
+            Template template = computeService
+                    .templateBuilder()
+                    .imageId(
+                            youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "/"
+                                    + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID))
+                    .minCores(youxiaConfig.getDouble(DEPLOYER_OPENSTACK_MIN_CORES)).minRam(youxiaConfig.getInt(DEPLOYER_OPENSTACK_MIN_RAM))
+                    .options(templateOptions).build();
+
+            Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
             for (NodeMetadata meta : nodesInGroup) {
                 System.out.println(meta.getId() + " " + meta.getStatus().toString());
+            }
+            System.out.println("Finished requesting VMs");
+            ids = runAnsible(nodesInGroup);
+
+            // retag instances with finished metadata, cannot see how to do this with the generic api
+            // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for this
+            NovaApi novaApi = ConfigTools.getNovaApi();
+            ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
+            PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
+            // what is this crazy nested structure?
+            ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
+            for (IterableWithMarker<Server> iterable : toList) {
+                ImmutableList<Server> toList1 = iterable.toList();
+                for (Server server : toList1) {
+                    if (ids.contains(server.getId())) {
+                        ImmutableMap<String, String> metadata = ImmutableMap.of(Constants.STATE_TAG, Constants.STATE.READY.toString(),
+                                Constants.SENSU_NAME, server.getId());
+                        serverApiForZone.setMetadata(server.getId(), metadata);
+                    }
+                }
             }
 
         } else {

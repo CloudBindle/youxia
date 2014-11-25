@@ -50,9 +50,12 @@ public class ConfigTools {
     public static final String YOUXIA_REGION = "youxia.region";
     public static final String YOUXIA_ZONE = "youxia.zone";
     public static final String YOUXIA_AWS_KEY_NAME = "youxia.aws_key_name";
+    public static final String YOUXIA_OPENSTACK_KEY_NAME = "youxia.openstack_key_name";
+    public static final String YOUXIA_OPENSTACK_SSH_KEY = "youxia.openstack_ssh_key";
     public static final String YOUXIA_OPENSTACK_USERNAME = "youxia.openstack_username";
     public static final String YOUXIA_OPENSTACK_PASSWORD = "youxia.openstack_password";
     public static final String YOUXIA_OPENSTACK_ENDPOINT = "youxia.openstack_endpoint";
+    public static final String YOUXIA_OPENSTACK_ZONE = "youxia.openstack_zone";
     public static final String YOUXIA_MANAGED_TAG = "youxia.managed_tag";
     public static final String SEQWARE_REST_USER = "seqware.rest_user";
     public static final String SEQWARE_REST_PORT = "seqware.rest_port";
@@ -121,7 +124,7 @@ public class ConfigTools {
         HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
         NovaApi api = ContextBuilder.newBuilder("openstack-nova").endpoint(youxiaConfig.getString(YOUXIA_OPENSTACK_ENDPOINT))
                 .credentials(youxiaConfig.getString(YOUXIA_OPENSTACK_USERNAME), youxiaConfig.getString(YOUXIA_OPENSTACK_PASSWORD))
-                .modules(ImmutableSet.<Module> of(new SLF4JLoggingModule())).buildApi(NovaApi.class);
+                .modules(ImmutableSet.<Module> of(new SLF4JLoggingModule(), new SshjSshClientModule())).buildApi(NovaApi.class);
         return api;
     }
 
@@ -131,7 +134,8 @@ public class ConfigTools {
         ComputeServiceContext context = ContextBuilder.newBuilder("openstack-nova")
                 .endpoint(youxiaConfig.getString(YOUXIA_OPENSTACK_ENDPOINT))
                 .credentials(youxiaConfig.getString(YOUXIA_OPENSTACK_USERNAME), youxiaConfig.getString(YOUXIA_OPENSTACK_PASSWORD))
-                .modules(ImmutableSet.<Module> of(new SLF4JLoggingModule())).buildView(ComputeServiceContext.class);
+                .modules(ImmutableSet.<Module> of(new SLF4JLoggingModule(), new SshjSshClientModule()))
+                .buildView(ComputeServiceContext.class);
         return context;
 
     }

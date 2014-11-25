@@ -72,7 +72,10 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
                     Iterator<Entry<String, Address>> iterator = server.getAddresses().entries().iterator();
                     iterator.next();
                     String id = server.getId();
-                    String address = iterator.next().getValue().getAddr();
+                    String address = null;
+                    if (iterator.hasNext()) {
+                        address = iterator.next().getValue().getAddr();
+                    }
 
                     handleMapping(managedTag, managedState, liveInstances, id, address, map);
                 }
