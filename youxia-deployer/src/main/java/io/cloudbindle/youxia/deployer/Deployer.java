@@ -422,7 +422,7 @@ public class Deployer {
 
                 Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
                 for (NodeMetadata meta : nodesInGroup) {
-                    System.out.println(meta.getId() + " " + meta.getStatus().toString());
+                    Log.stdoutWithTime("Created " + meta.getId() + " " + meta.getStatus().toString());
                 }
                 System.out.println("Finished requesting VMs, starting arbitrary wait");
                 // wait is in minutes
@@ -430,6 +430,9 @@ public class Deployer {
                 System.out.println("Completed arbitrary wait");
 
                 ids = runAnsible(nodesInGroup);
+                for (String id : ids) {
+                    System.out.println("Looking to complete tagging of " + id);
+                }
 
                 // retag instances with finished metadata, cannot see how to do this with the generic api
                 // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for
@@ -442,8 +445,11 @@ public class Deployer {
                 for (IterableWithMarker<Server> iterable : toList) {
                     ImmutableList<Server> toList1 = iterable.toList();
                     for (Server server : toList1) {
-                        final String nodeId = server.getId().replace("/", "-");
+                        // generic api uses region ids, the specific one doesn't. Sigh.
+                        final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "-"
+                                + server.getId().replace("/", "-");
                         if (ids.contains(nodeId)) {
+                            Log.stdoutWithTime("Finishing configuring " + nodeId);
                             ImmutableMap<String, String> metadata = ImmutableMap.of(Constants.STATE_TAG, Constants.STATE.READY.toString(),
                                     Constants.SENSU_NAME, nodeId);
                             serverApiForZone.setMetadata(server.getId(), metadata);
