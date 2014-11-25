@@ -445,7 +445,9 @@ public class Deployer {
                 for (IterableWithMarker<Server> iterable : toList) {
                     ImmutableList<Server> toList1 = iterable.toList();
                     for (Server server : toList1) {
-                        final String nodeId = server.getId().replace("/", "-");
+                        // generic api uses region ids, the specific one doesn't. Sigh.
+                        final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "-"
+                                + server.getId().replace("/", "-");
                         System.out.println("Examining " + nodeId);
                         if (ids.contains(nodeId)) {
                             ImmutableMap<String, String> metadata = ImmutableMap.of(Constants.STATE_TAG, Constants.STATE.READY.toString(),
