@@ -337,11 +337,12 @@ public class Deployer {
         Set<String> ids = new HashSet<>();
         Map<String, String> instanceMap = new HashMap<>();
         for (NodeMetadata node : nodeMetadata) {
-            ids.add(node.getId());
+            final String nodeId = node.getId().replace("/", "-");
+            ids.add(nodeId);
             if (node.getPrivateAddresses().isEmpty()) {
-                throw new RuntimeException("Node " + node.getId() + " was not assigned an ip address");
+                throw new RuntimeException("Node " + nodeId + " was not assigned an ip address");
             }
-            instanceMap.put(node.getId(), node.getPrivateAddresses().iterator().next());
+            instanceMap.put(nodeId, node.getPrivateAddresses().iterator().next());
         }
         runAnsible(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_SSH_KEY));
         return ids;
@@ -439,9 +440,10 @@ public class Deployer {
             for (IterableWithMarker<Server> iterable : toList) {
                 ImmutableList<Server> toList1 = iterable.toList();
                 for (Server server : toList1) {
-                    if (ids.contains(server.getId())) {
+                    final String nodeId = server.getId().replace("/", "-");
+                    if (ids.contains(nodeId)) {
                         ImmutableMap<String, String> metadata = ImmutableMap.of(Constants.STATE_TAG, Constants.STATE.READY.toString(),
-                                Constants.SENSU_NAME, server.getId());
+                                Constants.SENSU_NAME, nodeId);
                         serverApiForZone.setMetadata(server.getId(), metadata);
                     }
                 }
