@@ -430,6 +430,9 @@ public class Deployer {
                 System.out.println("Completed arbitrary wait");
 
                 ids = runAnsible(nodesInGroup);
+                for (String id : ids) {
+                    System.out.println("Looking to complete tagging of " + id);
+                }
 
                 // retag instances with finished metadata, cannot see how to do this with the generic api
                 // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for
@@ -443,6 +446,7 @@ public class Deployer {
                     ImmutableList<Server> toList1 = iterable.toList();
                     for (Server server : toList1) {
                         final String nodeId = server.getId().replace("/", "-");
+                        System.out.println("Examining " + nodeId);
                         if (ids.contains(nodeId)) {
                             ImmutableMap<String, String> metadata = ImmutableMap.of(Constants.STATE_TAG, Constants.STATE.READY.toString(),
                                     Constants.SENSU_NAME, nodeId);
