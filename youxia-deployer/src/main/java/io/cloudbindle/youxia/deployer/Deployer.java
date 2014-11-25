@@ -419,9 +419,13 @@ public class Deployer {
 
             Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
             for (NodeMetadata meta : nodesInGroup) {
+                // nova seems less well behaved, the above blockUtilRunning doesn't ensure an active SSH connection
+                // try using this workaround
+                genericOpenStackApi.utils().sshForNode().apply(meta);
                 System.out.println(meta.getId() + " " + meta.getStatus().toString());
             }
             System.out.println("Finished requesting VMs");
+
             ids = runAnsible(nodesInGroup);
 
             // retag instances with finished metadata, cannot see how to do this with the generic api
