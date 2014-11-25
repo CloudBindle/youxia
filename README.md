@@ -26,42 +26,54 @@ First, configure your AWS security credentials in a <code>.aws/config</code> fil
     aws_access_key_id     = your AWS access key
     aws_secret_access_key = your AWS secret access key
 
-Second, configure your Youxia credentials in a <code>.youxia/config</code> file in your home directory. For example:
+Second, configure your Youxia credentials in a <code>.youxia/config</code> file in your home directory. Fill in the sections between the angled brackets. For example:
 
 	[youxia]
 	sensu_username = admin
-	sensu_password = XXXXX 
-	sensu_ip_address = XX.XX.XXX.XXX
+	sensu_password = seqware
+	sensu_ip_address = <ip-address of sensu server>
 	sensu_port = 4567
-	aws_ssh_key = /home/dyuen/.ssh/oicr-aws-dyuen.pem
-	aws_key_name = oicr-aws-dyuen
-	openstack_username = sweng:dyuen	
-	openstack_password = XXXXX
-	openstack_endpoint = http://sweng.os.oicr.on.ca:5000/v2.0/
-	region = us-east-1 
-	zone = us-east-1a
-	managed_tag = drunken_master
-	slack_webhook = https://XXXX.slack.com/services/hooks/incoming-webhook?token=XXXXXX
-	
+	managed_tag = green_snake
+	slack_webhook = <slack RSS handler> 
+
+	# aws settings
+	aws_ssh_key = <path to ssh key>
+	aws_key_name = <key name on Amazon>
+	region = eu-west-1 
+	zone = eu-west-1a
+	# openstack settings
+	openstack_username = <tenant>:<username> 
+	openstack_password = <password>
+	openstack_endpoint = http://10.5.73.21:5000/v2.0
+	openstack_key_name = <key name on OpenStack>
+	openstack_ssh_key = <path to SSH key>
+	openstack_zone = <zone>
+
 	[deployer]
-	ami_image = ami-90da15f8
-	instance_type = m1.xlarge
-	security_group = launch-wizard-73
+	ami_image = <image id>
+	security_group = <security group>
 	product = Linux/UNIX
-	
-	
+
+	[deployer_openstack]
+	min_cores = 4 
+	min_ram = 16384
+	image_id = <image id>
+	security_group = default
+	network_id = <network id>
+	arbitrary_wait = 200000
+
 	[seqware]
 	rest_user = admin@admin.com
-	rest_pass = XXXXX
+	rest_pass = admin
 	rest_port = 8080
 	rest_root = SeqWareWebService
-	
+
 	[generator]
 	max_scheduled_workflows = 1
 	max_workflows = 1
-	workflow_accession = 2
-	workflow_name = Workflow_Bundle_BWA
-	workflow_version = 2.6.0
+	workflow_accession = 1 
+	workflow_name = HelloWorld 
+	workflow_version = 1.0-SNAPSHOT
 
 Next, you will need to setup the various components on AWS. Note that you will need to open certain ports for your security group settings. 
 

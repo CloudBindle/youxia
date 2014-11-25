@@ -37,7 +37,7 @@ import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.sshj.config.SshjSshClientModule;
 
 /**
- * 
+ *
  * @author dyuen
  */
 public class ConfigTools {
@@ -50,9 +50,12 @@ public class ConfigTools {
     public static final String YOUXIA_REGION = "youxia.region";
     public static final String YOUXIA_ZONE = "youxia.zone";
     public static final String YOUXIA_AWS_KEY_NAME = "youxia.aws_key_name";
+    public static final String YOUXIA_OPENSTACK_KEY_NAME = "youxia.openstack_key_name";
+    public static final String YOUXIA_OPENSTACK_SSH_KEY = "youxia.openstack_ssh_key";
     public static final String YOUXIA_OPENSTACK_USERNAME = "youxia.openstack_username";
     public static final String YOUXIA_OPENSTACK_PASSWORD = "youxia.openstack_password";
     public static final String YOUXIA_OPENSTACK_ENDPOINT = "youxia.openstack_endpoint";
+    public static final String YOUXIA_OPENSTACK_ZONE = "youxia.openstack_zone";
     public static final String YOUXIA_MANAGED_TAG = "youxia.managed_tag";
     public static final String SEQWARE_REST_USER = "seqware.rest_user";
     public static final String SEQWARE_REST_PORT = "seqware.rest_port";
@@ -72,10 +75,10 @@ public class ConfigTools {
     /**
      * The only information needed to create a client are security credentials - your AWS Access Key ID and Secret Access Key. All other
      * configuration, such as the service endpoints have defaults provided.
-     * 
+     *
      * Additional client parameters, such as proxy configuration, can be specified in an optional ClientConfiguration object when
      * constructing a client.
-     * 
+     *
      * @see com.amazonaws.auth.BasicAWSCredentials
      * @see com.amazonaws.auth.PropertiesCredentials
      * @see com.amazonaws.ClientConfiguration
@@ -112,17 +115,29 @@ public class ConfigTools {
     }
 
     /**
-     * Why doesn't jclouds have a ComputeServiceContext for OpenStack?.
-     * 
+     * This was used in some code since the current JClouds OpenStack tutorial refers to NovaApi instead of using a generic context. Not
+     * sure what is going on there.
+     *
      * @return
      */
     public static NovaApi getNovaApi() {
         HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
-        // get a context with OpenStack that offers the portable ComputeService API
         NovaApi api = ContextBuilder.newBuilder("openstack-nova").endpoint(youxiaConfig.getString(YOUXIA_OPENSTACK_ENDPOINT))
                 .credentials(youxiaConfig.getString(YOUXIA_OPENSTACK_USERNAME), youxiaConfig.getString(YOUXIA_OPENSTACK_PASSWORD))
-                .modules(ImmutableSet.<Module> of(new SLF4JLoggingModule())).buildApi(NovaApi.class);
+                .modules(ImmutableSet.<Module> of(new SLF4JLoggingModule(), new SshjSshClientModule())).buildApi(NovaApi.class);
         return api;
+    }
+
+    public static ComputeServiceContext getGenericOpenStackApi() {
+        HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
+        // get a context with OpenStack that offers the portable ComputeService API
+        ComputeServiceContext context = ContextBuilder.newBuilder("openstack-nova")
+                .endpoint(youxiaConfig.getString(YOUXIA_OPENSTACK_ENDPOINT))
+                .credentials(youxiaConfig.getString(YOUXIA_OPENSTACK_USERNAME), youxiaConfig.getString(YOUXIA_OPENSTACK_PASSWORD))
+                .modules(ImmutableSet.<Module> of(new SLF4JLoggingModule(), new SshjSshClientModule()))
+                .buildView(ComputeServiceContext.class);
+        return context;
+
     }
 
     public static AmazonSimpleDBClient getSimpleDBClient() {

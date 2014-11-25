@@ -28,6 +28,7 @@ import com.amazonaws.services.ec2.model.TerminateInstancesResult;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.listing.AwsListing;
+import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.seqware.common.model.WorkflowRunStatus;
 import java.io.IOException;
@@ -66,12 +67,12 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * 
+ *
  * @author dyuen
  */
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore("javax.net.ssl.*")
-@PrepareForTest({ ConfigTools.class, Reaper.class, MetadataFactory.class })
+@PrepareForTest({ ConfigTools.class, Reaper.class, MetadataFactory.class, ListingFactory.class })
 public class ReaperTest {
     private LocalTestServer server;
 
@@ -112,7 +113,7 @@ public class ReaperTest {
 
     /**
      * Test of main method, of class Reaper.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test(expected = RuntimeException.class)

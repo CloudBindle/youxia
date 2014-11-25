@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.cloudbindle.youxia.listing.InstanceListingInterface;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -43,10 +43,10 @@ import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 /**
  * Weirdly, there seems to be no way to create metadata for instances in OpenStack's web interface. Here's a quick and dirty utility to tag
  * specific instances.
- * 
+ *
  * @author dyuen
  */
-public class OpenStackTagger implements InstanceListingInterface {
+public class OpenStackTagger extends AbstractInstanceListing {
     private final HierarchicalINIConfiguration youxiaConfig;
     private OptionSet options;
     private final ArgumentAcceptingOptionSpec<String> instances;

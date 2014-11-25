@@ -28,10 +28,10 @@ import org.jclouds.compute.domain.NodeMetadata;
 
 /**
  * This lists instances available on AWS. Not feature complete.
- * 
+ *
  * @author dyuen
  */
-public class AwsJCloudsListing implements InstanceListingInterface {
+public class AwsJCloudsListing extends AbstractInstanceListing {
 
     @Override
     public Map<String, String> getInstances(boolean liveInstances) {

@@ -19,6 +19,7 @@ package io.cloudbindle.youxia.deployer;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.listing.AwsListing;
+import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import java.util.Map;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
@@ -38,11 +39,11 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * 
+ *
  * @author dyuen
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ ConfigTools.class, Deployer.class })
+@PrepareForTest({ ConfigTools.class, Deployer.class, ListingFactory.class })
 public class DeployerTest {
 
     public DeployerTest() {
@@ -66,7 +67,7 @@ public class DeployerTest {
 
     /**
      * Test of main method, of class Deployer.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test(expected = RuntimeException.class)
@@ -82,7 +83,7 @@ public class DeployerTest {
         AmazonEC2Client mockClient = mock(AmazonEC2Client.class);
         AwsListing listing = createMockAndExpectNew(AwsListing.class);
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
-        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig);
+        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         expect(ConfigTools.getEC2Client()).andReturn(mockClient);
         expectNew(AwsListing.class).andReturn(listing);
         Map<String, String> map = Maps.newTreeMap();

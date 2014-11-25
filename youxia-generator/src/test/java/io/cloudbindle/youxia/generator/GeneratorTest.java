@@ -26,6 +26,7 @@ import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_ACCES
 import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_NAME;
 import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_VERSION;
 import io.cloudbindle.youxia.listing.AwsListing;
+import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
 import io.cloudbindle.youxia.pawg.api.ClusterDetails;
 import io.cloudbindle.youxia.util.ConfigTools;
@@ -57,11 +58,11 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * 
+ *
  * @author dyuen
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ ConfigTools.class, Generator.class })
+@PrepareForTest({ ConfigTools.class, Generator.class, ListingFactory.class })
 public class GeneratorTest {
     private File manualFile;
 
@@ -92,7 +93,7 @@ public class GeneratorTest {
 
     /**
      * Test of main method, of class Reaper.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test(expected = RuntimeException.class)
@@ -165,7 +166,7 @@ public class GeneratorTest {
 
     private void mockOutConfig() {
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
-        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig);
+        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         when(mockConfig.getString(GENERATOR_MAX_SCHEDULED_WORKFLOWS)).thenReturn("1 billion");
         when(mockConfig.getString(GENERATOR_MAX_WORKFLOWS)).thenReturn("1 billion");
         when(mockConfig.getString(ConfigTools.SEQWARE_REST_PASS)).thenReturn("password");

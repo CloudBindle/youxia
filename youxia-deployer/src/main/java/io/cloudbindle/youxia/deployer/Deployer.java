@@ -15,10 +15,13 @@ import com.amazonaws.services.ec2.model.InstanceStatusSummary;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.Tag;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.amazonaws.Requests;
-import io.cloudbindle.youxia.listing.AwsListing;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing;
+import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
@@ -29,13 +32,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.BuiltinHelpFormatter;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
+import joptsimple.OptionSpecBuilder;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
@@ -44,6 +51,17 @@ import org.apache.commons.exec.Executor;
 import org.apache.commons.exec.PumpStreamHandler;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.jclouds.collect.IterableWithMarker;
+import org.jclouds.collect.PagedIterable;
+import org.jclouds.compute.ComputeService;
+import org.jclouds.compute.ComputeServiceContext;
+import org.jclouds.compute.domain.NodeMetadata;
+import org.jclouds.compute.domain.Template;
+import org.jclouds.compute.options.TemplateOptions;
+import org.jclouds.openstack.nova.v2_0.NovaApi;
+import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
+import org.jclouds.openstack.nova.v2_0.domain.Server;
+import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 
 /**
  * This class maintains a fleet of amazon instances dependent on state retrieved from sensu.
@@ -62,9 +80,16 @@ public class Deployer {
     public static final String DEPLOYER_AMI_IMAGE = "deployer.ami_image";
     public static final String DEPLOYER_SECURITY_GROUP = "deployer.security_group";
     public static final String DEPLOYER_PRODUCT = "deployer.product";
+    public static final String DEPLOYER_OPENSTACK_IMAGE_ID = "deployer_openstack.image_id";
+    public static final String DEPLOYER_OPENSTACK_MIN_CORES = "deployer_openstack.min_cores";
+    public static final String DEPLOYER_OPENSTACK_MIN_RAM = "deployer_openstack.min_ram";
+    public static final String DEPLOYER_OPENSTACK_SECURITY_GROUP = "deployer_openstack.security_group";
+    public static final String DEPLOYER_OPENSTACK_NETWORK_ID = "deployer_openstack.network_id";
+    public static final String DEPLOYER_OPENSTACK_ARBITRARY_WAIT = "deployer_openstack.arbitrary_wait";
 
     private final ArgumentAcceptingOptionSpec<String> playbook;
     private final ArgumentAcceptingOptionSpec<String> extraVarsSpec;
+    private final OptionSpecBuilder openStackMode;
 
     public Deployer(String[] args) {
         // record configuration
@@ -77,8 +102,13 @@ public class Deployer {
         this.totalNodes = parser
                 .acceptsAll(Arrays.asList("total-nodes-num", "t"), "Total number of spot and on-demand instances to maintain.")
                 .withRequiredArg().ofType(Integer.class).required();
+
+        this.openStackMode = parser.acceptsAll(Arrays.asList("openstack", "o"), "Run the deployer using OpenStack (default is AWS)");
+
+        // AWS specific parameter
         this.maxSpotPrice = parser.acceptsAll(Arrays.asList("max-spot-price", "p"), "Maximum price to pay for spot-price instances.")
-                .withRequiredArg().ofType(Float.class).required();
+                .requiredUnless(openStackMode).withRequiredArg().ofType(Float.class).required();
+
         this.batchSize = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring up at one time")
                 .withRequiredArg().ofType(Integer.class).required();
         this.playbook = parser
@@ -109,9 +139,15 @@ public class Deployer {
      * @return
      */
     private int assessClients() {
-        AwsListing awsLister = new AwsListing();
-        Map<String, String> map = awsLister.getInstances(true);
-        Log.info("Found " + map.size() + " AWS clients");
+        AbstractInstanceListing lister;
+        if (options.has(this.openStackMode)) {
+            lister = ListingFactory.createOpenStackListing();
+
+        } else {
+            lister = ListingFactory.createAWSListing();
+        }
+        Map<String, String> map = lister.getInstances(true);
+        Log.info("Found " + map.size() + " clients");
 
         int clientsNeeded = options.valueOf(totalNodes) - map.size();
         Log.info("Need " + clientsNeeded + " more clients");
@@ -286,7 +322,33 @@ public class Deployer {
         return wait;
     }
 
-    private void runAnsible(List<Instance> readyInstances) {
+    private Set<String> runAnsible(List<Instance> readyInstances) {
+        Set<String> ids = new HashSet<>();
+        Map<String, String> instanceMap = new HashMap<>();
+        for (Instance s : readyInstances) {
+            ids.add(s.getInstanceId());
+            instanceMap.put(s.getInstanceId(), s.getPublicIpAddress());
+        }
+        runAnsible(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY));
+        return ids;
+    }
+
+    private Set<String> runAnsible(Set<? extends NodeMetadata> nodeMetadata) {
+        Set<String> ids = new HashSet<>();
+        Map<String, String> instanceMap = new HashMap<>();
+        for (NodeMetadata node : nodeMetadata) {
+            final String nodeId = node.getId().replace("/", "-");
+            ids.add(nodeId);
+            if (node.getPrivateAddresses().isEmpty()) {
+                throw new RuntimeException("Node " + nodeId + " was not assigned an ip address");
+            }
+            instanceMap.put(nodeId, node.getPrivateAddresses().iterator().next());
+        }
+        runAnsible(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_SSH_KEY));
+        return ids;
+    }
+
+    private void runAnsible(Map<String, String> instanceMap, String keyFile) {
         if (this.options.has(this.playbook)) {
             try {
                 // hook up sensu to requested instances using Ansible
@@ -294,14 +356,12 @@ public class Deployer {
                 StringBuilder buffer = new StringBuilder();
                 buffer.append("[sensu-server]").append('\n').append("sensu-server\tansible_ssh_host=")
                         .append(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS))
-                        .append("\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=")
-                        .append(youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY)).append("\n");
+                        .append("\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=").append(keyFile).append("\n");
                 // assume all clients are masters (single-node clusters) for now
                 buffer.append("[master]\n");
-                for (Instance s : readyInstances) {
-                    buffer.append(s.getInstanceId()).append('\t').append("ansible_ssh_host=").append(s.getPublicIpAddress());
-                    buffer.append("\tansible_ssh_user=ubuntu\t").append("ansible_ssh_private_key_file=")
-                            .append(youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY)).append('\n');
+                for (Entry<String, String> s : instanceMap.entrySet()) {
+                    buffer.append(s.getKey()).append('\t').append("ansible_ssh_host=").append(s.getValue());
+                    buffer.append("\tansible_ssh_user=ubuntu\t").append("ansible_ssh_private_key_file=").append(keyFile).append('\n');
                 }
                 Path createTempFile = Files.createTempFile("ansible", ".inventory");
                 FileUtils.writeStringToFile(createTempFile.toFile(), buffer.toString());
@@ -338,26 +398,76 @@ public class Deployer {
         }
     }
 
-    public static void main(String[] args) throws Exception {
+    private void runDeployment(int clientsToDeploy) throws Exception {
+        Set<String> ids;
+        if (options.has(this.openStackMode)) {
+            try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
+                ComputeService computeService = genericOpenStackApi.getComputeService();
+                // have to use the specific api here to designate a keypair, weird
+                TemplateOptions templateOptions = NovaTemplateOptions.Builder
+                        .networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)))
+                        .securityGroupNames(youxiaConfig.getString(DEPLOYER_OPENSTACK_SECURITY_GROUP))
+                        .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
+                        .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
+                        .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
+                        .keyPairName(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME)).blockOnComplete(true);
 
-        Deployer deployer = new Deployer(args);
-        int clientsToDeploy = deployer.assessClients();
-        if (clientsToDeploy > 0) {
-            boolean readyToRequestSpot = deployer.isReadyToRequestSpotInstances();
+                Template template = computeService
+                        .templateBuilder()
+                        .imageId(
+                                youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "/"
+                                        + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID))
+                        .minCores(youxiaConfig.getDouble(DEPLOYER_OPENSTACK_MIN_CORES))
+                        .minRam(youxiaConfig.getInt(DEPLOYER_OPENSTACK_MIN_RAM)).options(templateOptions).build();
+
+                Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
+                for (NodeMetadata meta : nodesInGroup) {
+                    System.out.println(meta.getId() + " " + meta.getStatus().toString());
+                }
+                System.out.println("Finished requesting VMs, starting arbitrary wait");
+                // wait is in minutes
+                Thread.sleep(youxiaConfig.getInt(DEPLOYER_OPENSTACK_ARBITRARY_WAIT));
+                System.out.println("Completed arbitrary wait");
+
+                ids = runAnsible(nodesInGroup);
+
+                // retag instances with finished metadata, cannot see how to do this with the generic api
+                // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for
+                // this
+                NovaApi novaApi = ConfigTools.getNovaApi();
+                ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
+                PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
+                // what is this crazy nested structure?
+                ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
+                for (IterableWithMarker<Server> iterable : toList) {
+                    ImmutableList<Server> toList1 = iterable.toList();
+                    for (Server server : toList1) {
+                        final String nodeId = server.getId().replace("/", "-");
+                        if (ids.contains(nodeId)) {
+                            ImmutableMap<String, String> metadata = ImmutableMap.of(Constants.STATE_TAG, Constants.STATE.READY.toString(),
+                                    Constants.SENSU_NAME, nodeId);
+                            serverApiForZone.setMetadata(server.getId(), metadata);
+                        }
+                    }
+                }
+            }
+
+        } else {
+            boolean readyToRequestSpot = isReadyToRequestSpotInstances();
             List<Instance> readyInstances;
             if (readyToRequestSpot) {
                 // call out to request spot instances
                 // wait until SSH connection is live
-                readyInstances = deployer.requestSpotInstances(clientsToDeploy);
+                readyInstances = requestSpotInstances(clientsToDeploy);
             } else {
-                readyInstances = deployer.requestSpotInstances(clientsToDeploy, true);
+                readyInstances = requestSpotInstances(clientsToDeploy, true);
             }
             // safety check here
             if (readyInstances.size() > clientsToDeploy) {
                 Log.info("Something has gone awry, more instances reported as ready than were provisioned, aborting ");
                 throw new RuntimeException("readyInstances incorrect information");
             }
-            deployer.runAnsible(readyInstances); // this should throw an Exception on playbook failure
+            runAnsible(readyInstances); // this should throw an Exception on playbook failure
             AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
             // set managed state of instance to ready
             for (Instance i : readyInstances) {
@@ -366,6 +476,15 @@ public class Deployer {
                         .withTags(new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString()))
                         .withTags(new Tag(Constants.SENSU_NAME, i.getInstanceId())));
             }
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+
+        Deployer deployer = new Deployer(args);
+        int clientsToDeploy = deployer.assessClients();
+        if (clientsToDeploy > 0) {
+            deployer.runDeployment(clientsToDeploy);
         }
     }
 }
