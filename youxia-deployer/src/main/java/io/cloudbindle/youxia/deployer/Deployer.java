@@ -401,50 +401,52 @@ public class Deployer {
     private void runDeployment(int clientsToDeploy) throws Exception {
         Set<String> ids;
         if (options.has(this.openStackMode)) {
-            ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi();
-            ComputeService computeService = genericOpenStackApi.getComputeService();
-            // have to use the specific api here to designate a keypair, weird
-            TemplateOptions templateOptions = NovaTemplateOptions.Builder
-                    .networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)))
-                    .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
-                    .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
-                    .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
-                    .keyPairName(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME)).blockOnComplete(true);
+            try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
+                ComputeService computeService = genericOpenStackApi.getComputeService();
+                // have to use the specific api here to designate a keypair, weird
+                TemplateOptions templateOptions = NovaTemplateOptions.Builder
+                        .networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)))
+                        .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
+                        .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
+                        .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
+                        .keyPairName(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME)).blockOnComplete(true);
 
-            Template template = computeService
-                    .templateBuilder()
-                    .imageId(
-                            youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "/"
-                                    + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID))
-                    .minCores(youxiaConfig.getDouble(DEPLOYER_OPENSTACK_MIN_CORES)).minRam(youxiaConfig.getInt(DEPLOYER_OPENSTACK_MIN_RAM))
-                    .options(templateOptions).build();
+                Template template = computeService
+                        .templateBuilder()
+                        .imageId(
+                                youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "/"
+                                        + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID))
+                        .minCores(youxiaConfig.getDouble(DEPLOYER_OPENSTACK_MIN_CORES))
+                        .minRam(youxiaConfig.getInt(DEPLOYER_OPENSTACK_MIN_RAM)).options(templateOptions).build();
 
-            Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
-            for (NodeMetadata meta : nodesInGroup) {
-                System.out.println(meta.getId() + " " + meta.getStatus().toString());
-            }
-            System.out.println("Finished requesting VMs, starting arbitrary wait");
-            // wait is in minutes
-            Thread.sleep(youxiaConfig.getInt(DEPLOYER_OPENSTACK_ARBITRARY_WAIT));
-            System.out.println("Completed arbitrary wait");
+                Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
+                for (NodeMetadata meta : nodesInGroup) {
+                    System.out.println(meta.getId() + " " + meta.getStatus().toString());
+                }
+                System.out.println("Finished requesting VMs, starting arbitrary wait");
+                // wait is in minutes
+                Thread.sleep(youxiaConfig.getInt(DEPLOYER_OPENSTACK_ARBITRARY_WAIT));
+                System.out.println("Completed arbitrary wait");
 
-            ids = runAnsible(nodesInGroup);
+                ids = runAnsible(nodesInGroup);
 
-            // retag instances with finished metadata, cannot see how to do this with the generic api
-            // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for this
-            NovaApi novaApi = ConfigTools.getNovaApi();
-            ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
-            PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
-            // what is this crazy nested structure?
-            ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
-            for (IterableWithMarker<Server> iterable : toList) {
-                ImmutableList<Server> toList1 = iterable.toList();
-                for (Server server : toList1) {
-                    final String nodeId = server.getId().replace("/", "-");
-                    if (ids.contains(nodeId)) {
-                        ImmutableMap<String, String> metadata = ImmutableMap.of(Constants.STATE_TAG, Constants.STATE.READY.toString(),
-                                Constants.SENSU_NAME, nodeId);
-                        serverApiForZone.setMetadata(server.getId(), metadata);
+                // retag instances with finished metadata, cannot see how to do this with the generic api
+                // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for
+                // this
+                NovaApi novaApi = ConfigTools.getNovaApi();
+                ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
+                PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
+                // what is this crazy nested structure?
+                ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
+                for (IterableWithMarker<Server> iterable : toList) {
+                    ImmutableList<Server> toList1 = iterable.toList();
+                    for (Server server : toList1) {
+                        final String nodeId = server.getId().replace("/", "-");
+                        if (ids.contains(nodeId)) {
+                            ImmutableMap<String, String> metadata = ImmutableMap.of(Constants.STATE_TAG, Constants.STATE.READY.toString(),
+                                    Constants.SENSU_NAME, nodeId);
+                            serverApiForZone.setMetadata(server.getId(), metadata);
+                        }
                     }
                 }
             }
