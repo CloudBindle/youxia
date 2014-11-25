@@ -328,7 +328,7 @@ public class Deployer {
             ids.add(s.getInstanceId());
             instanceMap.put(s.getInstanceId(), s.getPublicIpAddress());
         }
-        runAnsible(instanceMap);
+        runAnsible(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY));
         return ids;
     }
 
@@ -342,11 +342,11 @@ public class Deployer {
             }
             instanceMap.put(node.getId(), node.getPrivateAddresses().iterator().next());
         }
-        runAnsible(instanceMap);
+        runAnsible(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_SSH_KEY));
         return ids;
     }
 
-    private void runAnsible(Map<String, String> instanceMap) {
+    private void runAnsible(Map<String, String> instanceMap, String keyFile) {
         if (this.options.has(this.playbook)) {
             try {
                 // hook up sensu to requested instances using Ansible
@@ -354,14 +354,12 @@ public class Deployer {
                 StringBuilder buffer = new StringBuilder();
                 buffer.append("[sensu-server]").append('\n').append("sensu-server\tansible_ssh_host=")
                         .append(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS))
-                        .append("\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=")
-                        .append(youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY)).append("\n");
+                        .append("\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=").append(keyFile).append("\n");
                 // assume all clients are masters (single-node clusters) for now
                 buffer.append("[master]\n");
                 for (Entry<String, String> s : instanceMap.entrySet()) {
                     buffer.append(s.getKey()).append('\t').append("ansible_ssh_host=").append(s.getValue());
-                    buffer.append("\tansible_ssh_user=ubuntu\t").append("ansible_ssh_private_key_file=")
-                            .append(youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY)).append('\n');
+                    buffer.append("\tansible_ssh_user=ubuntu\t").append("ansible_ssh_private_key_file=").append(keyFile).append('\n');
                 }
                 Path createTempFile = Files.createTempFile("ansible", ".inventory");
                 FileUtils.writeStringToFile(createTempFile.toFile(), buffer.toString());
@@ -410,10 +408,6 @@ public class Deployer {
                     .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                     .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
                     .keyPairName(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME)).blockOnComplete(true);
-            // .overrideLoginUser("ubuntu")
-            // .blockOnComplete(true)
-            // .overrideLoginCredentials(null)
-            // .blockUntilRunning(true);
 
             Template template = computeService
                     .templateBuilder()
