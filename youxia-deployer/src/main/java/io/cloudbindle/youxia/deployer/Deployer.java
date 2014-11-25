@@ -422,7 +422,7 @@ public class Deployer {
 
                 Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
                 for (NodeMetadata meta : nodesInGroup) {
-                    System.out.println(meta.getId() + " " + meta.getStatus().toString());
+                    Log.stdoutWithTime("Created " + meta.getId() + " " + meta.getStatus().toString());
                 }
                 System.out.println("Finished requesting VMs, starting arbitrary wait");
                 // wait is in minutes
@@ -448,8 +448,8 @@ public class Deployer {
                         // generic api uses region ids, the specific one doesn't. Sigh.
                         final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "-"
                                 + server.getId().replace("/", "-");
-                        System.out.println("Examining " + nodeId);
                         if (ids.contains(nodeId)) {
+                            Log.stdoutWithTime("Finishing configuring " + nodeId);
                             ImmutableMap<String, String> metadata = ImmutableMap.of(Constants.STATE_TAG, Constants.STATE.READY.toString(),
                                     Constants.SENSU_NAME, nodeId);
                             serverApiForZone.setMetadata(server.getId(), metadata);
