@@ -406,6 +406,7 @@ public class Deployer {
                 // have to use the specific api here to designate a keypair, weird
                 TemplateOptions templateOptions = NovaTemplateOptions.Builder
                         .networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)))
+                        .securityGroupNames(youxiaConfig.getString(DEPLOYER_OPENSTACK_SECURITY_GROUP))
                         .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                         .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                         .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
