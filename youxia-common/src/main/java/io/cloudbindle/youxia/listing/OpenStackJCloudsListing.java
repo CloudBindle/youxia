@@ -70,7 +70,6 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
                      * iterator should also return return live instances when liveInstances and all when not
                      **/
                     Iterator<Entry<String, Address>> iterator = server.getAddresses().entries().iterator();
-                    iterator.next();
                     String id = server.getId();
                     String address = null;
                     if (iterator.hasNext()) {

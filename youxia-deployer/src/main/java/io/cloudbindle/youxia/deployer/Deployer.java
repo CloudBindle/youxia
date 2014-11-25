@@ -85,6 +85,7 @@ public class Deployer {
     public static final String DEPLOYER_OPENSTACK_MIN_RAM = "deployer_openstack.min_ram";
     public static final String DEPLOYER_OPENSTACK_SECURITY_GROUP = "deployer_openstack.security_group";
     public static final String DEPLOYER_OPENSTACK_NETWORK_ID = "deployer_openstack.network_id";
+    public static final String DEPLOYER_OPENSTACK_ARBITRARY_WAIT = "deployer_openstack.arbitrary_wait";
 
     private final ArgumentAcceptingOptionSpec<String> playbook;
     private final ArgumentAcceptingOptionSpec<String> extraVarsSpec;
@@ -407,7 +408,7 @@ public class Deployer {
                     .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                     .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                     .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
-                    .keyPairName(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME)).blockOnComplete(true);
+                    .keyPairName(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME)).blockOnComplete(true).runScript("env");
 
             Template template = computeService
                     .templateBuilder()
@@ -419,12 +420,11 @@ public class Deployer {
 
             Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
             for (NodeMetadata meta : nodesInGroup) {
-                // nova seems less well behaved, the above blockUtilRunning doesn't ensure an active SSH connection
-                // try using this workaround
-                genericOpenStackApi.utils().sshForNode().apply(meta);
                 System.out.println(meta.getId() + " " + meta.getStatus().toString());
             }
-            System.out.println("Finished requesting VMs");
+            System.out.println("Finished requesting VMs, starting arbitrary wait");
+            // wait is in minutes
+            Thread.sleep(youxiaConfig.getInt(DEPLOYER_OPENSTACK_ARBITRARY_WAIT));
 
             ids = runAnsible(nodesInGroup);
 
