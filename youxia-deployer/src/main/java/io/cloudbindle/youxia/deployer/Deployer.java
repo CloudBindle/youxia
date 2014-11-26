@@ -16,7 +16,6 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.amazonaws.Requests;
@@ -450,8 +449,9 @@ public class Deployer {
                                 + server.getId().replace("/", "-");
                         if (ids.contains(nodeId)) {
                             Log.stdoutWithTime("Finishing configuring " + nodeId);
-                            ImmutableMap<String, String> metadata = ImmutableMap.of(Constants.STATE_TAG, Constants.STATE.READY.toString(),
-                                    Constants.SENSU_NAME, nodeId);
+                            Map<String, String> metadata = server.getMetadata();
+                            metadata.put(Constants.STATE_TAG, Constants.STATE.READY.toString());
+                            metadata.put(Constants.SENSU_NAME, nodeId);
                             serverApiForZone.setMetadata(server.getId(), metadata);
                         }
                     }

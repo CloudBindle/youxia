@@ -73,6 +73,10 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>org.apache.jclouds</groupId>
+            <artifactId>jclouds-compute</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.github.seqware</groupId>
             <artifactId>seqware-meta-db</artifactId>
         </dependency>

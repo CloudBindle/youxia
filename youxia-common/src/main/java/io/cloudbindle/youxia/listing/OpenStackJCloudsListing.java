@@ -40,6 +40,12 @@ import org.jclouds.openstack.nova.v2_0.features.ServerApi;
  */
 public class OpenStackJCloudsListing extends AbstractInstanceListing {
 
+    /**
+     * This actually returns ids without the zone prefix
+     *
+     * @param liveInstances
+     * @return
+     */
     @Override
     public Map<String, String> getInstances(boolean liveInstances) {
         String managedTagValue = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
@@ -70,7 +76,8 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
                      * iterator should also return return live instances when liveInstances and all when not
                      **/
                     Iterator<Entry<String, Address>> iterator = server.getAddresses().entries().iterator();
-                    String id = server.getId();
+                    // match generic api with namespaces ids using the zone
+                    String id = zone + "/" + server.getId();
                     String address = null;
                     if (iterator.hasNext()) {
                         address = iterator.next().getValue().getAddr();
