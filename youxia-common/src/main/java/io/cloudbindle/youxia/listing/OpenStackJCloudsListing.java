@@ -82,7 +82,6 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
                     if (iterator.hasNext()) {
                         address = iterator.next().getValue().getAddr();
                     }
-
                     handleMapping(managedTag, managedState, liveInstances, id, address, map);
                 }
             }
@@ -94,7 +93,7 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
 
     public static void main(String[] args) {
         OpenStackJCloudsListing lister = ListingFactory.createOpenStackListing();
-        Map<String, String> instances = lister.getInstances(true);
+        Map<String, String> instances = lister.getInstances(false);
         for (Entry<String, String> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());
         }

@@ -433,29 +433,7 @@ public class Deployer {
                     System.out.println("Looking to complete tagging of " + id);
                 }
 
-                // retag instances with finished metadata, cannot see how to do this with the generic api
-                // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for
-                // this
-                NovaApi novaApi = ConfigTools.getNovaApi();
-                ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
-                PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
-                // what is this crazy nested structure?
-                ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
-                for (IterableWithMarker<Server> iterable : toList) {
-                    ImmutableList<Server> toList1 = iterable.toList();
-                    for (Server server : toList1) {
-                        // generic api uses region ids, the specific one doesn't. Sigh.
-                        final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "-"
-                                + server.getId().replace("/", "-");
-                        if (ids.contains(nodeId)) {
-                            Log.stdoutWithTime("Finishing configuring " + nodeId);
-                            Map<String, String> metadata = Maps.newHashMap(server.getMetadata());
-                            metadata.put(Constants.STATE_TAG, Constants.STATE.READY.toString());
-                            metadata.put(Constants.SENSU_NAME, nodeId);
-                            serverApiForZone.setMetadata(server.getId(), metadata);
-                        }
-                    }
-                }
+                retagInstances(ids);
             }
 
         } else {
@@ -481,6 +459,31 @@ public class Deployer {
                 eC2Client.createTags(new CreateTagsRequest().withResources(i.getInstanceId())
                         .withTags(new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString()))
                         .withTags(new Tag(Constants.SENSU_NAME, i.getInstanceId())));
+            }
+        }
+    }
+
+    private void retagInstances(Set<String> ids) {
+        // retag instances with finished metadata, cannot see how to do this with the generic api
+        // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for
+        // this
+        NovaApi novaApi = ConfigTools.getNovaApi();
+        ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
+        PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
+        // what is this crazy nested structure?
+        ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
+        for (IterableWithMarker<Server> iterable : toList) {
+            ImmutableList<Server> toList1 = iterable.toList();
+            for (Server server : toList1) {
+                // generic api uses region ids, the specific one doesn't. Sigh.
+                final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "-" + server.getId().replace("/", "-");
+                if (ids.contains(nodeId)) {
+                    Log.stdoutWithTime("Finishing configuring " + nodeId);
+                    Map<String, String> metadata = Maps.newHashMap(server.getMetadata());
+                    metadata.put(Constants.STATE_TAG, Constants.STATE.READY.toString());
+                    metadata.put(Constants.SENSU_NAME, nodeId);
+                    serverApiForZone.setMetadata(server.getId(), metadata);
+                }
             }
         }
     }
