@@ -43,7 +43,7 @@ import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 public class OpenStackHelper implements AbstractHelper {
 
     @Override
-    public boolean identifyOrphanedInstance(Map.Entry<String, String> instance) {
+    public String identifyOrphanedInstance(Map.Entry<String, String> instance) {
         try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
             ComputeService computeService = genericOpenStackApi.getComputeService();
             NodeMetadata nodeMetadata = computeService.getNodeMetadata(instance.getKey());
@@ -51,11 +51,11 @@ public class OpenStackHelper implements AbstractHelper {
                 if (nodeMetadata.getUserMetadata().containsKey(Constants.STATE_TAG)
                         && !nodeMetadata.getUserMetadata().get(Constants.STATE_TAG).equals(Constants.STATE.READY.toString())) {
                     Log.info(instance.getKey() + " is not ready, likely an orphaned VM");
-                    return true;
+                    return nodeMetadata.getUserMetadata().get(Constants.SENSU_NAME);
                 }
             }
         }
-        return false;
+        return null;
     }
 
     @Override
@@ -83,7 +83,7 @@ public class OpenStackHelper implements AbstractHelper {
      */
     private void retagInstances(Set<String> ids) {
         // retag instances with finished metadata, cannot see how to do this with the generic api
-        // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for
+        // this sucks incredibly bad and is copied from the OpenStackTagger, there should be a way to use the generic api for
         // this
         NovaApi novaApi = ConfigTools.getNovaApi();
         HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();

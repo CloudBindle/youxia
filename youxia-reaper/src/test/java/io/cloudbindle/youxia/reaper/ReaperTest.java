@@ -25,6 +25,10 @@ import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.amazonaws.services.ec2.model.TerminateInstancesResult;
+import com.amazonaws.services.simpledb.AmazonSimpleDBClient;
+import com.amazonaws.services.simpledb.model.ListDomainsResult;
+import com.amazonaws.services.simpledb.model.SelectRequest;
+import com.amazonaws.services.simpledb.model.SelectResult;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.listing.AwsListing;
@@ -128,10 +132,8 @@ public class ReaperTest {
         String[] args = { "--kill-limit", "1" };
         mockOutConfig();
         AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
-        AwsListing listing2 = createMockAndExpectNew(AwsListing.class);
         Map<String, String> result1 = Maps.newHashMap();
         expect(listing1.getInstances(true)).andReturn(result1);
-        expect(listing2.getInstances(false)).andReturn(result1);
 
         replayAll();
         Reaper.main(args);
@@ -143,11 +145,9 @@ public class ReaperTest {
         String[] args = { "--kill-limit", "1" };
         AmazonEC2Client client = mockOutConfig();
         AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
-        AwsListing listing2 = createMockAndExpectNew(AwsListing.class);
         Map<String, String> result1 = Maps.newHashMap();
         result1.put("funky_id", server.getServiceAddress().getHostName());
         expect(listing1.getInstances(true)).andReturn(result1);
-        expect(listing2.getInstances(false)).andReturn(result1);
         Reservation reservation = new Reservation();
         Instance instance = new Instance();
         instance.setInstanceId("randomID");
@@ -182,7 +182,14 @@ public class ReaperTest {
     private AmazonEC2Client mockOutConfig() {
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
         AmazonEC2Client client = mock(AmazonEC2Client.class);
+        AmazonSimpleDBClient dbClient = mock(AmazonSimpleDBClient.class);
         expect(ConfigTools.getEC2Client()).andReturn(client).anyTimes();
+        expect(ConfigTools.getSimpleDBClient()).andReturn(dbClient).anyTimes();
+        // for now, we will return empty select requests
+        when(dbClient.select(isNotNull(SelectRequest.class))).thenReturn(new SelectResult());
+        when(dbClient.listDomains()).thenReturn(new ListDomainsResult());
+
+        when(client.describeRegions()).thenReturn(null);
         expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         when(mockConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)).thenReturn("shaolin");
         when(mockConfig.getString(ConfigTools.SEQWARE_REST_PASS)).thenReturn("password");

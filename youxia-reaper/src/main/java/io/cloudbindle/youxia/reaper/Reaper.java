@@ -1,7 +1,9 @@
 package io.cloudbindle.youxia.reaper;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.simpledb.AmazonSimpleDBClient;
+import com.amazonaws.services.simpledb.model.Attribute;
 import com.amazonaws.services.simpledb.model.CreateDomainRequest;
 import com.amazonaws.services.simpledb.model.Item;
 import com.amazonaws.services.simpledb.model.ListDomainsResult;
@@ -11,6 +13,7 @@ import com.amazonaws.services.simpledb.model.SelectRequest;
 import com.amazonaws.services.simpledb.model.SelectResult;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -32,12 +35,16 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TimeZone;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.BuiltinHelpFormatter;
 import joptsimple.OptionException;
@@ -67,6 +74,12 @@ public class Reaper {
     private final OptionSpecBuilder useSensu;
     private final OptionSpecBuilder openStackMode;
     private final AbstractHelper helper;
+    private final String workflowRunDomain;
+    private final String deletedClientsDomain;
+    private final String dayOfTheYearString = "day_of_year";
+    private final String yearString = "year";
+    private final int dayOfTheYear;
+    private final int year;
 
     public Reaper(String[] args) {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
@@ -111,6 +124,18 @@ public class Reaper {
         } else {
             helper = new AWSHelper();
         }
+        workflowRunDomain = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + Constants.WORKFLOW_RUNS;
+        deletedClientsDomain = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + Constants.CLIENTS;
+        // activate Amazon client to ensure value Amazon credentials early
+        AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
+        // make sure that connectvity is ok, we don't want to terminate instances and find out that we don't have valid Amazon credentials
+        eC2Client.describeRegions();
+
+        // fix persistent information
+        // fix timezone in case paired clouds are in different time zones
+        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT"), Locale.ENGLISH);
+        this.dayOfTheYear = calendar.get(Calendar.DAY_OF_YEAR);
+        this.year = calendar.get(Calendar.YEAR);
     }
 
     /**
@@ -118,7 +143,7 @@ public class Reaper {
      *
      * @return
      */
-    private Set<String> assessClients() {
+    private Map<String, String> assessClients() {
 
         AbstractInstanceListing lister;
         if (options.has(this.openStackMode)) {
@@ -127,8 +152,10 @@ public class Reaper {
             lister = ListingFactory.createAWSListing();
         }
 
+        // real id -> ip address
         Map<String, String> instances = lister.getInstances(true);
-        Set<String> instancesToKill = new HashSet<>();
+        // real id -> sensu name (cannot include '/')
+        Map<String, String> instancesToKill = new HashMap<>();
 
         // determine number of clients in distress
         List<Client> distressedClients = Lists.newArrayList();
@@ -150,9 +177,9 @@ public class Reaper {
                 Log.info("Skipping instance with no ip address" + instance.getKey());
                 continue;
             }
-
-            if (helper.identifyOrphanedInstance(instance)) {
-                instancesToKill.add(instance.getKey());
+            String sensuName = helper.identifyOrphanedInstance(instance);
+            if (sensuName != null) {
+                instancesToKill.put(instance.getKey(), sensuName);
                 continue;
             }
 
@@ -170,20 +197,16 @@ public class Reaper {
                 Log.info(instance.getKey() + " has " + workflowRuns.size() + " workflow runs");
                 if (workflowRuns.size() >= options.valueOf(this.killLimit)) {
                     Log.info(instance.getKey() + " is at or above the kill limit");
-                    instancesToKill.add(instance.getKey());
+                    instancesToKill.put(instance.getKey(), instance.getValue());
                 }
                 if (options.has(this.persistWR)) {
                     simpleDBClient = ConfigTools.getSimpleDBClient();
-                    final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + Constants.WORKFLOW_RUNS;
-                    ListDomainsResult listDomains = simpleDBClient.listDomains();
-                    if (!listDomains.getDomainNames().contains(domainName)) {
-                        simpleDBClient.createDomain(new CreateDomainRequest(domainName));
-                    }
+                    createDomainIfRequired(simpleDBClient, workflowRunDomain);
 
                     for (WorkflowRun run : workflowRuns) {
-                        String json = gson.toJson(run);
-                        Map<String, Object> fromJson = gson.fromJson(json, Map.class);
-                        for (Entry<String, Object> field : fromJson.entrySet()) {
+                        String workflowRunJson = gson.toJson(run);
+                        Map<String, Object> workflowRunMap = gson.fromJson(workflowRunJson, Map.class);
+                        for (Entry<String, Object> field : workflowRunMap.entrySet()) {
                             // split up the ini file to ensure it makes it into the DB
                             final int maximumLength = 1024;
                             if (field.getKey().equals(Constants.INI_FILE)) {
@@ -194,7 +217,7 @@ public class Reaper {
                                     if (keyValue.length >= 2) {
                                         ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey() + "." + keyValue[0],
                                                 StringUtils.abbreviate(keyValue[1], maximumLength), true);
-                                        PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
+                                        PutAttributesRequest request = new PutAttributesRequest(workflowRunDomain, instance.getKey() + "."
                                                 + run.getSwAccession(), Lists.newArrayList(attr));
                                         simpleDBClient.putAttributes(request);
                                     }
@@ -203,7 +226,7 @@ public class Reaper {
                                 // check to see if the item is too big, if so split it up
                                 ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), StringUtils.abbreviate(field
                                         .getValue().toString(), maximumLength), true);
-                                PutAttributesRequest request = new PutAttributesRequest(domainName, instance.getKey() + "."
+                                PutAttributesRequest request = new PutAttributesRequest(workflowRunDomain, instance.getKey() + "."
                                         + run.getSwAccession(), Lists.newArrayList(attr));
                                 simpleDBClient.putAttributes(request);
                             }
@@ -221,12 +244,19 @@ public class Reaper {
 
         // consider batch size
         while (instancesToKill.size() > (options.has(this.batchSize) ? options.valueOf(this.batchSize) : Integer.MAX_VALUE)) {
-            String next = instancesToKill.iterator().next();
+            String next = instancesToKill.keySet().iterator().next();
             instancesToKill.remove(next);
             Log.info(next + " is removed from kill list due to batch size");
         }
 
         return instancesToKill;
+    }
+
+    private void createDomainIfRequired(AmazonSimpleDBClient simpleDBClient, String domain) {
+        ListDomainsResult listDomains = simpleDBClient.listDomains();
+        if (!listDomains.getDomainNames().contains(domain)) {
+            simpleDBClient.createDomain(new CreateDomainRequest(domain));
+        }
     }
 
     private void listWorkflowRuns() {
@@ -246,14 +276,13 @@ public class Reaper {
         try (JsonWriter writer = new JsonWriter(outWriter)) {
             writer.setIndent("\t");
             writer.beginArray();
-            final String domainName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + Constants.WORKFLOW_RUNS;
-            SelectResult select = simpleDBClient.select(new SelectRequest("select * from `" + domainName + "`"));
+            SelectResult select = simpleDBClient.select(new SelectRequest("select * from `" + workflowRunDomain + "`"));
             for (Item item : select.getItems()) {
                 gson.toJson(item, Item.class, writer);
             }
             while (select.getNextToken() != null) {
-                select = simpleDBClient
-                        .select(new SelectRequest("select * from `" + domainName + "`").withNextToken(select.getNextToken()));
+                select = simpleDBClient.select(new SelectRequest("select * from `" + workflowRunDomain + "`").withNextToken(select
+                        .getNextToken()));
                 for (Item item : select.getItems()) {
                     gson.toJson(item, Item.class, writer);
                 }
@@ -265,15 +294,11 @@ public class Reaper {
 
     }
 
-    private void terminateSensuClients(boolean test) {
+    private void terminateSensuClients(boolean test, Set<String> namesToKill) {
         SensuClient sensuClient = new SensuClient(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS),
                 youxiaConfig.getInt(ConfigTools.YOUXIA_SENSU_PORT), youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_USERNAME),
                 youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD));
         List<Client> clients = sensuClient.getClients();
-
-        AbstractInstanceListing listing = helper.getListing();
-        Map<String, String> instances = listing.getInstances(false);
-        Set<String> namesToKill = instances.keySet();
 
         for (Client client : clients) {
             if (namesToKill.contains(client.getName())) {
@@ -317,8 +342,73 @@ public class Reaper {
         return distressedClients;
     }
 
-    private void terminateInstances(Set<String> instancesToKill) {
-        helper.terminateInstances(instancesToKill);
+    /**
+     *
+     * @param instancesToKill
+     *            map of instance id (known to cloud) to sensu name (String with restrictions)
+     */
+    private void terminateInstances(Map<String, String> instancesToKill) {
+        persistTerminatedInstances(instancesToKill);
+        helper.terminateInstances(instancesToKill.keySet());
+    }
+
+    private void persistTerminatedInstances(Map<String, String> instancesToKill) {
+
+        // persist sensu name of killed instances in Amazon SimpleDB to ensure that
+        // the delay between a termination request and rabbitmq spinning up doesn't
+        // persist "zombie" instances
+        AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
+        Log.stdoutWithTime("Persisting terminated instances with day" + dayOfTheYear);
+        createDomainIfRequired(simpleDBClient, deletedClientsDomain);
+        // persist instance information on instances that will be terminated
+        for (Entry<String, String> entry : instancesToKill.entrySet()) {
+            List<ReplaceableAttribute> attributes = new ArrayList<>();
+            attributes.add(new ReplaceableAttribute("cloud_id", entry.getKey(), false));
+            attributes.add(new ReplaceableAttribute("sensu_id", entry.getValue(), false));
+
+            attributes.add(new ReplaceableAttribute(dayOfTheYearString, Integer.toString(dayOfTheYear), false));
+            attributes.add(new ReplaceableAttribute(yearString, Integer.toString(year), false));
+            PutAttributesRequest request = new PutAttributesRequest(deletedClientsDomain, entry.getKey(), attributes);
+            simpleDBClient.putAttributes(request);
+        }
+    }
+
+    private void mergePersistentRecord(Map<String, String> instancesToKill) {
+        AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
+        final String query = "select * from `" + deletedClientsDomain + "`" + " where " + dayOfTheYearString + " = \"" + dayOfTheYear
+                + "\" and " + yearString + " = \"" + year + "\"";
+        // get information on previously cleaned instances for today and merge with today's
+        createDomainIfRequired(simpleDBClient, deletedClientsDomain);
+        SelectRequest select = new SelectRequest(query, true);
+        SelectResult selectResult = simpleDBClient.select(select);
+        for (Item item : selectResult.getItems()) {
+            handleAttribute(item, instancesToKill);
+        }
+        while (selectResult.getNextToken() != null) {
+            selectResult = simpleDBClient.select(new SelectRequest(query, true).withNextToken(select.getNextToken()));
+            for (Item item : selectResult.getItems()) {
+                handleAttribute(item, instancesToKill);
+            }
+        }
+        Log.stdoutWithTime("Merged kill list is " + StringUtils.join(instancesToKill, ','));
+    }
+
+    private void handleAttribute(Item item, Map<String, String> instancesToKill) {
+        String key = null;
+        String value = null;
+        for (Attribute attribute : item.getAttributes()) {
+            switch (attribute.getName()) {
+            case "cloud_id":
+                key = attribute.getValue();
+                break;
+            case "sensu_id":
+                value = attribute.getValue();
+                break;
+            default:
+            }
+            System.out.println("Merging " + key + " " + value);
+            instancesToKill.put(key, value);
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -329,13 +419,14 @@ public class Reaper {
             reaper.listWorkflowRuns();
             return;
         }
-        Set<String> instancesToKill = reaper.assessClients();
+        // map is cloud name -> sensu name
+        Map<String, String> instancesToKill = reaper.assessClients();
         boolean test = reaper.options.has(reaper.testMode);
         if (instancesToKill.size() > 0) {
             if (test) {
                 Log.info("Test mode:");
-                for (String instance : instancesToKill) {
-                    Log.info("Would have killed: " + instance);
+                for (Entry<String, String> instance : instancesToKill.entrySet()) {
+                    Log.info("Would have killed instance id:" + instance.getKey() + " sensu name:" + instance.getValue());
                 }
             } else {
                 Log.info("Live mode:");
@@ -343,6 +434,7 @@ public class Reaper {
                 reaper.terminateInstances(instancesToKill);
             }
         }
-        reaper.terminateSensuClients(test);
+        reaper.mergePersistentRecord(instancesToKill);
+        reaper.terminateSensuClients(test, Sets.newHashSet(instancesToKill.values()));
     }
 }

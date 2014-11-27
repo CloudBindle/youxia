@@ -32,9 +32,9 @@ public interface AbstractHelper {
      *
      * @param instance
      *            the instance that we are examining, name -> address
-     * @return the boolean
+     * @return a non-null sensu name if we wish to delete the instance
      */
-    boolean identifyOrphanedInstance(Map.Entry<String, String> instance);
+    String identifyOrphanedInstance(Map.Entry<String, String> instance);
 
     /**
      * Get a listing of instances that we can act upon

@@ -18,7 +18,7 @@
 package io.cloudbindle.youxia.util;
 
 /**
- * 
+ *
  * @author dyuen
  */
 public class Constants {
@@ -29,6 +29,8 @@ public class Constants {
      * Combined with managed tag to define domain names for simpledb
      */
     public static final String WORKFLOW_RUNS = ".workflow_runs";
+    public static final String CLIENTS = ".clients";
+
     public static final String INI_FILE = "ini_file";
 
     public enum STATE {
