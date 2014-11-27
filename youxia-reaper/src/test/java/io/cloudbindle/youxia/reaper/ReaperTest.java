@@ -133,7 +133,7 @@ public class ReaperTest {
         mockOutConfig();
         AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
         Map<String, String> result1 = Maps.newHashMap();
-        expect(listing1.getInstances(true)).andReturn(result1);
+        expect(listing1.getInstances()).andReturn(result1);
 
         replayAll();
         Reaper.main(args);
@@ -147,7 +147,7 @@ public class ReaperTest {
         AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
         Map<String, String> result1 = Maps.newHashMap();
         result1.put("funky_id", server.getServiceAddress().getHostName());
-        expect(listing1.getInstances(true)).andReturn(result1);
+        expect(listing1.getInstances()).andReturn(result1);
         Reservation reservation = new Reservation();
         Instance instance = new Instance();
         instance.setInstanceId("randomID");

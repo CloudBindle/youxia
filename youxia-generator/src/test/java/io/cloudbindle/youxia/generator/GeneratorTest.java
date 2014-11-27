@@ -111,8 +111,8 @@ public class GeneratorTest {
         OpenStackJCloudsListing listing2 = createMockAndExpectNew(OpenStackJCloudsListing.class);
 
         Map<String, String> result1 = Maps.newHashMap();
-        expect(listing1.getInstances(true)).andReturn(result1);
-        expect(listing2.getInstances(true)).andReturn(result1);
+        expect(listing1.getInstances()).andReturn(result1);
+        expect(listing2.getInstances()).andReturn(result1);
 
         Path tempFile = Files.createTempFile("output", ".json");
         String[] args = { "--aws", "--openstack", "--json", this.manualFile.getAbsolutePath(), "--output", tempFile.toString() };
@@ -144,8 +144,8 @@ public class GeneratorTest {
         Map<String, String> result2 = Maps.newHashMap();
         result2.put("Ouyang_Feng", "125.125.125.125");
         result2.put("Murong_Yang", "126.126.126.126");
-        expect(listing1.getInstances(true)).andReturn(result1);
-        expect(listing2.getInstances(true)).andReturn(result2);
+        expect(listing1.getInstances()).andReturn(result1);
+        expect(listing2.getInstances()).andReturn(result2);
 
         Path tempFile = Files.createTempFile("output", ".json");
         String[] args = { "--aws", "--openstack", "--json", this.manualFile.getAbsolutePath(), "--output", tempFile.toString() };

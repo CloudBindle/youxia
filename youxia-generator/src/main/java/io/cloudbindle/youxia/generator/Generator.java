@@ -85,11 +85,11 @@ public class Generator {
         Map<String, String> instances = Maps.newHashMap();
         if (generator.options.has(generator.aggregateAWS)) {
             AbstractInstanceListing lister = ListingFactory.createAWSListing();
-            instances.putAll(lister.getInstances(true));
+            instances.putAll(lister.getInstances());
         }
         if (generator.options.has(generator.aggregateOpenStack)) {
             AbstractInstanceListing lister = ListingFactory.createOpenStackListing();
-            instances.putAll(lister.getInstances(true));
+            instances.putAll(lister.getInstances());
         }
 
         Map<String, ClusterDetails> resultMap = Maps.newHashMap();

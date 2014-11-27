@@ -43,11 +43,10 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
     /**
      * This actually returns ids without the zone prefix
      *
-     * @param liveInstances
-     * @return
+     * @return the java.util.Map<java.lang.String,java.lang.String>
      */
     @Override
-    public Map<String, String> getInstances(boolean liveInstances) {
+    public Map<String, String> getInstances() {
         String managedTagValue = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
         NovaApi novaApi = ConfigTools.getNovaApi();
         Map<String, String> map = Maps.newHashMap();
@@ -82,7 +81,7 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
                     if (iterator.hasNext()) {
                         address = iterator.next().getValue().getAddr();
                     }
-                    handleMapping(managedTag, managedState, liveInstances, id, address, map);
+                    handleMapping(managedTag, managedState, id, address, map);
                 }
             }
         }
@@ -93,7 +92,7 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
 
     public static void main(String[] args) {
         OpenStackJCloudsListing lister = ListingFactory.createOpenStackListing();
-        Map<String, String> instances = lister.getInstances(false);
+        Map<String, String> instances = lister.getInstances();
         for (Entry<String, String> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());
         }

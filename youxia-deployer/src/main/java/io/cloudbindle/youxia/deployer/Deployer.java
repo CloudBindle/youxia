@@ -145,7 +145,7 @@ public class Deployer {
         } else {
             lister = ListingFactory.createAWSListing();
         }
-        Map<String, String> map = lister.getInstances(true);
+        Map<String, String> map = lister.getInstances();
         Log.info("Found " + map.size() + " clients");
 
         int clientsNeeded = options.valueOf(totalNodes) - map.size();

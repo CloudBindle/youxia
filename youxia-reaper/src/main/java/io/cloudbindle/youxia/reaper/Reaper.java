@@ -153,7 +153,7 @@ public class Reaper {
         }
 
         // real id -> ip address
-        Map<String, String> instances = lister.getInstances(true);
+        Map<String, String> instances = lister.getInstances();
         // real id -> sensu name (cannot include '/')
         Map<String, String> instancesToKill = new HashMap<>();
 
