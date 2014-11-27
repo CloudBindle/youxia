@@ -36,6 +36,8 @@ public interface AbstractHelper {
      */
     String identifyOrphanedInstance(Map.Entry<String, String> instance);
 
+    String translateCloudIDToSensuName(String cloudID);
+
     /**
      * Get a listing of instances that we can act upon
      *

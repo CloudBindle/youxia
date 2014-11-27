@@ -197,7 +197,7 @@ public class Reaper {
                 Log.info(instance.getKey() + " has " + workflowRuns.size() + " workflow runs");
                 if (workflowRuns.size() >= options.valueOf(this.killLimit)) {
                     Log.info(instance.getKey() + " is at or above the kill limit");
-                    instancesToKill.put(instance.getKey(), instance.getValue());
+                    instancesToKill.put(instance.getKey(), helper.translateCloudIDToSensuName(instance.getKey()));
                 }
                 if (options.has(this.persistWR)) {
                     simpleDBClient = ConfigTools.getSimpleDBClient();
@@ -358,14 +358,13 @@ public class Reaper {
         // the delay between a termination request and rabbitmq spinning up doesn't
         // persist "zombie" instances
         AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
-        Log.stdoutWithTime("Persisting terminated instances with day" + dayOfTheYear);
+        Log.stdoutWithTime("Persisting terminated instances with day " + dayOfTheYear + " year " + year);
         createDomainIfRequired(simpleDBClient, deletedClientsDomain);
         // persist instance information on instances that will be terminated
         for (Entry<String, String> entry : instancesToKill.entrySet()) {
             List<ReplaceableAttribute> attributes = new ArrayList<>();
             attributes.add(new ReplaceableAttribute("cloud_id", entry.getKey(), false));
             attributes.add(new ReplaceableAttribute("sensu_id", entry.getValue(), false));
-
             attributes.add(new ReplaceableAttribute(dayOfTheYearString, Integer.toString(dayOfTheYear), false));
             attributes.add(new ReplaceableAttribute(yearString, Integer.toString(year), false));
             PutAttributesRequest request = new PutAttributesRequest(deletedClientsDomain, entry.getKey(), attributes);
@@ -406,6 +405,9 @@ public class Reaper {
                 break;
             default:
             }
+        }
+
+        if (key != null && value != null) {
             System.out.println("Merging " + key + " " + value);
             instancesToKill.put(key, value);
         }

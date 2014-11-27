@@ -43,6 +43,15 @@ import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 public class OpenStackHelper implements AbstractHelper {
 
     @Override
+    public String translateCloudIDToSensuName(String cloudID) {
+        try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
+            ComputeService computeService = genericOpenStackApi.getComputeService();
+            NodeMetadata nodeMetadata = computeService.getNodeMetadata(cloudID);
+            return nodeMetadata.getUserMetadata().get(Constants.SENSU_NAME);
+        }
+    }
+
+    @Override
     public String identifyOrphanedInstance(Map.Entry<String, String> instance) {
         try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
             ComputeService computeService = genericOpenStackApi.getComputeService();

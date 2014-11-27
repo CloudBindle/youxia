@@ -60,6 +60,12 @@ public class AWSHelper implements AbstractHelper {
     }
 
     @Override
+    public String translateCloudIDToSensuName(String cloudID) {
+        // cloud is is the same as sensu name
+        return cloudID;
+    }
+
+    @Override
     public AbstractInstanceListing getListing() {
         return ListingFactory.createAWSListing();
     }
