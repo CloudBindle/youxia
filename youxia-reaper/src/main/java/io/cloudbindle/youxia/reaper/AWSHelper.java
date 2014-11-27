@@ -41,7 +41,7 @@ import org.apache.commons.lang3.StringUtils;
 public class AWSHelper implements AbstractHelper {
 
     @Override
-    public String identifyOrphanedInstance(Map.Entry<String, String> instance) {
+    public boolean identifyOrphanedInstance(Map.Entry<String, String> instance) {
         AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
         // terminate instances that did not finish deployment
         DescribeInstancesResult describeInstances = eC2Client.describeInstances(new DescribeInstancesRequest().withInstanceIds(instance
@@ -51,12 +51,12 @@ public class AWSHelper implements AbstractHelper {
                 for (Tag tag : i.getTags()) {
                     if (tag.getKey().equals(Constants.STATE_TAG) && !tag.getValue().equals(Constants.STATE.READY.toString())) {
                         Log.info(instance.getKey() + " is not ready, likely an orphaned VM");
-                        return instance.getKey();
+                        return true;
                     }
                 }
             }
         }
-        return null;
+        return false;
     }
 
     @Override

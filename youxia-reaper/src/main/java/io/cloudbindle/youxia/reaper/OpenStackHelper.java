@@ -44,15 +44,11 @@ public class OpenStackHelper implements AbstractHelper {
 
     @Override
     public String translateCloudIDToSensuName(String cloudID) {
-        try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
-            ComputeService computeService = genericOpenStackApi.getComputeService();
-            NodeMetadata nodeMetadata = computeService.getNodeMetadata(cloudID);
-            return nodeMetadata.getUserMetadata().get(Constants.SENSU_NAME);
-        }
+        return cloudID.replace("/", "-");
     }
 
     @Override
-    public String identifyOrphanedInstance(Map.Entry<String, String> instance) {
+    public boolean identifyOrphanedInstance(Map.Entry<String, String> instance) {
         try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
             ComputeService computeService = genericOpenStackApi.getComputeService();
             NodeMetadata nodeMetadata = computeService.getNodeMetadata(instance.getKey());
@@ -60,11 +56,11 @@ public class OpenStackHelper implements AbstractHelper {
                 if (nodeMetadata.getUserMetadata().containsKey(Constants.STATE_TAG)
                         && !nodeMetadata.getUserMetadata().get(Constants.STATE_TAG).equals(Constants.STATE.READY.toString())) {
                     Log.info(instance.getKey() + " is not ready, likely an orphaned VM");
-                    return nodeMetadata.getUserMetadata().get(Constants.SENSU_NAME);
+                    return true;
                 }
             }
         }
-        return null;
+        return false;
     }
 
     @Override

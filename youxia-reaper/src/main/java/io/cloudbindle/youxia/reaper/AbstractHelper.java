@@ -34,7 +34,7 @@ public interface AbstractHelper {
      *            the instance that we are examining, name -> address
      * @return a non-null sensu name if we wish to delete the instance
      */
-    String identifyOrphanedInstance(Map.Entry<String, String> instance);
+    boolean identifyOrphanedInstance(Map.Entry<String, String> instance);
 
     String translateCloudIDToSensuName(String cloudID);
 

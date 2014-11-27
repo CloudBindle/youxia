@@ -177,9 +177,9 @@ public class Reaper {
                 Log.info("Skipping instance with no ip address" + instance.getKey());
                 continue;
             }
-            String sensuName = helper.identifyOrphanedInstance(instance);
-            if (sensuName != null) {
-                instancesToKill.put(instance.getKey(), sensuName);
+            if (helper.identifyOrphanedInstance(instance)) {
+                // orphaned instances likely do not have a sensu name, but try to get it from the metadata
+                instancesToKill.put(instance.getKey(), helper.translateCloudIDToSensuName(instance.getKey()));
                 continue;
             }
 
