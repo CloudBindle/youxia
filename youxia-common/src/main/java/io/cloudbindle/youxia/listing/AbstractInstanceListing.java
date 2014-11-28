@@ -31,38 +31,29 @@ public abstract class AbstractInstanceListing {
     /**
      * Retrieves a map between a unique identifier and public ip address
      *
-     * @param liveInstances
-     *            return live instances if true, dead instances if false
-     * @return
+     * @return the java.util.Map<java.lang.String,java.lang.String>
      */
-    public abstract Map<String, String> getInstances(boolean liveInstances);
+    public abstract Map<String, String> getInstances();
 
     /**
      * If the managedTag and managedState are appropriate, this will add the ip address to the provided map of instances
      *
      * @param managedTag
      * @param managedState
-     * @param liveInstances
      * @param instanceId
      * @param ipAddress
      * @param map
      */
-    public static void handleMapping(String managedTag, String managedState, boolean liveInstances, String instanceId, String ipAddress,
-            Map<String, String> map) {
+    public static void handleMapping(String managedTag, String managedState, String instanceId, String ipAddress, Map<String, String> map) {
         if (managedTag != null && managedState != null) {
-            if (liveInstances) {
-                if (!(managedState.equals(Constants.STATE.READY.toString()) || managedState.equals(Constants.STATE.SETTING_UP.toString()))) {
-                    return;
-                }
-                if (ipAddress == null) {
-                    Log.info("Node " + instanceId + " had no public ip address, skipping");
-                    return;
-                }
-            } else {
-                if (!managedState.equals(Constants.STATE.MARKED_FOR_DEATH.toString())) {
-                    return;
-                }
+            if (!(managedState.equals(Constants.STATE.READY.toString()) || managedState.equals(Constants.STATE.SETTING_UP.toString()))) {
+                return;
             }
+            if (ipAddress == null) {
+                Log.info("Node " + instanceId + " had no public ip address, skipping");
+                return;
+            }
+
             map.put(instanceId, ipAddress);
         }
     }

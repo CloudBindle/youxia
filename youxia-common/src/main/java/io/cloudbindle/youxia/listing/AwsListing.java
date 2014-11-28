@@ -37,9 +37,8 @@ import org.apache.commons.configuration.HierarchicalINIConfiguration;
  */
 public class AwsListing extends AbstractInstanceListing {
 
-
     @Override
-    public Map<String, String> getInstances(boolean liveInstances) {
+    public Map<String, String> getInstances() {
         HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
         String managedTagValue = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
@@ -58,7 +57,7 @@ public class AwsListing extends AbstractInstanceListing {
                         managedState = tag.getValue();
                     }
                 }
-                handleMapping(managedTag, managedState, liveInstances, instance.getInstanceId(), instance.getPublicIpAddress(), map);
+                handleMapping(managedTag, managedState, instance.getInstanceId(), instance.getPublicIpAddress(), map);
             }
         }
         Log.info("Located " + map.values().size() + " relevant instances on AWS");
@@ -67,7 +66,7 @@ public class AwsListing extends AbstractInstanceListing {
 
     public static void main(String[] args) {
         AwsListing lister = ListingFactory.createAWSListing();
-        Map<String, String> instances = lister.getInstances(true);
+        Map<String, String> instances = lister.getInstances();
         for (Entry<String, String> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());
         }

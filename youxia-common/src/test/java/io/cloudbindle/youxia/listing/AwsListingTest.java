@@ -41,7 +41,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * 
+ *
  * @author dyuen
  */
 @RunWith(PowerMockRunner.class)
@@ -50,7 +50,7 @@ public class AwsListingTest {
 
     /**
      * Test of getInstances method, of class AwsListing.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -66,7 +66,7 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing instance = new AwsListing();
-        Map<String, String> result = instance.getInstances(true);
+        Map<String, String> result = instance.getInstances();
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -74,7 +74,7 @@ public class AwsListingTest {
 
     /**
      * Test of getInstances method, of class AwsListing.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -91,7 +91,7 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing awListing = new AwsListing();
-        Map<String, String> result = awListing.getInstances(true);
+        Map<String, String> result = awListing.getInstances();
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -99,7 +99,7 @@ public class AwsListingTest {
 
     /**
      * Test of getInstances method, of class AwsListing.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -116,33 +116,8 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing awListing = new AwsListing();
-        Map<String, String> result = awListing.getInstances(true);
+        Map<String, String> result = awListing.getInstances();
         Assert.assertTrue("result size incorrect " + result.size(), result.size() == 2);
-
-        verifyAll();
-    }
-
-    /**
-     * Test of getInstances method, of class AwsListing.
-     * 
-     * @throws java.lang.Exception
-     */
-    @Test
-    public void testDeadInstances() throws Exception {
-        mockStatic(ConfigTools.class);
-        AmazonEC2Client mockClient = mock(AmazonEC2Client.class);
-        HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
-        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig);
-        expect(ConfigTools.getEC2Client()).andReturn(mockClient);
-        when(mockConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)).thenReturn("dummy_tag");
-
-        setupReservationsWithTag(mockClient, "dummy_tag");
-
-        replayAll();
-
-        AwsListing awListing = new AwsListing();
-        Map<String, String> result = awListing.getInstances(false);
-        Assert.assertTrue("result should not be empty " + result.size(), result.size() == 1);
 
         verifyAll();
     }

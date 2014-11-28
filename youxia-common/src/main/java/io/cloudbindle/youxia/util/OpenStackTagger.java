@@ -81,7 +81,7 @@ public class OpenStackTagger extends AbstractInstanceListing {
     }
 
     @Override
-    public Map<String, String> getInstances(boolean liveInstances) {
+    public Map<String, String> getInstances() {
         String managedTag = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
         List<String> valuesOf = options.valuesOf(instances);
         Set<String> instanceSet = Sets.newHashSet(valuesOf);
@@ -111,7 +111,7 @@ public class OpenStackTagger extends AbstractInstanceListing {
 
     public static void main(String[] args) {
         OpenStackTagger lister = new OpenStackTagger(args);
-        Map<String, String> instances = lister.getInstances(true);
+        Map<String, String> instances = lister.getInstances();
         Log.stdoutWithTime("Tagged the following instances:");
         for (Entry<String, String> instance : instances.entrySet()) {
             Log.stdoutWithTime(instance.getKey() + " " + instance.getValue());
