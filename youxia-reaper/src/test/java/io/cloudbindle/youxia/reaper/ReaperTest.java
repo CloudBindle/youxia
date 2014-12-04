@@ -33,10 +33,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.listing.ListingFactory;
+import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Constants;
 import io.seqware.common.model.WorkflowRunStatus;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import net.sourceforge.seqware.common.metadata.MetadataFactory;
@@ -52,6 +57,14 @@ import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpRequestHandler;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.isA;
+import org.jclouds.collect.IterableWithMarker;
+import org.jclouds.collect.PagedIterable;
+import org.jclouds.compute.ComputeService;
+import org.jclouds.compute.ComputeServiceContext;
+import org.jclouds.compute.domain.NodeMetadata;
+import org.jclouds.openstack.nova.v2_0.NovaApi;
+import org.jclouds.openstack.nova.v2_0.domain.Server;
+import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -128,6 +141,18 @@ public class ReaperTest {
     }
 
     @Test
+    public void testNoReapingOpenStack() throws Exception {
+        String[] args = { "--kill-limit", "1", "--openstack" };
+        mockOutConfig();
+        NovaApi novaApi = mock(NovaApi.class);
+        expect(ConfigTools.getNovaApi()).andReturn(novaApi).anyTimes();
+
+        replayAll();
+        Reaper.main(args);
+        verifyAll();
+    }
+
+    @Test
     public void testNoReaping() throws Exception {
         String[] args = { "--kill-limit", "1" };
         mockOutConfig();
@@ -179,6 +204,67 @@ public class ReaperTest {
         verifyAll();
     }
 
+    @Test
+    public void testReapingOpenStack() throws Exception {
+        String[] args = { "--kill-limit", "1", "--openstack" };
+        AmazonEC2Client client = mockOutConfig();
+        OpenStackJCloudsListing listing1 = createMockAndExpectNew(OpenStackJCloudsListing.class);
+        ComputeServiceContext genericContext = mock(ComputeServiceContext.class);
+        expect(ConfigTools.getGenericOpenStackApi()).andReturn(genericContext).anyTimes();
+        ComputeService computeService = mock(ComputeService.class);
+        when(genericContext.getComputeService()).thenReturn(computeService);
+        NodeMetadata nodeMetadata = mock(NodeMetadata.class);
+        when(computeService.getNodeMetadata(isNotNull(String.class))).thenReturn(nodeMetadata);
+        Map<String, String> map = new HashMap<>();
+        map.put(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString());
+        when(nodeMetadata.getUserMetadata()).thenReturn(map);
+        NovaApi api = mock(NovaApi.class);
+        expect(ConfigTools.getNovaApi()).andReturn(api);
+        ServerApi zoneApi = mock(ServerApi.class);
+        when(api.getServerApiForZone(isNotNull(String.class))).thenReturn(zoneApi);
+        PagedIterable<Server> pagedIterable = new PagedIterable<Server>() {
+            @Override
+            public Iterator<IterableWithMarker<Server>> iterator() {
+                List<IterableWithMarker<Server>> list = new ArrayList<>();
+                return list.iterator();
+            }
+        };
+        when(zoneApi.listInDetail()).thenReturn(pagedIterable);
+
+        Map<String, String> result1 = Maps.newHashMap();
+        result1.put("funky_id", server.getServiceAddress().getHostName());
+        expect(listing1.getInstances()).andReturn(result1);
+        Reservation reservation = new Reservation();
+        Instance instance = new Instance();
+        instance.setInstanceId("randomID");
+        List<Tag> tags = Lists.newArrayList();
+        tags.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, "shaolin"));
+        instance.setTags(tags);
+        instance.setPublicIpAddress(server.getServiceAddress().getHostName());
+        List<Instance> instances = Lists.newArrayList();
+        instances.add(instance);
+        reservation.setInstances(instances);
+        when(client.describeInstances(isNotNull(DescribeInstancesRequest.class))).thenReturn(
+                new DescribeInstancesResult().withReservations(reservation));
+        MetadataWS metadata = createMock(MetadataWS.class);
+        // expect(MetadataFactory.getWS(isA(Map.class))).andReturn(metadata);
+        List<WorkflowRun> list = Lists.newArrayList();
+        list.add(new WorkflowRun());
+        expect(metadata.getWorkflowRunsByStatus(isA(WorkflowRunStatus.class))).andReturn(list).anyTimes();
+        TerminateInstancesResult terminateInstancesResult = mock(TerminateInstancesResult.class);
+        when(client.terminateInstances(isNotNull(TerminateInstancesRequest.class))).thenReturn(terminateInstancesResult);
+        // here we describe terminated instances
+        InstanceState state = new InstanceState();
+        state.withName("terminated");
+        instance.setState(state);
+        when(client.describeInstances(isNotNull(DescribeInstancesRequest.class))).thenReturn(
+                new DescribeInstancesResult().withReservations(reservation));
+
+        replayAll();
+        Reaper.main(args);
+        verifyAll();
+    }
+
     private AmazonEC2Client mockOutConfig() {
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
         AmazonEC2Client client = mock(AmazonEC2Client.class);
@@ -200,6 +286,7 @@ public class ReaperTest {
         when(mockConfig.getInt(ConfigTools.YOUXIA_SENSU_PORT)).thenReturn(server.getServiceAddress().getPort());
         when(mockConfig.getString(ConfigTools.YOUXIA_SENSU_USERNAME)).thenReturn("username");
         when(mockConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD)).thenReturn("password");
+        when(mockConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE)).thenReturn("dance_dance_revolution_zone");
         return client;
     }
 }

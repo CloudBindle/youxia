@@ -23,6 +23,7 @@ import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
+import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
@@ -90,24 +91,29 @@ public class OpenStackHelper implements AbstractHelper {
         // retag instances with finished metadata, cannot see how to do this with the generic api
         // this sucks incredibly bad and is copied from the OpenStackTagger, there should be a way to use the generic api for
         // this
-        NovaApi novaApi = ConfigTools.getNovaApi();
-        HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
-        ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
-        PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
-        // what is this crazy nested structure?
-        ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
-        for (IterableWithMarker<Server> iterable : toList) {
-            ImmutableList<Server> toList1 = iterable.toList();
-            for (Server server : toList1) {
-                // generic api uses region ids, the specific one doesn't. Sigh.
-                final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "-" + server.getId().replace("/", "-");
-                if (ids.contains(nodeId)) {
-                    Log.stdoutWithTime("Finishing configuring " + nodeId);
-                    Map<String, String> metadata = Maps.newHashMap(server.getMetadata());
-                    metadata.put(Constants.STATE_TAG, Constants.STATE.MARKED_FOR_DEATH.toString());
-                    serverApiForZone.setMetadata(server.getId(), metadata);
+        try (NovaApi novaApi = ConfigTools.getNovaApi()) {
+            HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
+            ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
+            PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
+            // what is this crazy nested structure?
+            ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
+            for (IterableWithMarker<Server> iterable : toList) {
+                ImmutableList<Server> toList1 = iterable.toList();
+                for (Server server : toList1) {
+                    // generic api uses region ids, the specific one doesn't. Sigh.
+                    final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "-"
+                            + server.getId().replace("/", "-");
+                    if (ids.contains(nodeId)) {
+                        Log.stdoutWithTime("Finishing configuring " + nodeId);
+                        Map<String, String> metadata = Maps.newHashMap(server.getMetadata());
+                        metadata.put(Constants.STATE_TAG, Constants.STATE.MARKED_FOR_DEATH.toString());
+                        serverApiForZone.setMetadata(server.getId(), metadata);
+                    }
                 }
             }
+        } catch (IOException | NullPointerException ex) {
+            ex.printStackTrace();
+            throw new RuntimeException("Could not retag instances due to communication error with OpenStack", ex);
         }
     }
 
