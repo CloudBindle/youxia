@@ -63,7 +63,7 @@ public class BWABlackListConverter {
         }
     }
 
-    private void showHelp(OptionParser parser) throws RuntimeException, IOException {
+    private void showHelp(OptionParser parser) throws IOException {
         final int helpNumColumns = 160;
         parser.formatHelpWith(new BuiltinHelpFormatter(helpNumColumns, 2));
         parser.printHelpOn(System.out);
