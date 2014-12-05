@@ -21,12 +21,13 @@ import joptsimple.BuiltinHelpFormatter;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
+import joptsimple.OptionSpecBuilder;
 import net.sourceforge.seqware.common.util.Log;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
 
 /**
  * This class is a utility to convert from SimpleDB data to BWA's blacklist format.
- * 
+ *
  */
 public class BWABlackListConverter {
 
@@ -34,14 +35,15 @@ public class BWABlackListConverter {
     private final HierarchicalINIConfiguration youxiaConfig;
     public static final String WORKFLOW_RUNS = ".workflow_runs";
     private final ArgumentAcceptingOptionSpec<String> outputFile;
+    private final OptionSpecBuilder help;
 
-    public BWABlackListConverter(String[] args) {
+    public BWABlackListConverter(String[] args) throws IOException {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
         // TODO: validate that all used properties are present
 
         OptionParser parser = new OptionParser();
 
-        parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
+        this.help = parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
         this.outputFile = parser.acceptsAll(Arrays.asList("output", "o"), "Save output to a json file").withRequiredArg()
                 .defaultsTo("blacklist.txt");
 
@@ -49,15 +51,23 @@ public class BWABlackListConverter {
             this.options = parser.parse(args);
         } catch (OptionException e) {
             try {
-                final int helpNumColumns = 160;
-                parser.formatHelpWith(new BuiltinHelpFormatter(helpNumColumns, 2));
-                parser.printHelpOn(System.out);
+                showHelp(parser);
                 throw new RuntimeException("Showing usage");
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
         }
         assert (options != null);
+        if (options.has(help)) {
+            showHelp(parser);
+        }
+    }
+
+    private void showHelp(OptionParser parser) throws IOException {
+        final int helpNumColumns = 160;
+        parser.formatHelpWith(new BuiltinHelpFormatter(helpNumColumns, 2));
+        parser.printHelpOn(System.out);
+        throw new RuntimeException("Showing usage");
     }
 
     private void listWorkflowRuns() {

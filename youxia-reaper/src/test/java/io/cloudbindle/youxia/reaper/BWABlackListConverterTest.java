@@ -14,34 +14,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.cloudbindle.youxia.decider;
+package io.cloudbindle.youxia.reaper;
 
-import io.cloudbindle.youxia.util.ConfigTools;
-import net.sourceforge.seqware.common.metadata.MetadataFactory;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
  *
  * @author dyuen
  */
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore("javax.net.ssl.*")
-@PrepareForTest({ ConfigTools.class, Decider.class, MetadataFactory.class })
-public class DeciderTest {
+public class BWABlackListConverterTest {
 
     /**
-     * Test of main method, of class Decider.
-     *
-     * @throws java.lang.Exception
+     * Test of main method, of class BWABlackListConverter.
      */
     @Test(expected = RuntimeException.class)
-    public void testHelp() throws Exception {
-        System.out.println("help");
+    public void testMain() throws Exception {
         String[] args = { "--help" };
-        Decider.main(args);
+        BWABlackListConverter.main(args);
     }
+
 }
