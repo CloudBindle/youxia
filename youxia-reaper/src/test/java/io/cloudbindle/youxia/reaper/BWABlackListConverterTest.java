@@ -27,7 +27,7 @@ public class BWABlackListConverterTest {
     /**
      * Test of main method, of class BWABlackListConverter.
      */
-    @Test
+    @Test(expected = RuntimeException.class)
     public void testMain() throws Exception {
         String[] args = { "--help" };
         BWABlackListConverter.main(args);

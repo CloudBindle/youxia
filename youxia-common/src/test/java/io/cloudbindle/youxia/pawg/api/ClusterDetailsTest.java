@@ -23,14 +23,19 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * 
+ *
  * @author dyuen
  */
 public class ClusterDetailsTest {
@@ -61,6 +66,14 @@ public class ClusterDetailsTest {
         Map<String, ClusterDetails> map = gson.fromJson(testString, mapType);
 
         Assert.assertEquals(generatedMap, map);
+    }
+
+    @Test
+    public void testMainUtility() throws IOException {
+        Path createTempFile = Files.createTempFile("testing", ".json");
+        String testString = IOUtils.toString(ClusterDetails.class.getResourceAsStream("single_cluster.json"));
+        FileUtils.write(createTempFile.toFile(), testString, StandardCharsets.UTF_8);
+        ClusterDetails.main(new String[] { createTempFile.toFile().getAbsolutePath() });
     }
 
     private Map<String, ClusterDetails> getInventory() {

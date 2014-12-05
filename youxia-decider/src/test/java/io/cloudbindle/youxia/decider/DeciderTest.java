@@ -18,11 +18,6 @@ package io.cloudbindle.youxia.decider;
 
 import io.cloudbindle.youxia.util.ConfigTools;
 import net.sourceforge.seqware.common.metadata.MetadataFactory;
-import org.apache.http.localserver.LocalTestServer;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -30,37 +25,17 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * 
+ *
  * @author dyuen
  */
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore("javax.net.ssl.*")
 @PrepareForTest({ ConfigTools.class, Decider.class, MetadataFactory.class })
 public class DeciderTest {
-    private LocalTestServer server;
-
-    public DeciderTest() {
-    }
-
-    @BeforeClass
-    public static void setUpClass() {
-    }
-
-    @AfterClass
-    public static void tearDownClass() {
-    }
-
-    @Before
-    public void setUp() throws Exception {
-    }
-
-    @After
-    public void tearDown() throws Exception {
-    }
 
     /**
      * Test of main method, of class Decider.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test(expected = RuntimeException.class)
