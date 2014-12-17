@@ -404,12 +404,16 @@ public class Deployer {
                 ComputeService computeService = genericOpenStackApi.getComputeService();
                 // have to use the specific api here to designate a keypair, weird
                 TemplateOptions templateOptions = NovaTemplateOptions.Builder
-                        .networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)))
                         .securityGroupNames(youxiaConfig.getString(DEPLOYER_OPENSTACK_SECURITY_GROUP))
                         .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                         .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                         .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
                         .keyPairName(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME)).blockOnComplete(true);
+
+                if (youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID) != null
+                        && !youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID).isEmpty()) {
+                    templateOptions.networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)));
+                }
 
                 Template template = computeService
                         .templateBuilder()
