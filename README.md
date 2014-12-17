@@ -114,6 +114,8 @@ Note that it is possible to pass variables in yaml or json format to the ansible
 You could use:
 
     java -jar youxia-deployer/target/youxia-deployer-*-jar-with-dependencies.jar --ansible-playbook /home/ubuntu/youxia/ansible_sensu/site.yml --max-spot-price 0.001 --batch-size 1 --total-nodes-num 1 -e /home/ubuntu/crons/deployer_variables.json
+    
+Append the parameter --openstack to deploy OpenStack instances
 
 ##### Reaper
 
@@ -128,6 +130,8 @@ You can also just list information in SimpleDB to be used by the decider with:
     java -jar youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar --list
 
 Note, if you want to run both the Reaper and the Generator, you will probably want to put them sequentially in a script run from your crontab so that the Deployer completes execution before the Reaper runs. It is actually possible for the Reaper to reap an instance that the Deployer is still deploying. 
+
+Append the parameter --openstack to reap OpenStack instances
 
 ##### Generator
 
@@ -156,6 +160,18 @@ This component can be used to test clusters by scheduling HelloWorld workflows
 This component mutates the JSON for workflows stored in SimpleDB into the blacklist format used by BWA deciders
 
     java -cp youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar io.cloudbindle.youxia.reaper.BWABlackListConverter   --output blacklist.txt
+
+## OpenStack
+
+### ETRI
+
+The following special steps need to be taken in order to setup with OpenStack
+
+1. Grab and execute your OpenStack RC file from the web interface page "Access & Security" 
+2. Install the OpenStack client from http://docs.openstack.org/user-guide/content/install_clients.html
+3. For ETRI, I ran into this issue http://foogeee.blogspot.ca/2012/11/openstack-nova-client-doesnt-work.html
+4. In order to determine the region, try the command "nova endpoints" and look for region under nova
+5. Also for ETRI, do not specify a network (ETRI uses nova networking as opposed to neutron and thus does not require that a network be specified) 
 
 
 ## Other Links
