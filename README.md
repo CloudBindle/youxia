@@ -51,6 +51,7 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 
 	[deployer]
 	ami_image = <image id>
+	instance_type = m1.xlarge
 	security_group = <security group>
 	product = Linux/UNIX
 
