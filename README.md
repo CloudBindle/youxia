@@ -162,9 +162,11 @@ This component mutates the JSON for workflows stored in SimpleDB into the blackl
 
     java -cp youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar io.cloudbindle.youxia.reaper.BWABlackListConverter   --output blacklist.txt
 
-## OpenStack
+## Environment Specific Notes
 
-### ETRI
+### OpenStack
+
+#### ETRI
 
 The following special steps need to be taken in order to setup with OpenStack
 
@@ -173,6 +175,12 @@ The following special steps need to be taken in order to setup with OpenStack
 3. For ETRI, I ran into this issue http://foogeee.blogspot.ca/2012/11/openstack-nova-client-doesnt-work.html
 4. In order to determine the region, try the command "nova endpoints" and look for region under nova
 5. Also for ETRI, do not specify a network (ETRI uses nova networking as opposed to neutron and thus does not require that a network be specified) 
+
+### AWS
+
+#### Frankfurt (eu-central-1)
+
+Amazon does not have SimpleDB deployed, therefore the sample decider and reaper --persist functionality have to be turned off. 
 
 
 ## Other Links
