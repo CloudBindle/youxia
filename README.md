@@ -120,7 +120,7 @@ Append the parameter --openstack to deploy OpenStack instances
 
 ##### Reaper
 
-Third, you will probably want to setup the Reaper component. The Reaper component talks to managed instances to persist their workflow run information to SimpleDB, determine whether VMs have reached their kill-limit, and kills them if necessary after potentially cross-referencing with sensu data. 
+Third, you will probably want to setup the Reaper component. The Reaper component talks to managed instances to persist their workflow run information to SimpleDB, determine whether VMs have reached their kill-limit, and kills them if necessary after potentially cross-referencing with sensu data. The kill-limit refers to the number of instances that have reached a "final" state in SeqWare, specifically the cancelled, failed, and completed states. 
 
 A sample command (omit the test to actually kill instances) to kill instances when they have run 5 workflow runs to completion and persist workflow run information to simpleDB:
 
