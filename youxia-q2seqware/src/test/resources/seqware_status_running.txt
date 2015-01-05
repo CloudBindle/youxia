@@ -1,0 +1,23 @@
+$ seqware workflow report --accession 1
+-[ RECORD 0 ]------------------+-------------------------------------
+Workflow                       | HelloWorld 1.0-SNAPSHOT
+Workflow Run SWID              | 10 
+Workflow Run Status            | running
+Workflow Run Create Timestamp  | 2013-09-30 17:51:56.547
+Workflow Run Host              | master
+Workflow Run Working Dir       | /usr/tmp/seqware-oozie/oozie-a6a216c2-0d1b-4ce5-8ea2-08a4ee9a1838
+Workflow Run Engine ID         | 0000002-130930164344053-oozie-oozi-W
+Library Sample Names           |
+Library Sample SWIDs           |
+Identity Sample Names          | New Test Sample
+Identity Sample SWIDs          | 4
+Input File Meta-Types          | text/plain
+Input File SWIDs               | 9 
+Input File Paths               | /datastore/input.txt
+Immediate Input File Meta-Types| text/plain
+Immediate Input File SWIDs     | 9 
+Immediate Input File Paths     | /datastore/input.txt
+Output File Meta-Types         | text/plain
+Output File SWIDs              | 15
+Output File Paths              | /datastore/seqware-results/output
+Workflow Run Time              | 51.0s
