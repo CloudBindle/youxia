@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/CloudBindle/youxia.svg?branch=develop)](https://travis-ci.org/CloudBindle/youxia)
+
 youxia
 ======
 
