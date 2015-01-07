@@ -362,6 +362,11 @@ public class Deployer {
                     buffer.append(s.getKey()).append('\t').append("ansible_ssh_host=").append(s.getValue());
                     buffer.append("\tansible_ssh_user=ubuntu\t").append("ansible_ssh_private_key_file=").append(keyFile).append('\n');
                 }
+                buffer.append('\n');
+                // seqware-bag needs a listing of all groups
+                buffer.append("[all_groups:children]\n");
+                buffer.append("master\n");
+
                 Path createTempFile = Files.createTempFile("ansible", ".inventory");
                 FileUtils.writeStringToFile(createTempFile.toFile(), buffer.toString());
                 Log.info("Ansible inventory:");
@@ -384,8 +389,8 @@ public class Deployer {
                 cmdLine.setSubstitutionMap(map);
 
                 Log.info(cmdLine.toString());
-                // kill ansible if it hangs for 15 minutes
-                final int waitTime = 15 * 60 * 1000;
+                // kill ansible if it hangs for 120 minutes
+                final int waitTime = 120 * 60 * 1000;
                 ExecuteWatchdog watchdog = new ExecuteWatchdog(waitTime);
                 Executor executor = new DefaultExecutor();
                 executor.setStreamHandler(new PumpStreamHandler(System.out));
