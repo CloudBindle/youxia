@@ -96,7 +96,9 @@ public class Reaper {
                 "In test mode, we only output instances that would be killed rather than actually kill them");
         this.openStackMode = parser.acceptsAll(Arrays.asList("openstack"), "Run the reaper using OpenStack (default is AWS)");
 
-        this.persistWR = parser.acceptsAll(Arrays.asList("persist", "p"), "Persist workflow run information to SimpleDB");
+        this.persistWR = parser
+                .acceptsAll(Arrays.asList("persist", "p"),
+                        "Persist workflow run information and information on killed instances to SimpleDB. Required to report killed instances to sensu.");
         this.listWR = parser.acceptsAll(Arrays.asList("list", "l"), "Only read workflow run information from SimpleDB");
 
         this.killLimit = parser
@@ -348,7 +350,9 @@ public class Reaper {
      *            map of instance id (known to cloud) to sensu name (String with restrictions)
      */
     private void terminateInstances(Map<String, String> instancesToKill) {
-        persistTerminatedInstances(instancesToKill);
+        if (options.has(this.persistWR)) {
+            persistTerminatedInstances(instancesToKill);
+        }
         helper.terminateInstances(instancesToKill.keySet());
     }
 
