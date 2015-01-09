@@ -214,27 +214,43 @@ public class Deployer {
                 requests.setInstanceIds(new ArrayList<String>());
                 requests.launchOnDemand();
             } else {
-                // Submit all of the requests.
-                requests.submitRequests();
-                // Loop through all of the requests until all bids are in the active state
-                // (or at least not in the open state).
-                do {
-                    final int wait15Minutes = -15;
-                    // Sleep for 60 seconds.
-                    Thread.sleep(SLEEP_CYCLE);
-                    // Initialize the timer to now, and then subtract 15 minutes, so we can
-                    // compare to see if we have exceeded 15 minutes compared to the startTime.
-                    nowTimer = Calendar.getInstance();
-                    nowTimer.add(Calendar.MINUTE, wait15Minutes);
-                } while (requests.areAnyOpen() && !nowTimer.after(startTimer));
-                // If we couldn't launch Spot within the timeout period, then we should launch an On-Demand
-                // Instance.
-                if (nowTimer.after(startTimer)) {
+
+                try {
+
+                    // Submit all of the requests.
+                    requests.submitRequests();
+                    // Loop through all of the requests until all bids are in the active state
+                    // (or at least not in the open state).
+                    do {
+                        final int wait15Minutes = -15;
+                        // Sleep for 60 seconds.
+                        Thread.sleep(SLEEP_CYCLE);
+                        // Initialize the timer to now, and then subtract 15 minutes, so we can
+                        // compare to see if we have exceeded 15 minutes compared to the startTime.
+                        nowTimer = Calendar.getInstance();
+                        nowTimer.add(Calendar.MINUTE, wait15Minutes);
+                    } while (requests.areAnyOpen() && !nowTimer.after(startTimer));
+                    // If we couldn't launch Spot within the timeout period, then we should launch an On-Demand
+                    // Instance.
+                    if (nowTimer.after(startTimer)) {
+                        // Cancel all requests because we timed out.
+                        requests.cleanup();
+                        // Launch On-Demand instances instead
+                        requests.launchOnDemand();
+                    }
+                } catch (AmazonServiceException ase) {
+                    // Write out any exceptions that may have occurred.
+                    Log.info("Caught Exception: " + ase.getMessage());
+                    Log.info("Reponse Status Code: " + ase.getStatusCode());
+                    Log.info("Error Code: " + ase.getErrorCode());
+                    Log.info("Request ID: " + ase.getRequestId());
+                    Log.info("Attempting recovery with on-demand instance");
                     // Cancel all requests because we timed out.
                     requests.cleanup();
                     // Launch On-Demand instances instead
                     requests.launchOnDemand();
                 }
+
             }
             // Tag any created instances.
             requests.tagInstances(tags);

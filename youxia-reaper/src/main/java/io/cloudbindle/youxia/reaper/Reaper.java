@@ -377,23 +377,25 @@ public class Reaper {
     }
 
     private void mergePersistentRecord(Map<String, String> instancesToKill) {
-        AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
-        final String query = "select * from `" + deletedClientsDomain + "`" + " where " + dayOfTheYearString + " = \"" + dayOfTheYear
-                + "\" and " + yearString + " = \"" + year + "\"";
-        // get information on previously cleaned instances for today and merge with today's
-        createDomainIfRequired(simpleDBClient, deletedClientsDomain);
-        SelectRequest select = new SelectRequest(query, true);
-        SelectResult selectResult = simpleDBClient.select(select);
-        for (Item item : selectResult.getItems()) {
-            handleAttribute(item, instancesToKill);
-        }
-        while (selectResult.getNextToken() != null) {
-            selectResult = simpleDBClient.select(new SelectRequest(query, true).withNextToken(select.getNextToken()));
+        if (options.has(this.persistWR)) {
+            AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
+            final String query = "select * from `" + deletedClientsDomain + "`" + " where " + dayOfTheYearString + " = \"" + dayOfTheYear
+                    + "\" and " + yearString + " = \"" + year + "\"";
+            // get information on previously cleaned instances for today and merge with today's
+            createDomainIfRequired(simpleDBClient, deletedClientsDomain);
+            SelectRequest select = new SelectRequest(query, true);
+            SelectResult selectResult = simpleDBClient.select(select);
             for (Item item : selectResult.getItems()) {
                 handleAttribute(item, instancesToKill);
             }
+            while (selectResult.getNextToken() != null) {
+                selectResult = simpleDBClient.select(new SelectRequest(query, true).withNextToken(select.getNextToken()));
+                for (Item item : selectResult.getItems()) {
+                    handleAttribute(item, instancesToKill);
+                }
+            }
+            Log.stdoutWithTime("Merged kill list is " + StringUtils.join(instancesToKill, ','));
         }
-        Log.stdoutWithTime("Merged kill list is " + StringUtils.join(instancesToKill, ','));
     }
 
     private void handleAttribute(Item item, Map<String, String> instancesToKill) {
@@ -440,6 +442,7 @@ public class Reaper {
                 reaper.terminateInstances(instancesToKill);
             }
         }
+
         reaper.mergePersistentRecord(instancesToKill);
         reaper.terminateSensuClients(test, Sets.newHashSet(instancesToKill.values()));
     }
