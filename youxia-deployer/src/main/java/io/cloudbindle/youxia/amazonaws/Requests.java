@@ -398,20 +398,6 @@ public class Requests {
             }
         }
 
-        // try {
-        // // Terminate instances.
-        // Log.stdoutWithTime("Terminate instances");
-        // TerminateInstancesRequest terminateRequest = new TerminateInstancesRequest(instanceIds);
-        // ec2.terminateInstances(terminateRequest);
-        // } catch (AmazonServiceException e) {
-        // // Write out any exceptions that may have occurred.
-        // Log.stdoutWithTime("Error terminating instances");
-        // Log.stdoutWithTime("Caught Exception: " + e.getMessage());
-        // Log.stdoutWithTime("Reponse Status Code: " + e.getStatusCode());
-        // Log.stdoutWithTime("Error Code: " + e.getErrorCode());
-        // Log.stdoutWithTime("Request ID: " + e.getRequestId());
-        // }
-
         // Delete all requests and instances that we have terminated.
         instanceIds.clear();
         spotInstanceRequestIds.clear();
