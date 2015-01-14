@@ -158,33 +158,45 @@ public class Deployer {
     /**
      * This checks to see whether the current spot price is reasonable.
      *
-     * @return
+     * @return a zone with a reasonable spot price
      */
-    private boolean isReadyToRequestSpotInstances() {
+    private String isReadyToRequestSpotInstances() {
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
-        DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory(new DescribeSpotPriceHistoryRequest()
-                .withAvailabilityZone(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE))
-                .withInstanceTypes(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
-                .withProductDescriptions(youxiaConfig.getString(DEPLOYER_PRODUCT)));
-        Float currentPrice = null;
-        for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
-            if (spotPrice.getAvailabilityZone().equals(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE))
-                    && spotPrice.getInstanceType().equals(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
-                    && spotPrice.getProductDescription().contains("Linux")) {
-                Log.info(spotPrice.toString());
-                currentPrice = Float.valueOf(spotPrice.getSpotPrice());
-                break;
+        // grab all possible zones
+        String[] desiredZones = youxiaConfig.getStringArray(ConfigTools.YOUXIA_ZONE);
+        float lowestSpotPrice = Float.MAX_VALUE;
+        String zoneWithLowestSpotPrice = null;
+
+        for (String zone : desiredZones) {
+            DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory(new DescribeSpotPriceHistoryRequest()
+                    .withAvailabilityZone(zone).withInstanceTypes(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
+                    .withProductDescriptions(youxiaConfig.getString(DEPLOYER_PRODUCT)));
+            Float currentPrice = null;
+            for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
+                if (spotPrice.getAvailabilityZone().equals(zone)
+                        && spotPrice.getInstanceType().equals(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
+                        && spotPrice.getProductDescription().contains("Linux")) {
+                    Log.info(spotPrice.toString());
+                    currentPrice = Float.valueOf(spotPrice.getSpotPrice());
+                    Log.info("Zone: " + zone + " reports " + currentPrice);
+                    break;
+                }
+            }
+            if (currentPrice == null) {
+                throw new RuntimeException("Invalid spot price request, check your zone or instance type");
+            }
+            if (currentPrice < lowestSpotPrice) {
+                lowestSpotPrice = currentPrice;
+                zoneWithLowestSpotPrice = zone;
             }
         }
-        if (currentPrice == null) {
-            throw new RuntimeException("Invalid spot price request, check your zone or instance type");
+        Log.info("Checking Zone: " + zoneWithLowestSpotPrice + " with " + lowestSpotPrice + " against "
+                + options.valueOf(this.maxSpotPrice));
+        boolean currentPriceIsAcceptable = options.valueOf(this.maxSpotPrice) - lowestSpotPrice > 0;
+        if (currentPriceIsAcceptable) {
+            return zoneWithLowestSpotPrice;
         }
-        boolean currentPriceIsAcceptable = options.valueOf(this.maxSpotPrice) - currentPrice > 0;
-        return currentPriceIsAcceptable;
-    }
-
-    private List<Instance> requestSpotInstances(int numInstances) {
-        return requestSpotInstances(numInstances, false);
+        return null;
     }
 
     /**
@@ -192,16 +204,16 @@ public class Deployer {
      * https://github.com/amazonwebservices/aws-sdk-for-java/blob/master/src/samples/AmazonEC2SpotInstances-Advanced/GettingStartedApp.java
      *
      * @param numInstances
-     * @param skipWait
+     * @param onDemand
      * @return
      */
-    private List<Instance> requestSpotInstances(int numInstances, boolean skipWait) {
+    private List<Instance> requestAWSInstances(int numInstances, boolean onDemand, String zone) {
         try {
             // Setup the helper object that will perform all of the API calls.
             Requests requests = new Requests(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE), youxiaConfig.getString(DEPLOYER_AMI_IMAGE),
                     Float.toString(options.valueOf(this.maxSpotPrice)), youxiaConfig.getString(DEPLOYER_SECURITY_GROUP), numInstances,
                     youxiaConfig.getString(ConfigTools.YOUXIA_AWS_KEY_NAME));
-            requests.setAvailabilityZone(youxiaConfig.getString(ConfigTools.YOUXIA_ZONE));
+            requests.setAvailabilityZone(zone);
             // Create the list of tags we want to create and tag any associated requests.
             ArrayList<Tag> tags = new ArrayList<>();
             tags.add(new Tag("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)));
@@ -210,7 +222,7 @@ public class Deployer {
             // Initialize the timer to now.
             Calendar startTimer = Calendar.getInstance();
             Calendar nowTimer = null;
-            if (skipWait) {
+            if (onDemand) {
                 requests.setInstanceIds(new ArrayList<String>());
                 requests.launchOnDemand();
             } else {
@@ -462,15 +474,9 @@ public class Deployer {
             }
 
         } else {
-            boolean readyToRequestSpot = isReadyToRequestSpotInstances();
-            List<Instance> readyInstances;
-            if (readyToRequestSpot) {
-                // call out to request spot instances
-                // wait until SSH connection is live
-                readyInstances = requestSpotInstances(clientsToDeploy);
-            } else {
-                readyInstances = requestSpotInstances(clientsToDeploy, true);
-            }
+            String zoneWithLowestPrice = isReadyToRequestSpotInstances();
+            boolean needOnDemand = zoneWithLowestPrice == null;
+            List<Instance> readyInstances = requestAWSInstances(clientsToDeploy, needOnDemand, zoneWithLowestPrice);
             // safety check here
             if (readyInstances.size() > clientsToDeploy) {
                 Log.info("Something has gone awry, more instances reported as ready than were provisioned, aborting ");
