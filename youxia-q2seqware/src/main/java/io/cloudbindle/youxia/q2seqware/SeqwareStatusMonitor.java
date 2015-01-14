@@ -11,6 +11,11 @@ import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
 import org.apache.commons.exec.PumpStreamHandler;
 
+/**
+ * Checks to see if a local seqware instances is currently running. This is done by calling seqware from the command line.
+ * @author sshorser
+ *
+ */
 public class SeqwareStatusMonitor {
 
     private static Pattern statusPattern = Pattern.compile("Workflow Run Status\\s*\\|\\s*(.+)");
@@ -18,19 +23,36 @@ public class SeqwareStatusMonitor {
     private static String workflowVersionPatternPrefix = "Version\\s*\\|\\s*";
     private static Pattern accessionPattern = Pattern.compile("SeqWare Accession\\s*\\|\\s*(.+)");
 
-    public boolean anyPendingJobs() {
+    /**
+     * Checks if seqware has any jobs with status "pending"
+     * @return true if any jobs are pending.
+     */
+    public static boolean anyPendingJobs() {
         return checkForJobsWithStatus("pending");
     }
 
-    public boolean anySubmittedJobs() {
+    /**
+     * Checks if seqware has any jobs with status "submitted"
+     * @return true if any jobs are submitted.
+     */
+    public static boolean anySubmittedJobs() {
         return checkForJobsWithStatus("submitted");
     }
 
-    public boolean anyRunningJobs() {
+    /**
+     * Checks if seqware has any jobs with status "running"
+     * @return true if any jobs are running.
+     */
+    public static boolean anyRunningJobs() {
         return checkForJobsWithStatus("running");
     }
 
-    private boolean checkForJobsWithStatus(String status) {
+    /**
+     * Checks to see if seqware has any jobs with the given status.
+     * @param status - the status to check for.
+     * @return true if any jobs have the given status.
+     */
+    private static boolean checkForJobsWithStatus(String status) {
         boolean jobsWithStatus = false;
 
         String cmdResponse = null;
@@ -63,7 +85,12 @@ public class SeqwareStatusMonitor {
         return jobsWithStatus;
     }
 
-    public String checkSeqwareStatus(String accessionID) {
+    /**
+     * Report on the status of an executed workflow instance, as identified by a given accessionID.
+     * @param accessionID
+     * @return The status, as a string.
+     */
+    public static String checkSeqwareStatus(String accessionID) {
         String cmdResponse = null;
         String status = null;
         String command = "seqware workflow report --accession " + accessionID;
@@ -93,7 +120,13 @@ public class SeqwareStatusMonitor {
         return status;
     }
 
-    public String getAccessionID(String workflowName, String workflowVersion) {
+    /**
+     * Gets the accessionID of a workflow that is identified by a name and version.
+     * @param workflowName - the name of the workflow
+     * @param workflowVersion - the version of the workflow.
+     * @return The accessionID of the workflow. You can use this accession ID to execute the workflow.
+     */
+    public static String getAccessionID(String workflowName, String workflowVersion) {
         String cmdResponse = null;
         String accessionID = null;
         String command = "seqware workflow list";

@@ -14,7 +14,11 @@ import org.apache.http.MethodNotSupportedException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.DefaultHttpRequestFactory;
 import org.apache.http.impl.client.HttpClientBuilder;
-
+/**
+ * This class defines a message source for seqware where the messages come from a CGI script.
+ * @author sshorser
+ *
+ */
 public class SeqwareCGIMessageSource implements SeqwareJobMessageSource {
 
     private String hostName;

@@ -14,13 +14,26 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonStreamParser;
 
+/**
+ * Process messages that describe seqware jobs.
+ * @author sshorser
+ *
+ */
 public class SeqwareJobMessageProcessor {
     private String pathToINIs = "/tmp/inis4seqware/";
 
+    /**
+     * Return the path to where INI files will be written.
+     * @return
+     */
     public String getPathToINIs() {
         return pathToINIs;
     }
-
+    
+    /**
+     * Set the path where INI files will be written.
+     * @param pathToINIs
+     */
     public void setPathToINIs(String pathToINIs) {
         this.pathToINIs = pathToINIs;
     }
@@ -65,7 +78,6 @@ public class SeqwareJobMessageProcessor {
         try {
             config.save(iniFileName);
         } catch (ConfigurationException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
         return iniFileName;

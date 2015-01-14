@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>io.cloudbindle</groupId>
 		<artifactId>youxia</artifactId>
-		<version>1.1.0-beta.1-SNAPSHOT</version>
+		<version>1.1.0-beta.2-SNAPSHOT</version>
 	</parent>
 	<artifactId>youxia-q2seqware</artifactId>
 	<name>youxia-q2seqware</name>
@@ -33,6 +33,10 @@
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-exec</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>io.cloudbindle</groupId>
+    		<artifactId>youxia-common</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.powermock</groupId>

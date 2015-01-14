@@ -330,6 +330,7 @@
         <module>youxia-reaper</module>
         <module>youxia-generator</module>
         <module>youxia-decider</module>
+        <module>youxia-q2seqware</module>
     </modules>
 
     <licenses>

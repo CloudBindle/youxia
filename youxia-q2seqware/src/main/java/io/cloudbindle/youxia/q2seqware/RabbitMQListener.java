@@ -9,7 +9,13 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.ShutdownSignalException;
-
+/**
+ * Gets messages from a RabbitMQ queue for seqware.<br/><br/>
+ * NOTE: Implementation is not yet complete (2015-01-14).
+ * Work has focused on getting messages from a CGI script at a URL, but the RabbitMQ may yet come back...
+ * @author sshorser
+ *
+ */
 public class RabbitMQListener implements QueueListener {
 
     private String hostName;
@@ -18,55 +24,106 @@ public class RabbitMQListener implements QueueListener {
     private boolean durableQueue;
     private String pathToINIs = "/tmp/inis4seqware/";
 
+    /**
+     * Get the host that is hosting the queue.
+     */
     @Override
     public String getSourceHost() {
         return this.hostName;
     }
 
+    /**
+     * Get the name of the queue to connect to.
+     */
     @Override
     public String getQueueName() {
         return this.queueName;
     }
 
+    /**
+     * Set the name of the queue host.
+     */
     @Override
     public void setSourceHost(String hostName) {
         this.hostName = hostName;
     }
 
+    /**
+     * Set the name of the queue to check for messages.
+     */
     @Override
     public void setQueueName(String queueName) {
         this.queueName = queueName;
     }
 
+    /**
+     * Get a message from the queue. <b>NOT YET IMPLEMENTED.</b>
+     */
     @Override
-    public void getMessageFromQueue() {
-
+    public void getMessageFromQueue()  {
     }
 
+    /**
+     * Returns whether or not the queue connection is set to auto-acknowledge.
+     * @return
+     */
     public boolean isAutoAck() {
         return autoAck;
     }
 
+    /**
+     * Sets this queue listener to auto-acknowledge (or not.
+     * @param autoAck
+     */
     public void setAutoAck(boolean autoAck) {
         this.autoAck = autoAck;
     }
 
+    /**
+     * Returns a value if the queue that is being listened to is durable.
+     * @return
+     */
     public boolean isDurableQueue() {
         return durableQueue;
     }
 
+    /**
+     * Sets if the queue should be durable.
+     * @param durableQueue
+     */
     public void setDurableQueue(boolean durableQueue) {
         this.durableQueue = durableQueue;
     }
 
+    /**
+     * Gets the path that will be used when writing INI files for seqware.
+     * @return
+     */
     public String getPathToINIs() {
+        //TODO: There is newer code that focuses specifically on writing INI files.
+        // This class should focus on just getting messages and letting the SeqwareJobMessageProcessor focus
+        // on writing INI files.
         return pathToINIs;
     }
 
+    /**
+     * Sets the path that will be used when writing INI files for seqware.
+     * @param pathToINIs
+     */
     public void setPathToINIs(String pathToINIs) {
+        //TODO: There is newer code that focuses specifically on writing INI files.
+        // This class should focus on just getting messages and letting the SeqwareJobMessageProcessor focus
+        // on writing INI files.
         this.pathToINIs = pathToINIs;
     }
 
+    /**
+     * Gets a message from the message queue.
+     * <br/>
+     * NOTE: Implementation is incomplete.
+     * @return The message body, as a string.
+     */
+    @Override
     public String getMessage() {
         String message = null;
 
@@ -117,47 +174,6 @@ public class RabbitMQListener implements QueueListener {
         return message;
     }
 
-//    private void processMessage(String message) {
-//        JsonObject jsonObj = new Gson().fromJson(message, JsonObject.class);
-//
-//        String jobId = jsonObj.get("job_id").getAsString();
-//        String queueName = jsonObj.get("queue_name").getAsString();
-//        String workflow = jsonObj.get("workflow").getAsString();
-//        String workflowVersion = jsonObj.get("workflow_version").getAsString();
-//        String timeQueued = jsonObj.get("time_queued").getAsString();
-//        JsonObject iniArgs = jsonObj.get("ini").getAsJsonObject();
-//
-//        String inputFile = iniArgs.get("input_file").getAsString();
-//        String outputPrefix = iniArgs.get("output_prefix").getAsString();
-//
-//        HierarchicalINIConfiguration config = new HierarchicalINIConfiguration();
-//
-//        JsonStreamParser parser = new JsonStreamParser(iniArgs.toString());
-//        // Map<String,String> iniSettings = new HashMap<String,String>();
-//        while (parser.hasNext()) {
-//            JsonElement element = parser.next();
-//            JsonObject elementObject = element.getAsJsonObject();
-//            for (Entry<String, JsonElement> e : elementObject.entrySet()) {
-//                config.addProperty(e.getKey(), e.getValue().getAsString());
-//            }
-//        }
-//
-//        /*
-//         * for (String k : iniSettings.keySet()) { config.addProperty(k, iniSettings.get(k)); }
-//         */
-//        /*
-//         * config.addProperty("inputFile", inputFile); config.addProperty("outputPrefix", outputPrefix);
-//         */
-//        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("YYYYMMdd_HHmmss");
-//        String dateString = simpleDateFormat.format(new Date());
-//        String iniFileName = pathToINIs + "workflow_" + dateString + ".ini";
-//        Log.info("Writing INI file to: " + iniFileName);
-//        try {
-//            config.save(iniFileName);
-//        } catch (ConfigurationException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        }
-//    }
+
 
 }
