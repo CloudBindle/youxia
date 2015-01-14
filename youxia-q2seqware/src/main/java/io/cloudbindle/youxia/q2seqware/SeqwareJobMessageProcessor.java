@@ -78,7 +78,7 @@ public class SeqwareJobMessageProcessor {
         try {
             config.save(iniFileName);
         } catch (ConfigurationException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Saving INI file failed!", e);
         }
         return iniFileName;
     }
