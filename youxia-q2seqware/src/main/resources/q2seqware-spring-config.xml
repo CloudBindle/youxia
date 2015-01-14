@@ -14,7 +14,7 @@
 	</bean>
 
 	<!-- set up beans-->
-	<bean id="statusReporter" class="io.cloudbindle.youxia.q2seqware.SeqwareStatusReporter">
+	<bean id="statusReporter" class="io.cloudbindle.youxia.q2seqware.SeqwareCGIStatusReporter">
 		<property name="host" value="${statusReport.url}"/>
 	</bean>
 	

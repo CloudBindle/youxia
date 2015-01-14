@@ -9,6 +9,14 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 
+/**
+ * A consumer that extends the RabbitMQ DefaultConsumer. When it receives a message,
+ * it will process the message as a seqware job message.
+ * <br/>
+ * NOTE: Implementation is not yet complete.
+ * @author sshorser
+ *
+ */
 public class SeqwareMessageConsumer extends DefaultConsumer {
 
     boolean autoAck = true;
@@ -51,6 +59,10 @@ public class SeqwareMessageConsumer extends DefaultConsumer {
         }
     }
 
+    /**
+     * Process a message from the queue using a SeqwareJobMessageProcessor.
+     * @param message
+     */
     private void processMessage(String message) {
         SeqwareJobMessageProcessor messageProcessor = new SeqwareJobMessageProcessor();
         messageProcessor.setPathToINIs(this.getPathToINIs());

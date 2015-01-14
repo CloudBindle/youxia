@@ -90,8 +90,8 @@ public class TestMessageStatusReporter {
 
     @Test
     public void testReportStatus() {
-        SeqwareStatusReporter reporter = new SeqwareStatusReporter();
-        reporter.setHost("http://localhost/");
+        SeqwareCGIStatusReporter reporter = new SeqwareCGIStatusReporter();
+        reporter.setURI("http://localhost/");
         reporter.reportSeqwareStatus("running");
     }
 }
