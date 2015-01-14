@@ -34,6 +34,7 @@ import org.springframework.context.support.GenericXmlApplicationContext;
  *
  */
 public class ExternalSeqwareScheduler {
+    private static final String CHARSET_ENCODING = "UTF-8";
     private static final String SPRING_CONFIG_FILE = "q2seqware-spring-config.xml";
     private static SeqwareStatusMonitor monitor = new SeqwareStatusMonitor();
     private static String workflowName = null;
@@ -152,7 +153,7 @@ public class ExternalSeqwareScheduler {
         executor.setStreamHandler(streamHandler);
         try {
             executor.execute(cli);
-            cmdResponse = outputStream.toString();
+            cmdResponse = outputStream.toString(CHARSET_ENCODING);
             Log.trace("SeqWare command response:\n"+cmdResponse);
         } catch (ExecuteException e) {
             e.printStackTrace();

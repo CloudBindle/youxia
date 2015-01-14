@@ -30,6 +30,8 @@ public class TestSeqwareMonitor {
     @Mock
     DefaultExecutor mockExecutor;
 
+    private final static String CHARSET_ENCODING = "UTF-8";
+    
     private String readFileToString(String fileName) throws IOException {
         byte[] encoded = Files.readAllBytes(Paths.get(fileName));
         return new String(encoded);
@@ -47,7 +49,7 @@ public class TestSeqwareMonitor {
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        outputStream.write(seqwareReportOutput.getBytes());
+        outputStream.write(seqwareReportOutput.getBytes(CHARSET_ENCODING));
 
         String command = "seqware workflow report --status running";
         CommandLine cli = new CommandLine(command);
@@ -69,7 +71,7 @@ public class TestSeqwareMonitor {
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        outputStream.write(seqwareReportOutput.getBytes());
+        outputStream.write(seqwareReportOutput.getBytes(CHARSET_ENCODING));
 
         String command = "seqware workflow report --status running";
         CommandLine cli = new CommandLine(command);
@@ -94,7 +96,7 @@ public class TestSeqwareMonitor {
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        outputStream.write(seqwareReportOutput.getBytes());
+        outputStream.write(seqwareReportOutput.getBytes(CHARSET_ENCODING));
 
         String command = "seqware workflow report --status running";
         CommandLine cli = new CommandLine(command);
@@ -117,7 +119,7 @@ public class TestSeqwareMonitor {
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        outputStream.write(runningOutput.getBytes());
+        outputStream.write(runningOutput.getBytes(CHARSET_ENCODING));
 
         String command = "seqware workflow report --accession 1";
         CommandLine cli = new CommandLine(command);
@@ -144,7 +146,7 @@ public class TestSeqwareMonitor {
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        outputStream.write(runningOutput.getBytes());
+        outputStream.write(runningOutput.getBytes(CHARSET_ENCODING));
 
         String command = "seqware workflow list";
         CommandLine cli = new CommandLine(command);

@@ -69,7 +69,7 @@ public class SeqwareStatusMonitor {
 
         try {
             executor.execute(cli);
-            cmdResponse = outputStream.toString();
+            cmdResponse = outputStream.toString("UTF-8");
             // If there is ANY response to this command, it means there is some job with the given status.
             if (!cmdResponse.trim().equals("")) {
                 jobsWithStatus = true;
@@ -105,7 +105,7 @@ public class SeqwareStatusMonitor {
         executor.setStreamHandler(streamHandler);
         try {
             executor.execute(cli);
-            cmdResponse = outputStream.toString();
+            cmdResponse = outputStream.toString("UTF-8");
             // Check the response string for the status.
             Matcher matcher = statusPattern.matcher(cmdResponse);
 
@@ -142,7 +142,7 @@ public class SeqwareStatusMonitor {
         executor.setStreamHandler(streamHandler);
         try {
             executor.execute(cli);
-            cmdResponse = outputStream.toString();
+            cmdResponse = outputStream.toString("UTF-8");
             Pattern workflowNamePattern = Pattern.compile(workflowNamePatternPrefix + workflowName);
             Pattern workflowVersionPattern = Pattern.compile(workflowVersionPatternPrefix + workflowVersion);
 

@@ -19,6 +19,7 @@ import com.rabbitmq.client.Envelope;
  */
 public class SeqwareMessageConsumer extends DefaultConsumer {
 
+    private static final String CHARSET_ENCODING = "UTF-8";
     boolean autoAck = true;
     private String pathToINIs = "/tmp/inis4seqware/";
 
@@ -44,7 +45,8 @@ public class SeqwareMessageConsumer extends DefaultConsumer {
 
     @Override
     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-        String message = new String(body);
+        String message = new String(body,CHARSET_ENCODING);
+        
         Log.info("message received: " + message);
 
         if (message.equals("EXIT")) {
