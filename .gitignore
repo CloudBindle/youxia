@@ -10,8 +10,3 @@
 /youxia-setup/ssh/*.pem
 /youxia-setup/aws_config/config
 /ansible_sensu/ssl/ssl_certs/
-/.project
-**/.settings/**
-**/.classpath
-**/.project
-.metadata/**

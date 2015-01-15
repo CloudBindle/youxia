@@ -13,7 +13,7 @@
     <artifactId>youxia</artifactId>
     <packaging>pom</packaging>
     <groupId>io.cloudbindle</groupId>
-    <version>1.1.0-beta.2-SNAPSHOT</version>
+    <version>1.1.0-beta.3-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -330,7 +330,6 @@
         <module>youxia-reaper</module>
         <module>youxia-generator</module>
         <module>youxia-decider</module>
-        <module>youxia-q2seqware</module>
     </modules>
 
     <licenses>
