@@ -20,6 +20,7 @@ package io.cloudbindle.youxia.listing;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceLifecycleType;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.base.Objects;
@@ -59,7 +60,7 @@ public class AwsListing extends AbstractInstanceListing {
                     }
                 }
                 handleMapping(managedTag, managedState, instance.getInstanceId(), new InstanceDescriptor(instance.getPublicIpAddress(),
-                        Objects.equal(instance.getInstanceLifecycle(), ("spot"))), map);
+                        Objects.equal(instance.getInstanceLifecycle(), (InstanceLifecycleType.Spot.toString()))), map);
             }
         }
         Log.info("Located " + map.values().size() + " relevant instances on AWS");
