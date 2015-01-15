@@ -6,6 +6,7 @@ import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.pawg.api.ClusterDetails;
 import io.cloudbindle.youxia.util.ConfigTools;
@@ -82,7 +83,7 @@ public class Generator {
     public static void main(String[] args) throws Exception {
         // TODO: refactor this into proper object methods
         Generator generator = new Generator(args);
-        Map<String, String> instances = Maps.newHashMap();
+        Map<String, InstanceDescriptor> instances = Maps.newHashMap();
         if (generator.options.has(generator.aggregateAWS)) {
             AbstractInstanceListing lister = ListingFactory.createAWSListing();
             instances.putAll(lister.getInstances());
@@ -102,7 +103,7 @@ public class Generator {
             resultMap = gson.fromJson(readFileToString, mapType);
         }
 
-        for (Entry<String, String> entry : instances.entrySet()) {
+        for (Entry<String, InstanceDescriptor> entry : instances.entrySet()) {
             ClusterDetails details = new ClusterDetails();
             // this is crummy and hard-coded for now
             details.setHost("master");
@@ -110,8 +111,9 @@ public class Generator {
             details.setMaxWorkflows(generator.youxiaConfig.getString(GENERATOR_MAX_WORKFLOWS));
             details.setPassword(generator.youxiaConfig.getString(ConfigTools.SEQWARE_REST_PASS));
             details.setUsername(generator.youxiaConfig.getString(ConfigTools.SEQWARE_REST_USER));
-            details.setWebservice("http://" + entry.getValue() + ":" + generator.youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT)
-                    + "/" + generator.youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT));
+            details.setWebservice("http://" + entry.getValue().getIpAddress() + ":"
+                    + generator.youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
+                    + generator.youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT));
             details.setWorkflowAccession(generator.youxiaConfig.getString(GENERATOR_WORKFLOW_ACCESSION));
             details.setWorkflowName(generator.youxiaConfig.getString(GENERATOR_WORKFLOW_NAME));
             details.setWorkflowVersion(generator.youxiaConfig.getString(GENERATOR_WORKFLOW_VERSION));

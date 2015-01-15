@@ -33,7 +33,7 @@ public abstract class AbstractInstanceListing {
      *
      * @return the java.util.Map<java.lang.String,java.lang.String>
      */
-    public abstract Map<String, String> getInstances();
+    public abstract Map<String, InstanceDescriptor> getInstances();
 
     /**
      * If the managedTag and managedState are appropriate, this will add the ip address to the provided map of instances
@@ -41,20 +41,49 @@ public abstract class AbstractInstanceListing {
      * @param managedTag
      * @param managedState
      * @param instanceId
-     * @param ipAddress
+     * @param instanceDescriptor
      * @param map
      */
-    public static void handleMapping(String managedTag, String managedState, String instanceId, String ipAddress, Map<String, String> map) {
+    public static void handleMapping(String managedTag, String managedState, String instanceId, InstanceDescriptor instanceDescriptor,
+            Map<String, InstanceDescriptor> map) {
         if (managedTag != null && managedState != null) {
             if (!(managedState.equals(Constants.STATE.READY.toString()) || managedState.equals(Constants.STATE.SETTING_UP.toString()))) {
                 return;
             }
-            if (ipAddress == null) {
+            if (instanceDescriptor.getIpAddress() == null) {
                 Log.info("Node " + instanceId + " had no public ip address, skipping");
                 return;
             }
 
-            map.put(instanceId, ipAddress);
+            map.put(instanceId, instanceDescriptor);
+        }
+    }
+
+    public static class InstanceDescriptor {
+        private final String ipAddress;
+        private final boolean spotInstance;
+
+        public InstanceDescriptor(String ipAddress) {
+            this.ipAddress = ipAddress;
+            this.spotInstance = false;
+        }
+
+        public InstanceDescriptor(String ipAddress, boolean spotInstance) {
+            this.ipAddress = ipAddress;
+            this.spotInstance = spotInstance;
+        }
+
+        public String getIpAddress() {
+            return ipAddress;
+        }
+
+        public boolean isSpotInstance() {
+            return spotInstance;
+        }
+
+        @Override
+        public String toString() {
+            return ipAddress + " spot: " + spotInstance;
         }
     }
 }

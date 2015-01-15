@@ -46,10 +46,10 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
      * @return the java.util.Map<java.lang.String,java.lang.String>
      */
     @Override
-    public Map<String, String> getInstances() {
+    public Map<String, InstanceDescriptor> getInstances() {
         String managedTagValue = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
         NovaApi novaApi = ConfigTools.getNovaApi();
-        Map<String, String> map = Maps.newHashMap();
+        Map<String, InstanceDescriptor> map = Maps.newHashMap();
         for (String zone : novaApi.getConfiguredZones()) {
             Log.info("Looking at zone: " + zone);
             // TODO: figure out what is going on with this weird nested structure
@@ -81,7 +81,7 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
                     if (iterator.hasNext()) {
                         address = iterator.next().getValue().getAddr();
                     }
-                    handleMapping(managedTag, managedState, id, address, map);
+                    handleMapping(managedTag, managedState, id, new InstanceDescriptor(address), map);
                 }
             }
         }
@@ -91,9 +91,9 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
     }
 
     public static void main(String[] args) {
-        OpenStackJCloudsListing lister = ListingFactory.createOpenStackListing();
-        Map<String, String> instances = lister.getInstances();
-        for (Entry<String, String> instance : instances.entrySet()) {
+        OpenStackJCloudsListing lister = new OpenStackJCloudsListing();
+        Map<String, InstanceDescriptor> instances = lister.getInstances();
+        for (Entry<String, InstanceDescriptor> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());
         }
     }

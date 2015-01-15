@@ -25,6 +25,7 @@ import static io.cloudbindle.youxia.generator.Generator.GENERATOR_MAX_WORKFLOWS;
 import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_ACCESSION;
 import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_NAME;
 import static io.cloudbindle.youxia.generator.Generator.GENERATOR_WORKFLOW_VERSION;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
@@ -110,7 +111,7 @@ public class GeneratorTest {
         AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
         OpenStackJCloudsListing listing2 = createMockAndExpectNew(OpenStackJCloudsListing.class);
 
-        Map<String, String> result1 = Maps.newHashMap();
+        Map<String, InstanceDescriptor> result1 = Maps.newHashMap();
         expect(listing1.getInstances()).andReturn(result1);
         expect(listing2.getInstances()).andReturn(result1);
 
@@ -138,12 +139,12 @@ public class GeneratorTest {
         AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
         OpenStackJCloudsListing listing2 = createMockAndExpectNew(OpenStackJCloudsListing.class);
 
-        Map<String, String> result1 = Maps.newHashMap();
-        result1.put("Wong_Fei-hong", "123.123.123.123");
-        result1.put("Ip_Man", "124.124.124.124");
-        Map<String, String> result2 = Maps.newHashMap();
-        result2.put("Ouyang_Feng", "125.125.125.125");
-        result2.put("Murong_Yang", "126.126.126.126");
+        Map<String, InstanceDescriptor> result1 = Maps.newHashMap();
+        result1.put("Wong_Fei-hong", new InstanceDescriptor("123.123.123.123"));
+        result1.put("Ip_Man", new InstanceDescriptor("124.124.124.124"));
+        Map<String, InstanceDescriptor> result2 = Maps.newHashMap();
+        result2.put("Ouyang_Feng", new InstanceDescriptor("125.125.125.125"));
+        result2.put("Murong_Yang", new InstanceDescriptor("126.126.126.126"));
         expect(listing1.getInstances()).andReturn(result1);
         expect(listing2.getInstances()).andReturn(result2);
 

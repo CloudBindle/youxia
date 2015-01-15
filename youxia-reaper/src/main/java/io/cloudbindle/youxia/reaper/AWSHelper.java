@@ -26,6 +26,7 @@ import com.amazonaws.services.ec2.model.Tag;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import com.google.common.collect.Lists;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
@@ -41,7 +42,7 @@ import org.apache.commons.lang3.StringUtils;
 public class AWSHelper implements AbstractHelper {
 
     @Override
-    public boolean identifyOrphanedInstance(Map.Entry<String, String> instance) {
+    public boolean identifyOrphanedInstance(Map.Entry<String, InstanceDescriptor> instance) {
         AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
         // terminate instances that did not finish deployment
         DescribeInstancesResult describeInstances = eC2Client.describeInstances(new DescribeInstancesRequest().withInstanceIds(instance

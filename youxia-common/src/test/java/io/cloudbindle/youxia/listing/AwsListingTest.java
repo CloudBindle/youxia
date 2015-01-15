@@ -23,6 +23,7 @@ import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
 import java.util.List;
@@ -66,7 +67,7 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing instance = new AwsListing();
-        Map<String, String> result = instance.getInstances();
+        Map<String, InstanceDescriptor> result = instance.getInstances();
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -91,7 +92,7 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing awListing = new AwsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, InstanceDescriptor> result = awListing.getInstances();
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -116,7 +117,7 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing awListing = new AwsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, InstanceDescriptor> result = awListing.getInstances();
         Assert.assertTrue("result size incorrect " + result.size(), result.size() == 2);
 
         verifyAll();

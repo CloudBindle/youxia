@@ -18,6 +18,7 @@ package io.cloudbindle.youxia.deployer;
 
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.google.common.collect.Maps;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
@@ -86,9 +87,9 @@ public class DeployerTest {
         expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         expect(ConfigTools.getEC2Client()).andReturn(mockClient);
         expectNew(AwsListing.class).andReturn(listing);
-        Map<String, String> map = Maps.newTreeMap();
-        map.put("key1", "value1");
-        map.put("key2", "value2");
+        Map<String, InstanceDescriptor> map = Maps.newTreeMap();
+        map.put("key1", new InstanceDescriptor("value1", false));
+        map.put("key2", new InstanceDescriptor("value2", false));
         expect(listing.getInstances()).andReturn(map);
         String[] args = { "--total-nodes-num", "2", "--max-spot-price", "2", "--batch-size", "5", "--ansible-playbook", "test-book.yml" };
 

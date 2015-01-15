@@ -22,11 +22,11 @@ package io.cloudbindle.youxia.listing;
  */
 public class ListingFactory {
 
-    public static OpenStackJCloudsListing createOpenStackListing() {
+    public static AbstractInstanceListing createOpenStackListing() {
         return new OpenStackJCloudsListing();
     }
 
-    public static AwsListing createAWSListing() {
+    public static AbstractInstanceListing createAWSListing() {
         return new AwsListing();
     }
 

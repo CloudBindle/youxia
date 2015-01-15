@@ -17,6 +17,7 @@
 package io.cloudbindle.youxia.reaper;
 
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import java.util.Map;
 import java.util.Set;
 
@@ -34,7 +35,7 @@ public interface AbstractHelper {
      *            the instance that we are examining, name -> address
      * @return a non-null sensu name if we wish to delete the instance
      */
-    boolean identifyOrphanedInstance(Map.Entry<String, String> instance);
+    boolean identifyOrphanedInstance(Map.Entry<String, InstanceDescriptor> instance);
 
     String translateCloudIDToSensuName(String cloudID);
 

@@ -20,6 +20,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.amazonaws.Requests;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
@@ -89,6 +90,8 @@ public class Deployer {
     private final ArgumentAcceptingOptionSpec<String> playbook;
     private final ArgumentAcceptingOptionSpec<String> extraVarsSpec;
     private final OptionSpecBuilder openStackMode;
+    private final ArgumentAcceptingOptionSpec<Integer> maxOnDemand;
+    private final ArgumentAcceptingOptionSpec<Integer> minOnDemand;
 
     public Deployer(String[] args) {
         // record configuration
@@ -106,7 +109,11 @@ public class Deployer {
 
         // AWS specific parameter
         this.maxSpotPrice = parser.acceptsAll(Arrays.asList("max-spot-price", "p"), "Maximum price to pay for spot-price instances.")
-                .requiredUnless(openStackMode).withRequiredArg().ofType(Float.class).required();
+                .requiredUnless(openStackMode).withRequiredArg().ofType(Float.class);
+        this.maxOnDemand = parser.acceptsAll(Arrays.asList("max-on-demand", "mod"), "Maximum number of on-demand instances to maintain.")
+                .withRequiredArg().ofType(Integer.class);
+        this.minOnDemand = parser.acceptsAll(Arrays.asList("min-on-demand", "mod"), "Minimum number of on-demand instances to maintain.")
+                .withRequiredArg().ofType(Integer.class);
 
         this.batchSize = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring up at one time")
                 .withRequiredArg().ofType(Integer.class).required();
@@ -130,6 +137,7 @@ public class Deployer {
                 throw new RuntimeException(ex);
             }
         }
+        // throw new RuntimeException("Parameters ok");
     }
 
     /**
@@ -145,7 +153,7 @@ public class Deployer {
         } else {
             lister = ListingFactory.createAWSListing();
         }
-        Map<String, String> map = lister.getInstances();
+        Map<String, InstanceDescriptor> map = lister.getInstances();
         Log.info("Found " + map.size() + " clients");
 
         int clientsNeeded = options.valueOf(totalNodes) - map.size();

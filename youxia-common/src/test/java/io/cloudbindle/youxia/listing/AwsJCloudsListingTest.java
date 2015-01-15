@@ -18,6 +18,7 @@ package io.cloudbindle.youxia.listing;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.util.ConfigTools;
 import java.net.URI;
 import java.util.Map;
@@ -45,7 +46,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * 
+ *
  * @author dyuen
  */
 @RunWith(PowerMockRunner.class)
@@ -54,7 +55,7 @@ public class AwsJCloudsListingTest {
 
     /**
      * Test of getInstances method, of class AwsListing.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -70,7 +71,7 @@ public class AwsJCloudsListingTest {
         replayAll();
 
         AwsJCloudsListing instance = new AwsJCloudsListing();
-        Map<String, String> result = instance.getInstances();
+        Map<String, InstanceDescriptor> result = instance.getInstances();
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -78,7 +79,7 @@ public class AwsJCloudsListingTest {
 
     /**
      * Test of getInstances method, of class AwsListing.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -91,7 +92,7 @@ public class AwsJCloudsListingTest {
         replayAll();
 
         AwsJCloudsListing awListing = new AwsJCloudsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, InstanceDescriptor> result = awListing.getInstances();
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -99,7 +100,7 @@ public class AwsJCloudsListingTest {
 
     /**
      * Test of getInstances method, of class AwsListing.
-     * 
+     *
      * @throws java.lang.Exception
      */
     @Test
@@ -112,7 +113,7 @@ public class AwsJCloudsListingTest {
         replayAll();
 
         AwsJCloudsListing awListing = new AwsJCloudsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, InstanceDescriptor> result = awListing.getInstances();
         Assert.assertTrue("result should not be empty", !result.isEmpty());
 
         verifyAll();

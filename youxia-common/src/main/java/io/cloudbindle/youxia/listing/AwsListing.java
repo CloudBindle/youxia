@@ -22,6 +22,7 @@ import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
+import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
@@ -38,11 +39,11 @@ import org.apache.commons.configuration.HierarchicalINIConfiguration;
 public class AwsListing extends AbstractInstanceListing {
 
     @Override
-    public Map<String, String> getInstances() {
+    public Map<String, InstanceDescriptor> getInstances() {
         HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
         String managedTagValue = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
-        Map<String, String> map = Maps.newHashMap();
+        Map<String, InstanceDescriptor> map = Maps.newHashMap();
         // TODO: we can probably constrain instance listing to one region or zone
         DescribeInstancesResult describeInstancesResult = ec2.describeInstances();
         for (Reservation reservation : describeInstancesResult.getReservations()) {
@@ -57,7 +58,8 @@ public class AwsListing extends AbstractInstanceListing {
                         managedState = tag.getValue();
                     }
                 }
-                handleMapping(managedTag, managedState, instance.getInstanceId(), instance.getPublicIpAddress(), map);
+                handleMapping(managedTag, managedState, instance.getInstanceId(), new InstanceDescriptor(instance.getPublicIpAddress(),
+                        Objects.equal(instance.getInstanceLifecycle(), ("spot"))), map);
             }
         }
         Log.info("Located " + map.values().size() + " relevant instances on AWS");
@@ -65,9 +67,9 @@ public class AwsListing extends AbstractInstanceListing {
     }
 
     public static void main(String[] args) {
-        AwsListing lister = ListingFactory.createAWSListing();
-        Map<String, String> instances = lister.getInstances();
-        for (Entry<String, String> instance : instances.entrySet()) {
+        AwsListing lister = new AwsListing();
+        Map<String, InstanceDescriptor> instances = lister.getInstances();
+        for (Entry<String, InstanceDescriptor> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());
         }
     }

@@ -30,7 +30,7 @@ public class ListingFactoryTest {
      */
     @Test
     public void testCreateOpenStackListing() {
-        OpenStackJCloudsListing result = ListingFactory.createOpenStackListing();
+        AbstractInstanceListing result = ListingFactory.createOpenStackListing();
         Assert.assertTrue(result != null);
     }
 
@@ -39,7 +39,7 @@ public class ListingFactoryTest {
      */
     @Test
     public void testCreateAWSListing() {
-        AwsListing result = ListingFactory.createAWSListing();
+        AbstractInstanceListing result = ListingFactory.createAWSListing();
         Assert.assertTrue(result != null);
     }
 
