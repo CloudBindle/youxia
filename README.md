@@ -42,6 +42,8 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	aws_ssh_key = <path to ssh key>
 	aws_key_name = <key name on Amazon>
 	region = eu-west-1 
+	# to specify multiple zones, use a comma-separated list
+	# we will target the zone with the cheapest spot price first
 	zone = eu-west-1a
 	# openstack settings
 	openstack_username = <tenant>:<username> 
