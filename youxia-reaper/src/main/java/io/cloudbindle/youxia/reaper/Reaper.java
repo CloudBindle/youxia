@@ -96,9 +96,7 @@ public class Reaper {
                 "In test mode, we only output instances that would be killed rather than actually kill them");
         this.openStackMode = parser.acceptsAll(Arrays.asList("openstack"), "Run the reaper using OpenStack (default is AWS)");
 
-        this.persistWR = parser
-                .acceptsAll(Arrays.asList("persist", "p"),
-                        "Persist workflow run information and information on killed instances to SimpleDB. Required to report killed instances to sensu.");
+        this.persistWR = parser.acceptsAll(Arrays.asList("persist", "p"), "Persist workflow run information to SimpleDB");
         this.listWR = parser.acceptsAll(Arrays.asList("list", "l"), "Only read workflow run information from SimpleDB");
 
         this.killLimit = parser
@@ -350,9 +348,7 @@ public class Reaper {
      *            map of instance id (known to cloud) to sensu name (String with restrictions)
      */
     private void terminateInstances(Map<String, String> instancesToKill) {
-        if (options.has(this.persistWR)) {
-            persistTerminatedInstances(instancesToKill);
-        }
+        persistTerminatedInstances(instancesToKill);
         helper.terminateInstances(instancesToKill.keySet());
     }
 
@@ -377,25 +373,23 @@ public class Reaper {
     }
 
     private void mergePersistentRecord(Map<String, String> instancesToKill) {
-        if (options.has(this.persistWR)) {
-            AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
-            final String query = "select * from `" + deletedClientsDomain + "`" + " where " + dayOfTheYearString + " = \"" + dayOfTheYear
-                    + "\" and " + yearString + " = \"" + year + "\"";
-            // get information on previously cleaned instances for today and merge with today's
-            createDomainIfRequired(simpleDBClient, deletedClientsDomain);
-            SelectRequest select = new SelectRequest(query, true);
-            SelectResult selectResult = simpleDBClient.select(select);
+        AmazonSimpleDBClient simpleDBClient = ConfigTools.getSimpleDBClient();
+        final String query = "select * from `" + deletedClientsDomain + "`" + " where " + dayOfTheYearString + " = \"" + dayOfTheYear
+                + "\" and " + yearString + " = \"" + year + "\"";
+        // get information on previously cleaned instances for today and merge with today's
+        createDomainIfRequired(simpleDBClient, deletedClientsDomain);
+        SelectRequest select = new SelectRequest(query, true);
+        SelectResult selectResult = simpleDBClient.select(select);
+        for (Item item : selectResult.getItems()) {
+            handleAttribute(item, instancesToKill);
+        }
+        while (selectResult.getNextToken() != null) {
+            selectResult = simpleDBClient.select(new SelectRequest(query, true).withNextToken(select.getNextToken()));
             for (Item item : selectResult.getItems()) {
                 handleAttribute(item, instancesToKill);
             }
-            while (selectResult.getNextToken() != null) {
-                selectResult = simpleDBClient.select(new SelectRequest(query, true).withNextToken(select.getNextToken()));
-                for (Item item : selectResult.getItems()) {
-                    handleAttribute(item, instancesToKill);
-                }
-            }
-            Log.stdoutWithTime("Merged kill list is " + StringUtils.join(instancesToKill, ','));
         }
+        Log.stdoutWithTime("Merged kill list is " + StringUtils.join(instancesToKill, ','));
     }
 
     private void handleAttribute(Item item, Map<String, String> instancesToKill) {
@@ -442,7 +436,6 @@ public class Reaper {
                 reaper.terminateInstances(instancesToKill);
             }
         }
-
         reaper.mergePersistentRecord(instancesToKill);
         reaper.terminateSensuClients(test, Sets.newHashSet(instancesToKill.values()));
     }
