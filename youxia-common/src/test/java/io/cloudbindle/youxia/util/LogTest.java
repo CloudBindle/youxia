@@ -33,7 +33,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
- * 
+ *
  * @author dyuen
  */
 @RunWith(PowerMockRunner.class)
@@ -69,7 +69,7 @@ public class LogTest {
     @Test
     public void testTrace_String() {
         System.out.println("trace");
-        String message = "";
+        String message = "not empty";
         Log.trace(message);
     }
 
@@ -79,7 +79,7 @@ public class LogTest {
     @Test
     public void testTrace_String_Throwable() {
         System.out.println("trace");
-        String message = "";
+        String message = "not empty";
         Throwable t = null;
         Log.trace(message, t);
     }
@@ -90,7 +90,7 @@ public class LogTest {
     @Test
     public void testDebug_String() {
         System.out.println("debug");
-        String message = "";
+        String message = "not empty";
         Log.debug(message);
     }
 
@@ -100,7 +100,7 @@ public class LogTest {
     @Test
     public void testDebug_String_Throwable() {
         System.out.println("debug");
-        String message = "";
+        String message = "not empty";
         Throwable t = null;
         Log.debug(message, t);
     }
@@ -111,7 +111,7 @@ public class LogTest {
     @Test
     public void testInfo_String() {
         System.out.println("info");
-        String message = "";
+        String message = "not empty";
         Log.info(message);
     }
 
@@ -121,7 +121,7 @@ public class LogTest {
     @Test
     public void testInfo_String_Throwable() {
         System.out.println("info");
-        String message = "";
+        String message = "not empty";
         Throwable t = null;
         Log.info(message, t);
     }
@@ -132,7 +132,7 @@ public class LogTest {
     @Test
     public void testWarn_String() {
         System.out.println("warn");
-        String message = "";
+        String message = "not empty";
         Log.warn(message);
     }
 
@@ -142,7 +142,7 @@ public class LogTest {
     @Test
     public void testWarn_String_Throwable() {
         System.out.println("warn");
-        String message = "";
+        String message = "not empty";
         Throwable t = null;
         Log.warn(message, t);
     }
@@ -153,7 +153,7 @@ public class LogTest {
     @Test
     public void testError_String() {
         System.out.println("error");
-        String message = "";
+        String message = "not empty";
         Log.error(message);
     }
 
@@ -163,7 +163,7 @@ public class LogTest {
     @Test
     public void testError_String_Throwable() {
         System.out.println("error");
-        String message = "";
+        String message = "not empty";
         Throwable t = null;
         Log.error(message, t);
     }
@@ -175,7 +175,7 @@ public class LogTest {
     public void testStdout() {
         replayAll();
         System.out.println("stdout");
-        String message = "";
+        String message = "not empty";
         Log.stdout(message);
         verifyAll();
     }
@@ -187,7 +187,7 @@ public class LogTest {
     public void testStdoutWithTime() {
         replayAll();
         System.out.println("stdoutWithTime");
-        String message = "";
+        String message = "not empty";
         Log.stdoutWithTime(message);
         verifyAll();
     }
@@ -199,7 +199,7 @@ public class LogTest {
     public void testStderrWithTime() {
         replayAll();
         System.out.println("stderrWithTime");
-        String message = "";
+        String message = "not empty";
         Log.stderrWithTime(message);
         verifyAll();
     }
@@ -211,7 +211,7 @@ public class LogTest {
     public void testStderr() {
         replayAll();
         System.out.println("stderr");
-        String message = "";
+        String message = "not empty";
         Log.stderr(message);
         verifyAll();
     }
