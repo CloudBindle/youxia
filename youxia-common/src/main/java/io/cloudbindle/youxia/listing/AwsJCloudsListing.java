@@ -34,10 +34,10 @@ import org.jclouds.compute.domain.NodeMetadata;
 public class AwsJCloudsListing extends AbstractInstanceListing {
 
     @Override
-    public Map<String, String> getInstances() {
+    public Map<String, InstanceDescriptor> getInstances() {
         String managedTag = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
         ComputeServiceContext context = ConfigTools.getAmazonComputeContext();
-        Map<String, String> map = Maps.newHashMap();
+        Map<String, InstanceDescriptor> map = Maps.newHashMap();
         for (ComputeMetadata node : context.getComputeService().listNodes()) {
             for (Entry<String, String> tag : node.getUserMetadata().entrySet()) {
                 if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTag)) {
@@ -48,7 +48,8 @@ public class AwsJCloudsListing extends AbstractInstanceListing {
                             continue;
                         }
                         String ipAddress = nodeMetadata.getPublicAddresses().iterator().next();
-                        map.put(nodeMetadata.getProviderId(), ipAddress);
+                        // how do I figure out what is a spot instance
+                        map.put(nodeMetadata.getProviderId(), new InstanceDescriptor(ipAddress, false));
                     }
                 }
             }
@@ -60,8 +61,8 @@ public class AwsJCloudsListing extends AbstractInstanceListing {
 
     public static void main(String[] args) {
         AwsJCloudsListing lister = new AwsJCloudsListing();
-        Map<String, String> instances = lister.getInstances();
-        for (Entry<String, String> instance : instances.entrySet()) {
+        Map<String, InstanceDescriptor> instances = lister.getInstances();
+        for (Entry<String, InstanceDescriptor> instance : instances.entrySet()) {
             System.out.println(instance.getKey() + " " + instance.getValue());
         }
     }

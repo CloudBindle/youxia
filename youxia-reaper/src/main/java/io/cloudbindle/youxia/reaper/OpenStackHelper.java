@@ -19,6 +19,7 @@ package io.cloudbindle.youxia.reaper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
@@ -49,7 +50,7 @@ public class OpenStackHelper implements AbstractHelper {
     }
 
     @Override
-    public boolean identifyOrphanedInstance(Map.Entry<String, String> instance) {
+    public boolean identifyOrphanedInstance(Map.Entry<String, InstanceDescriptor> instance) {
         try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
             ComputeService computeService = genericOpenStackApi.getComputeService();
             NodeMetadata nodeMetadata = computeService.getNodeMetadata(instance.getKey());

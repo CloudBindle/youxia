@@ -20,11 +20,14 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceLifecycleType;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.Tag;
 import com.google.common.collect.Lists;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
@@ -66,7 +69,7 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing instance = new AwsListing();
-        Map<String, String> result = instance.getInstances();
+        Map<String, InstanceDescriptor> result = instance.getInstances();
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -91,7 +94,7 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing awListing = new AwsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, InstanceDescriptor> result = awListing.getInstances();
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -116,8 +119,18 @@ public class AwsListingTest {
         replayAll();
 
         AwsListing awListing = new AwsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, InstanceDescriptor> result = awListing.getInstances();
         Assert.assertTrue("result size incorrect " + result.size(), result.size() == 2);
+        int[] typesSeen = new int[2];
+        Arrays.fill(typesSeen, 0);
+        for (InstanceDescriptor desc : result.values()) {
+            if (desc.isSpotInstance()) {
+                typesSeen[0] += 1;
+            } else {
+                typesSeen[1] += 1;
+            }
+        }
+        Assert.assertTrue("did not see proper numbers of spot and on-demand instances", typesSeen[0] == 1 && typesSeen[1] == 1);
 
         verifyAll();
     }
@@ -127,6 +140,7 @@ public class AwsListingTest {
 
         Instance instance0 = new Instance();
         instance0.setInstanceId("randomID0");
+        instance0.setInstanceLifecycle(InstanceLifecycleType.Spot);
         List<Tag> tags = Lists.newArrayList();
         tags.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, tagname));
         tags.add(new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString()));

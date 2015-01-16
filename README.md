@@ -122,6 +122,8 @@ You could use:
     
 Append the parameter --openstack to deploy OpenStack instances
 
+There are also two parameters that can be used to deploy a minimum number of on-demand instances (--max-on-demand) and cap the number of on-demand instances (--min-on-demand). 
+
 ##### Reaper
 
 Third, you will probably want to setup the Reaper component. The Reaper component talks to managed instances to persist their workflow run information to SimpleDB, determine whether VMs have reached their kill-limit, and kills them if necessary after potentially cross-referencing with sensu data. The kill-limit refers to the number of instances that have reached a "final" state in SeqWare, specifically the cancelled, failed, and completed states. 

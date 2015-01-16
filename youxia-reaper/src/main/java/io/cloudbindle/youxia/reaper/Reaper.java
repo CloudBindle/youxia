@@ -20,6 +20,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.stream.JsonWriter;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.sensu.api.Client;
 import io.cloudbindle.youxia.sensu.api.ClientHistory;
@@ -155,7 +156,7 @@ public class Reaper {
         }
 
         // real id -> ip address
-        Map<String, String> instances = lister.getInstances();
+        Map<String, InstanceDescriptor> instances = lister.getInstances();
         // real id -> sensu name (cannot include '/')
         Map<String, String> instancesToKill = new HashMap<>();
 
@@ -174,8 +175,8 @@ public class Reaper {
         Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting().create();
         AmazonSimpleDBClient simpleDBClient;
 
-        for (Entry<String, String> instance : instances.entrySet()) {
-            if (instance.getValue() == null) {
+        for (Entry<String, InstanceDescriptor> instance : instances.entrySet()) {
+            if (instance.getValue().getIpAddress() == null) {
                 Log.info("Skipping instance with no ip address" + instance.getKey());
                 continue;
             }
@@ -186,7 +187,7 @@ public class Reaper {
             }
 
             // fake a settings
-            String url = "http://" + instance.getValue() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
+            String url = "http://" + instance.getValue().getIpAddress() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
                     + youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT);
             Log.info("Looking at " + url);
             settings.put(SqwKeys.SW_REST_URL.getSettingKey(), url);

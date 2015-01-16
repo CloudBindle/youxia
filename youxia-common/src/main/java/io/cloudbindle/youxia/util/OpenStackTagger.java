@@ -81,13 +81,13 @@ public class OpenStackTagger extends AbstractInstanceListing {
     }
 
     @Override
-    public Map<String, String> getInstances() {
+    public Map<String, InstanceDescriptor> getInstances() {
         String managedTag = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
         List<String> valuesOf = options.valuesOf(instances);
         Set<String> instanceSet = Sets.newHashSet(valuesOf);
 
         NovaApi novaApi = ConfigTools.getNovaApi();
-        Map<String, String> map = Maps.newHashMap();
+        Map<String, InstanceDescriptor> map = Maps.newHashMap();
         for (String zone : novaApi.getConfiguredZones()) {
             Log.info("Looking at zone: " + zone);
             // TODO: figure out what is going on with this weird nested structure
@@ -101,7 +101,7 @@ public class OpenStackTagger extends AbstractInstanceListing {
                         ImmutableMap<String, String> metadata = ImmutableMap.of(ConfigTools.YOUXIA_MANAGED_TAG, managedTag);
                         serverApiForZone.setMetadata(server.getId(), metadata);
                         // TODO: listing should only bother tagging active instances
-                        map.put(server.getId(), server.getAccessIPv4());
+                        map.put(server.getId(), new InstanceDescriptor(server.getAccessIPv4()));
                     }
                 }
             }
@@ -111,9 +111,9 @@ public class OpenStackTagger extends AbstractInstanceListing {
 
     public static void main(String[] args) {
         OpenStackTagger lister = new OpenStackTagger(args);
-        Map<String, String> instances = lister.getInstances();
+        Map<String, InstanceDescriptor> instances = lister.getInstances();
         Log.stdoutWithTime("Tagged the following instances:");
-        for (Entry<String, String> instance : instances.entrySet()) {
+        for (Entry<String, InstanceDescriptor> instance : instances.entrySet()) {
             Log.stdoutWithTime(instance.getKey() + " " + instance.getValue());
         }
     }

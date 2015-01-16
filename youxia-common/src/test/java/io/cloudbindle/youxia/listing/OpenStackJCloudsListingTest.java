@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
 import java.util.Iterator;
@@ -91,7 +92,7 @@ public class OpenStackJCloudsListingTest {
         replayAll();
 
         OpenStackJCloudsListing instance = new OpenStackJCloudsListing();
-        Map<String, String> result = instance.getInstances();
+        Map<String, InstanceDescriptor> result = instance.getInstances();
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -112,7 +113,7 @@ public class OpenStackJCloudsListingTest {
         replayAll();
 
         OpenStackJCloudsListing awListing = new OpenStackJCloudsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, InstanceDescriptor> result = awListing.getInstances();
         Assert.assertTrue("result should be empty", result.isEmpty());
 
         verifyAll();
@@ -133,7 +134,7 @@ public class OpenStackJCloudsListingTest {
         replayAll();
 
         OpenStackJCloudsListing awListing = new OpenStackJCloudsListing();
-        Map<String, String> result = awListing.getInstances();
+        Map<String, InstanceDescriptor> result = awListing.getInstances();
         Assert.assertTrue("result should not be empty", !result.isEmpty());
 
         verifyAll();

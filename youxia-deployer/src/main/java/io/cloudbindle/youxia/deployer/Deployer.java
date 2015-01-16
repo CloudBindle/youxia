@@ -20,6 +20,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.amazonaws.Requests;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
@@ -70,9 +71,9 @@ import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 public class Deployer {
 
     private static final long SLEEP_CYCLE = 60000;
-    private final ArgumentAcceptingOptionSpec<Integer> totalNodes;
-    private final ArgumentAcceptingOptionSpec<Float> maxSpotPrice;
-    private final ArgumentAcceptingOptionSpec<Integer> batchSize;
+    private final ArgumentAcceptingOptionSpec<Integer> totalNodesSpec;
+    private final ArgumentAcceptingOptionSpec<Float> maxSpotPriceSpec;
+    private final ArgumentAcceptingOptionSpec<Integer> batchSizeSpec;
     private OptionSet options;
     private final HierarchicalINIConfiguration youxiaConfig;
     public static final String DEPLOYER_INSTANCE_TYPE = "deployer.instance_type";
@@ -86,9 +87,11 @@ public class Deployer {
     public static final String DEPLOYER_OPENSTACK_NETWORK_ID = "deployer_openstack.network_id";
     public static final String DEPLOYER_OPENSTACK_ARBITRARY_WAIT = "deployer_openstack.arbitrary_wait";
 
-    private final ArgumentAcceptingOptionSpec<String> playbook;
+    private final ArgumentAcceptingOptionSpec<String> playbookSpec;
     private final ArgumentAcceptingOptionSpec<String> extraVarsSpec;
-    private final OptionSpecBuilder openStackMode;
+    private final OptionSpecBuilder openStackModeSpec;
+    private final ArgumentAcceptingOptionSpec<Integer> maxOnDemandSpec;
+    private final ArgumentAcceptingOptionSpec<Integer> minOnDemandSpec;
 
     public Deployer(String[] args) {
         // record configuration
@@ -98,19 +101,25 @@ public class Deployer {
 
         parser.acceptsAll(Arrays.asList("help", "h", "?"), "Provides this help message.");
 
-        this.totalNodes = parser
+        this.totalNodesSpec = parser
                 .acceptsAll(Arrays.asList("total-nodes-num", "t"), "Total number of spot and on-demand instances to maintain.")
                 .withRequiredArg().ofType(Integer.class).required();
 
-        this.openStackMode = parser.acceptsAll(Arrays.asList("openstack", "o"), "Run the deployer using OpenStack (default is AWS)");
+        this.openStackModeSpec = parser.acceptsAll(Arrays.asList("openstack", "o"), "Run the deployer using OpenStack (default is AWS)");
 
         // AWS specific parameter
-        this.maxSpotPrice = parser.acceptsAll(Arrays.asList("max-spot-price", "p"), "Maximum price to pay for spot-price instances.")
-                .requiredUnless(openStackMode).withRequiredArg().ofType(Float.class).required();
+        this.maxSpotPriceSpec = parser.acceptsAll(Arrays.asList("max-spot-price", "p"), "Maximum price to pay for spot-price instances.")
+                .requiredUnless(openStackModeSpec).withRequiredArg().ofType(Float.class);
+        this.maxOnDemandSpec = parser
+                .acceptsAll(Arrays.asList("max-on-demand", "max"), "Maximum number of on-demand instances to maintain.").withRequiredArg()
+                .ofType(Integer.class).defaultsTo(Integer.MAX_VALUE);
+        this.minOnDemandSpec = parser
+                .acceptsAll(Arrays.asList("min-on-demand", "min"), "Minimum number of on-demand instances to maintain.").withRequiredArg()
+                .ofType(Integer.class).defaultsTo(0);
 
-        this.batchSize = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring up at one time")
+        this.batchSizeSpec = parser.acceptsAll(Arrays.asList("batch-size", "s"), "Number of instances to bring up at one time")
                 .withRequiredArg().ofType(Integer.class).required();
-        this.playbook = parser
+        this.playbookSpec = parser
                 .acceptsAll(Arrays.asList("ansible-playbook", "a"), "If specified, ansible will be run using the specified playbook")
                 .withRequiredArg().ofType(String.class);
         this.extraVarsSpec = parser
@@ -130,6 +139,7 @@ public class Deployer {
                 throw new RuntimeException(ex);
             }
         }
+        // throw new RuntimeException("Parameters ok");
     }
 
     /**
@@ -139,18 +149,18 @@ public class Deployer {
      */
     private int assessClients() {
         AbstractInstanceListing lister;
-        if (options.has(this.openStackMode)) {
+        if (options.has(this.openStackModeSpec)) {
             lister = ListingFactory.createOpenStackListing();
 
         } else {
             lister = ListingFactory.createAWSListing();
         }
-        Map<String, String> map = lister.getInstances();
+        Map<String, InstanceDescriptor> map = lister.getInstances();
         Log.info("Found " + map.size() + " clients");
 
-        int clientsNeeded = options.valueOf(totalNodes) - map.size();
+        int clientsNeeded = options.valueOf(totalNodesSpec) - map.size();
         Log.info("Need " + clientsNeeded + " more clients");
-        int clientsAfterBatching = Math.min(options.valueOf(this.batchSize), clientsNeeded);
+        int clientsAfterBatching = Math.min(options.valueOf(this.batchSizeSpec), clientsNeeded);
         Log.info("After batch limit, we can requisition up to " + clientsAfterBatching + " this run");
         return clientsAfterBatching;
     }
@@ -191,8 +201,8 @@ public class Deployer {
             }
         }
         Log.info("Checking Zone: " + zoneWithLowestSpotPrice + " with " + lowestSpotPrice + " against "
-                + options.valueOf(this.maxSpotPrice));
-        boolean currentPriceIsAcceptable = options.valueOf(this.maxSpotPrice) - lowestSpotPrice > 0;
+                + options.valueOf(this.maxSpotPriceSpec) + " maximum");
+        boolean currentPriceIsAcceptable = options.valueOf(this.maxSpotPriceSpec) - lowestSpotPrice > 0;
         if (currentPriceIsAcceptable) {
             return zoneWithLowestSpotPrice;
         }
@@ -204,14 +214,40 @@ public class Deployer {
      * https://github.com/amazonwebservices/aws-sdk-for-java/blob/master/src/samples/AmazonEC2SpotInstances-Advanced/GettingStartedApp.java
      *
      * @param numInstances
+     *            number of instances to get in total
      * @param onDemand
+     *            true when only on-demand instances are available
      * @return
      */
     private List<Instance> requestAWSInstances(int numInstances, boolean onDemand, String zone) {
         try {
+            // we need additional information on number of on-demand and spot instances in order to cap our requests
+            AbstractInstanceListing lister = ListingFactory.createAWSListing();
+            Map<String, InstanceDescriptor> instanceListing = lister.getInstances();
+            int currentOnDemand = 0;
+            int currentSpotInstances = 0;
+            for (InstanceDescriptor desc : instanceListing.values()) {
+                if (desc.isSpotInstance()) {
+                    currentSpotInstances++;
+                } else {
+                    currentOnDemand++;
+                }
+            }
+            Log.info("Currently running " + currentOnDemand + " on-demand, " + currentSpotInstances + " spot instances");
+            // check for minimum number of on-demand instances and launch those first if needed
+            int minOnDemand = options.valueOf(this.minOnDemandSpec);
+            int maxOnDemand = options.valueOf(this.maxOnDemandSpec);
+            if (currentOnDemand < minOnDemand) {
+                int neededOnDemand = minOnDemand - currentOnDemand;
+                Log.info("Minimum of " + neededOnDemand + " more on-demand instances needed");
+                onDemand = true;
+                numInstances = neededOnDemand;
+            }
+            int remainingOnDemandAllowed = maxOnDemand - currentOnDemand;
+
             // Setup the helper object that will perform all of the API calls.
             Requests requests = new Requests(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE), youxiaConfig.getString(DEPLOYER_AMI_IMAGE),
-                    Float.toString(options.valueOf(this.maxSpotPrice)), youxiaConfig.getString(DEPLOYER_SECURITY_GROUP), numInstances,
+                    Float.toString(options.valueOf(this.maxSpotPriceSpec)), youxiaConfig.getString(DEPLOYER_SECURITY_GROUP), numInstances,
                     youxiaConfig.getString(ConfigTools.YOUXIA_AWS_KEY_NAME));
             requests.setAvailabilityZone(zone);
             // Create the list of tags we want to create and tag any associated requests.
@@ -223,10 +259,11 @@ public class Deployer {
             Calendar startTimer = Calendar.getInstance();
             Calendar nowTimer = null;
             if (onDemand) {
-                requests.setInstanceIds(new ArrayList<String>());
-                requests.launchOnDemand();
+                if (launchOnDemandInstances(requests, remainingOnDemandAllowed, numInstances)) {
+                    return new ArrayList<>();
+                }
             } else {
-
+                // try launching spot requests
                 try {
 
                     // Submit all of the requests.
@@ -248,7 +285,9 @@ public class Deployer {
                         // Cancel all requests because we timed out.
                         requests.cleanup();
                         // Launch On-Demand instances instead
-                        requests.launchOnDemand();
+                        if (launchOnDemandInstances(requests, remainingOnDemandAllowed, numInstances)) {
+                            return new ArrayList<>();
+                        }
                     }
                 } catch (AmazonServiceException ase) {
                     // Write out any exceptions that may have occurred.
@@ -260,9 +299,10 @@ public class Deployer {
                     // Cancel all requests because we timed out.
                     requests.cleanup();
                     // Launch On-Demand instances instead
-                    requests.launchOnDemand();
+                    if (launchOnDemandInstances(requests, remainingOnDemandAllowed, numInstances)) {
+                        return new ArrayList<>();
+                    }
                 }
-
             }
             // Tag any created instances.
             requests.tagInstances(tags);
@@ -307,6 +347,28 @@ public class Deployer {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
+    }
+
+    /**
+     *
+     * @param requests
+     * @param remainingOnDemandAllowed
+     * @param numInstances
+     * @return true if we didn't launch anything
+     */
+    private boolean launchOnDemandInstances(Requests requests, int remainingOnDemandAllowed, int numInstances) {
+        // launch on demand instances
+        requests.setInstanceIds(new ArrayList<String>());
+        if (remainingOnDemandAllowed > 0) {
+            requests.setNumInstances(Math.min(remainingOnDemandAllowed, numInstances));
+            Log.info("Launching " + requests.getNumInstances() + " after on-demand max cutoff");
+            requests.launchOnDemand();
+        } else {
+            Log.info("No more on-demand instances allowed, aborting");
+            // don't launch anything
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -376,7 +438,7 @@ public class Deployer {
     }
 
     private void runAnsible(Map<String, String> instanceMap, String keyFile) {
-        if (this.options.has(this.playbook)) {
+        if (this.options.has(this.playbookSpec)) {
             try {
                 // hook up sensu to requested instances using Ansible
                 // 1. generate an ansible inventory file
@@ -413,7 +475,7 @@ public class Deployer {
                 }
                 HashMap<String, String> map = new HashMap<>();
                 map.put("file", createTempFile.toAbsolutePath().toString());
-                map.put("playbook", this.options.valueOf(this.playbook));
+                map.put("playbook", this.options.valueOf(this.playbookSpec));
                 cmdLine.setSubstitutionMap(map);
 
                 Log.info(cmdLine.toString());
@@ -432,7 +494,7 @@ public class Deployer {
 
     private void runDeployment(int clientsToDeploy) throws Exception {
         Set<String> ids;
-        if (options.has(this.openStackMode)) {
+        if (options.has(this.openStackModeSpec)) {
             try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
                 ComputeService computeService = genericOpenStackApi.getComputeService();
                 // have to use the specific api here to designate a keypair, weird
@@ -475,8 +537,12 @@ public class Deployer {
 
         } else {
             String zoneWithLowestPrice = isReadyToRequestSpotInstances();
-            boolean needOnDemand = zoneWithLowestPrice == null;
-            List<Instance> readyInstances = requestAWSInstances(clientsToDeploy, needOnDemand, zoneWithLowestPrice);
+            Log.info("Reporting zone with lowest price: " + zoneWithLowestPrice);
+            boolean onlyOnDemandAvailable = zoneWithLowestPrice == null;
+            List<Instance> readyInstances = requestAWSInstances(clientsToDeploy, onlyOnDemandAvailable, zoneWithLowestPrice);
+            if (readyInstances.isEmpty()) {
+                return;
+            }
             // safety check here
             if (readyInstances.size() > clientsToDeploy) {
                 Log.info("Something has gone awry, more instances reported as ready than were provisioned, aborting ");

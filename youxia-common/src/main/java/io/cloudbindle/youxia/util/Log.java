@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Log class.
  * </p>
- * 
+ *
  * @author dyuen
  * @version $Id: $Id
  */
@@ -62,6 +62,9 @@ public class Log {
     }
 
     private static void sendToSlack(String classname, String message) {
+        if (message == null || message.isEmpty()) {
+            return;
+        }
         HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
         if (youxiaConfig.containsKey(Constants.SLACK_URL)) {
             try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
@@ -79,7 +82,7 @@ public class Log {
 
     /**
      * See {@link org.apache.log4j.Logger#debug(Object)}.
-     * 
+     *
      * @param message
      *            the message to log.
      */
@@ -90,7 +93,7 @@ public class Log {
 
     /**
      * See {@link org.apache.log4j.Logger#debug(Object,Throwable)}.
-     * 
+     *
      * @param message
      *            the message to log.
      * @param t
@@ -103,7 +106,7 @@ public class Log {
 
     /**
      * See {@link org.apache.log4j.Logger#debug(Object)}.
-     * 
+     *
      * @param message
      *            the message to log.
      */
@@ -114,7 +117,7 @@ public class Log {
 
     /**
      * See {@link org.apache.log4j.Logger#debug(Object,Throwable)}.
-     * 
+     *
      * @param message
      *            the message to log.
      * @param t
@@ -127,7 +130,7 @@ public class Log {
 
     /**
      * See {@link org.apache.log4j.Logger#info(Object)}.
-     * 
+     *
      * @param message
      *            the message to log.
      */
@@ -138,7 +141,7 @@ public class Log {
 
     /**
      * See {@link org.apache.log4j.Logger#info(Object,Throwable)}.
-     * 
+     *
      * @param message
      *            the message to log.
      * @param t
@@ -151,7 +154,7 @@ public class Log {
 
     /**
      * See {@link org.apache.log4j.Logger#warn(Object)}.
-     * 
+     *
      * @param message
      *            the message to log.
      */
@@ -162,7 +165,7 @@ public class Log {
 
     /**
      * See {@link org.apache.log4j.Logger#warn(Object,Throwable)}.
-     * 
+     *
      * @param message
      *            the message to log.
      * @param t
@@ -175,7 +178,7 @@ public class Log {
 
     /**
      * See {@link org.apache.log4j.Logger#error(Object)}.
-     * 
+     *
      * @param message
      *            the message to log.
      */
@@ -186,7 +189,7 @@ public class Log {
 
     /**
      * See {@link org.apache.log4j.Logger#error(Object,Throwable)}.
-     * 
+     *
      * @param message
      *            the message to log.
      * @param t
@@ -201,7 +204,7 @@ public class Log {
      * <p>
      * stdout.
      * </p>
-     * 
+     *
      * @param message
      *            a {@link java.lang.String} object.
      */
@@ -212,7 +215,7 @@ public class Log {
 
     /**
      * Output to stdout with the time pre-pended
-     * 
+     *
      * @param message
      *            a {@link java.lang.String} object.
      */
@@ -226,7 +229,7 @@ public class Log {
 
     /**
      * Output to stdout with the time pre-pended
-     * 
+     *
      * @param message
      *            a {@link java.lang.String} object.
      */
@@ -242,7 +245,7 @@ public class Log {
      * <p>
      * stderr.
      * </p>
-     * 
+     *
      * @param message
      *            a {@link java.lang.String} object.
      */
@@ -290,7 +293,7 @@ public class Log {
 
     /**
      * Examine stack trace to get caller
-     * 
+     *
      * @param level
      *            method stack depth
      * @return who called the logger

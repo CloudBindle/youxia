@@ -31,6 +31,7 @@ import com.amazonaws.services.simpledb.model.SelectRequest;
 import com.amazonaws.services.simpledb.model.SelectResult;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.AwsListing;
 import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
@@ -157,7 +158,7 @@ public class ReaperTest {
         String[] args = { "--kill-limit", "1" };
         mockOutConfig();
         AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
-        Map<String, String> result1 = Maps.newHashMap();
+        Map<String, InstanceDescriptor> result1 = Maps.newHashMap();
         expect(listing1.getInstances()).andReturn(result1);
 
         replayAll();
@@ -170,8 +171,8 @@ public class ReaperTest {
         String[] args = { "--kill-limit", "1" };
         AmazonEC2Client client = mockOutConfig();
         AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
-        Map<String, String> result1 = Maps.newHashMap();
-        result1.put("funky_id", server.getServiceAddress().getHostName());
+        Map<String, InstanceDescriptor> result1 = Maps.newHashMap();
+        result1.put("funky_id", new InstanceDescriptor(server.getServiceAddress().getHostName()));
         expect(listing1.getInstances()).andReturn(result1);
         Reservation reservation = new Reservation();
         Instance instance = new Instance();
@@ -231,8 +232,8 @@ public class ReaperTest {
         };
         when(zoneApi.listInDetail()).thenReturn(pagedIterable);
 
-        Map<String, String> result1 = Maps.newHashMap();
-        result1.put("funky_id", server.getServiceAddress().getHostName());
+        Map<String, InstanceDescriptor> result1 = Maps.newHashMap();
+        result1.put("funky_id", new InstanceDescriptor(server.getServiceAddress().getHostName()));
         expect(listing1.getInstances()).andReturn(result1);
         Reservation reservation = new Reservation();
         Instance instance = new Instance();
