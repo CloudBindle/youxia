@@ -34,10 +34,6 @@
 			<artifactId>commons-exec</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>io.cloudbindle</groupId>
-			<artifactId>youxia-common</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-module-junit4</artifactId>
 			<scope>test</scope>
