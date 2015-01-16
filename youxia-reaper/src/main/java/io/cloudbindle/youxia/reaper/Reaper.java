@@ -187,7 +187,7 @@ public class Reaper {
             }
 
             // fake a settings
-            String url = "http://" + instance.getValue() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
+            String url = "http://" + instance.getValue().getIpAddress() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
                     + youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT);
             Log.info("Looking at " + url);
             settings.put(SqwKeys.SW_REST_URL.getSettingKey(), url);
