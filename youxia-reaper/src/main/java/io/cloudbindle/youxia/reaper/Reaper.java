@@ -369,7 +369,7 @@ public class Reaper {
             AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
             // terminate instances that did not finish deployment
             Filter[] filters = new Filter[] { new Filter().withName("instance-state-name").withValues("terminated"),
-                    new Filter().withName("tag:" + ConfigTools.YOUXIA_MANAGED_TAG + "=" + managedTagValue) };
+                    new Filter().withName("tag:" + ConfigTools.YOUXIA_MANAGED_TAG).withValues(managedTagValue) };
             Log.info("Looking for instances with the following filters:" + Arrays.toString(filters));
             DescribeInstancesResult describeInstances = eC2Client.describeInstances(new DescribeInstancesRequest().withFilters(filters));
             for (Reservation r : describeInstances.getReservations()) {
