@@ -2,6 +2,11 @@ package io.cloudbindle.youxia.reaper;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.simpledb.AmazonSimpleDBClient;
 import com.amazonaws.services.simpledb.model.Attribute;
 import com.amazonaws.services.simpledb.model.CreateDomainRequest;
@@ -358,6 +363,22 @@ public class Reaper {
     }
 
     private void persistTerminatedInstances(Map<String, String> instancesToKill) {
+        // look for instances that were not terminated by the reaper (ex: spot requests on Amazon)
+        String managedTagValue = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
+        if (!options.has(this.openStackMode)) {
+            AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
+            // terminate instances that did not finish deployment
+            Filter[] filters = new Filter[] { new Filter().withName("instance-state-name").withValues("terminated"),
+                    new Filter().withName("tag:" + ConfigTools.YOUXIA_MANAGED_TAG + "=" + managedTagValue) };
+            Log.info("Looking for instances with the following filters:" + Arrays.toString(filters));
+            DescribeInstancesResult describeInstances = eC2Client.describeInstances(new DescribeInstancesRequest().withFilters(filters));
+            for (Reservation r : describeInstances.getReservations()) {
+                for (Instance i : r.getInstances()) {
+                    Log.info("Adding instance to persisted list: " + i.getInstanceId());
+                    instancesToKill.put(i.getInstanceId(), helper.translateCloudIDToSensuName(i.getInstanceId()));
+                }
+            }
+        }
 
         // persist sensu name of killed instances in Amazon SimpleDB to ensure that
         // the delay between a termination request and rabbitmq spinning up doesn't
