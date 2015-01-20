@@ -73,6 +73,9 @@ public class AWSHelper implements AbstractHelper {
 
     @Override
     public void terminateInstances(Set<String> instancesToKill) {
+        if (instancesToKill.isEmpty()) {
+            return;
+        }
         AmazonEC2Client client = ConfigTools.getEC2Client();
 
         // first, mark instances for death

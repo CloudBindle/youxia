@@ -72,6 +72,9 @@ public class OpenStackHelper implements AbstractHelper {
 
     @Override
     public void terminateInstances(Set<String> instancesToKill) {
+        if (instancesToKill.isEmpty()) {
+            return;
+        }
         Log.stdoutWithTime("Marking instances for death " + StringUtils.join(instancesToKill, ","));
         retagInstances(instancesToKill);
         try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {

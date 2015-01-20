@@ -452,17 +452,15 @@ public class Reaper {
         // map is cloud name -> sensu name
         Map<String, String> instancesToKill = reaper.assessClients();
         boolean test = reaper.options.has(reaper.testMode);
-        if (instancesToKill.size() > 0) {
-            if (test) {
-                Log.info("Test mode:");
-                for (Entry<String, String> instance : instancesToKill.entrySet()) {
-                    Log.info("Would have killed instance id:" + instance.getKey() + " sensu name:" + instance.getValue());
-                }
-            } else {
-                Log.info("Live mode:");
-                Log.stdoutWithTime("Killing " + StringUtils.join(instancesToKill, ','));
-                reaper.terminateInstances(instancesToKill);
+        if (test) {
+            Log.info("Test mode:");
+            for (Entry<String, String> instance : instancesToKill.entrySet()) {
+                Log.info("Would have killed instance id:" + instance.getKey() + " sensu name:" + instance.getValue());
             }
+        } else {
+            Log.info("Live mode:");
+            Log.stdoutWithTime("Killing " + StringUtils.join(instancesToKill, ','));
+            reaper.terminateInstances(instancesToKill);
         }
 
         reaper.mergePersistentRecord(instancesToKill);
