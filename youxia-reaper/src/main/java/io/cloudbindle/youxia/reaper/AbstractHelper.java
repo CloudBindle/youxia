@@ -37,6 +37,12 @@ public interface AbstractHelper {
      */
     boolean identifyOrphanedInstance(Map.Entry<String, InstanceDescriptor> instance);
 
+    /**
+     * In some cases, sensu cannot record the cloudID without translation. For example, openstack names include "/" characters.
+     * 
+     * @param cloudID
+     * @return
+     */
     String translateCloudIDToSensuName(String cloudID);
 
     /**
