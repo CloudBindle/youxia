@@ -227,8 +227,7 @@ public class AwsJCloudsListingTest {
 
             @Override
             public Set<String> getPrivateAddresses() {
-                throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose Tools |
-                                                                               // Templates.
+                return Sets.newHashSet("169.169.169.169");
             }
 
             @Override
