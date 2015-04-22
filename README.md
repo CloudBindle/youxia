@@ -132,6 +132,10 @@ A sample command (omit the test to actually kill instances) to kill instances wh
 
     java -jar youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar --kill-limit 5 --persist --test
 
+You can also kill nodes based on a JSON list of ip addresses rather than a kill limit. The reaper will compare these against the private ip addresses for the nodes it has under management. 
+
+    java -jar youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar --kill-list kill.json  --kill-limit 5 --openstack
+
 You can also just list information in SimpleDB to be used by the decider with:
 
     java -jar youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar --list

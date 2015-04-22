@@ -112,15 +112,14 @@ public class Reaper {
                 .acceptsAll(Arrays.asList("persist", "p"),
                         "Persist workflow run information and information on killed instances to SimpleDB. Required to report killed instances to sensu.");
         this.listWR = parser.acceptsAll(Arrays.asList("list", "l"), "Only read workflow run information from SimpleDB");
+        this.outputFile = parser.acceptsAll(Arrays.asList("output", "o"), "Save output to a json file").withRequiredArg()
+                .defaultsTo("output.json").ofType(String.class);
+        this.overrideListSpec = parser.acceptsAll(Arrays.asList("kill-list"),
+                "Rather than interrogating SeqWare, reap instances based on a JSON listing of ip addresses").withRequiredArg();
 
         this.killLimit = parser
                 .acceptsAll(Arrays.asList("kill-limit", "k"), "Number of finished workflow runs that triggers the kill limit")
-                .requiredUnless(this.listWR).withRequiredArg().ofType(Integer.class);
-        this.outputFile = parser.acceptsAll(Arrays.asList("output", "o"), "Save output to a json file").withRequiredArg()
-                .defaultsTo("output.json");
-
-        this.overrideListSpec = parser.acceptsAll(Arrays.asList("kill-list"),
-                "Rather than interrogating SeqWare, reap instances based on a JSON listing of ip addresses").withRequiredArg();
+                .requiredUnless(this.listWR).requiredUnless(this.overrideListSpec).withRequiredArg().ofType(Integer.class);
 
         try {
             this.options = parser.parse(args);
