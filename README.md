@@ -136,6 +136,14 @@ You can also kill nodes based on a JSON list of ip addresses rather than a kill 
 
     java -jar youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar --kill-list kill.json  --kill-limit 5 --openstack
 
+As example, here is a json list with two addresses:
+
+    [
+      "192.168.42.5",
+      "192.168.42.49"
+    ]
+
+
 You can also just list information in SimpleDB to be used by the decider with:
 
     java -jar youxia-reaper/target/youxia-reaper-*-jar-with-dependencies.jar --list
