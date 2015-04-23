@@ -59,8 +59,12 @@ public class AwsListing extends AbstractInstanceListing {
                         managedState = tag.getValue();
                     }
                 }
-                handleMapping(managedTag, managedState, instance.getInstanceId(), new InstanceDescriptor(instance.getPublicIpAddress(),
-                        Objects.equal(instance.getInstanceLifecycle(), (InstanceLifecycleType.Spot.toString()))), map);
+                handleMapping(
+                        managedTag,
+                        managedState,
+                        instance.getInstanceId(),
+                        new InstanceDescriptor(instance.getPublicIpAddress(), instance.getPrivateIpAddress(), Objects.equal(
+                                instance.getInstanceLifecycle(), (InstanceLifecycleType.Spot.toString()))), map);
             }
         }
         Log.info("Located " + map.values().size() + " relevant instances on AWS");

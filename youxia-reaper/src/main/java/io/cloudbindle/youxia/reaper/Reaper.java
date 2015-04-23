@@ -23,6 +23,7 @@ import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonWriter;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
@@ -35,9 +36,11 @@ import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
 import io.seqware.common.model.WorkflowRunStatus;
 import io.seqware.pipeline.SqwKeys;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -61,6 +64,7 @@ import net.sourceforge.seqware.common.metadata.MetadataFactory;
 import net.sourceforge.seqware.common.metadata.MetadataWS;
 import net.sourceforge.seqware.common.model.WorkflowRun;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -86,6 +90,8 @@ public class Reaper {
     private final String yearString = "year";
     private final int dayOfTheYear;
     private final int year;
+    private final ArgumentAcceptingOptionSpec<String> overrideListSpec;
+    private Set<String> overrideList;
 
     public Reaper(String[] args) {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
@@ -106,12 +112,14 @@ public class Reaper {
                 .acceptsAll(Arrays.asList("persist", "p"),
                         "Persist workflow run information and information on killed instances to SimpleDB. Required to report killed instances to sensu.");
         this.listWR = parser.acceptsAll(Arrays.asList("list", "l"), "Only read workflow run information from SimpleDB");
+        this.outputFile = parser.acceptsAll(Arrays.asList("output", "o"), "Save output to a json file").withRequiredArg()
+                .defaultsTo("output.json").ofType(String.class);
+        this.overrideListSpec = parser.acceptsAll(Arrays.asList("kill-list"),
+                "Rather than interrogating SeqWare, reap instances based on a JSON listing of ip addresses").withRequiredArg();
 
         this.killLimit = parser
                 .acceptsAll(Arrays.asList("kill-limit", "k"), "Number of finished workflow runs that triggers the kill limit")
-                .requiredUnless(this.listWR).withRequiredArg().ofType(Integer.class);
-        this.outputFile = parser.acceptsAll(Arrays.asList("output", "o"), "Save output to a json file").withRequiredArg()
-                .defaultsTo("output.json");
+                .requiredUnless(this.listWR).requiredUnless(this.overrideListSpec).withRequiredArg().ofType(Integer.class);
 
         try {
             this.options = parser.parse(args);
@@ -144,6 +152,19 @@ public class Reaper {
         Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT"), Locale.ENGLISH);
         this.dayOfTheYear = calendar.get(Calendar.DAY_OF_YEAR);
         this.year = calendar.get(Calendar.YEAR);
+
+        // grab list of override instances if found
+        if (options.has(this.overrideListSpec)) {
+            try {
+                Gson gson = new Gson();
+                Type collectionType = new TypeToken<Set<String>>() {
+                }.getType();
+                this.overrideList = gson.fromJson(FileUtils.readFileToString(new File(options.valueOf(this.overrideListSpec))),
+                        collectionType);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
     }
 
     /**
@@ -186,67 +207,77 @@ public class Reaper {
                 continue;
             }
             if (helper.identifyOrphanedInstance(instance)) {
+                Log.info(instance.getKey() + " is added to kill list since it is an orphan");
                 // orphaned instances likely do not have a sensu name, but try to get it from the metadata
                 instancesToKill.put(instance.getKey(), helper.translateCloudIDToSensuName(instance.getKey()));
                 continue;
             }
 
-            // fake a settings
-            String url = "http://" + instance.getValue().getIpAddress() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT) + "/"
-                    + youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT);
-            Log.info("Looking at " + url);
-            settings.put(SqwKeys.SW_REST_URL.getSettingKey(), url);
-            MetadataWS ws = MetadataFactory.getWS(settings);
-            // TODO: can we really not just get all workflow runs?
-            try {
-                List<WorkflowRun> workflowRuns = ws.getWorkflowRunsByStatus(WorkflowRunStatus.cancelled);
-                workflowRuns.addAll(ws.getWorkflowRunsByStatus(WorkflowRunStatus.failed));
-                workflowRuns.addAll(ws.getWorkflowRunsByStatus(WorkflowRunStatus.completed));
-                Log.info(instance.getKey() + " has " + workflowRuns.size() + " workflow runs");
-                if (workflowRuns.size() >= options.valueOf(this.killLimit)) {
-                    Log.info(instance.getKey() + " is at or above the kill limit");
+            if (options.has(this.overrideListSpec)) {
+                if (this.overrideList.contains(instance.getValue().getIpAddress())
+                        || this.overrideList.contains(instance.getValue().getPrivateIpAddress())) {
+                    Log.info(instance.getKey() + " is added to kill list since it was found in the override list");
                     instancesToKill.put(instance.getKey(), helper.translateCloudIDToSensuName(instance.getKey()));
                 }
-                if (options.has(this.persistWR)) {
-                    simpleDBClient = ConfigTools.getSimpleDBClient();
-                    createDomainIfRequired(simpleDBClient, workflowRunDomain);
+            } else {
 
-                    for (WorkflowRun run : workflowRuns) {
-                        String workflowRunJson = gson.toJson(run);
-                        Map<String, Object> workflowRunMap = gson.fromJson(workflowRunJson, Map.class);
-                        for (Entry<String, Object> field : workflowRunMap.entrySet()) {
-                            // split up the ini file to ensure it makes it into the DB
-                            final int maximumLength = 1024;
-                            if (field.getKey().equals(Constants.INI_FILE)) {
-                                String iniFile = (String) field.getValue();
-                                String[] iniFileLines = iniFile.split("\n");
-                                for (String iniFileLine : iniFileLines) {
-                                    String[] keyValue = StringUtils.split(iniFileLine, "=", 2);
-                                    if (keyValue.length >= 2) {
-                                        ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey() + "." + keyValue[0],
-                                                StringUtils.abbreviate(keyValue[1], maximumLength), true);
-                                        PutAttributesRequest request = new PutAttributesRequest(workflowRunDomain, instance.getKey() + "."
-                                                + run.getSwAccession(), Lists.newArrayList(attr));
-                                        simpleDBClient.putAttributes(request);
+                // fake a settings
+                String url = "http://" + instance.getValue().getIpAddress() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT)
+                        + "/" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT);
+                Log.info("Looking at " + url);
+                settings.put(SqwKeys.SW_REST_URL.getSettingKey(), url);
+                MetadataWS ws = MetadataFactory.getWS(settings);
+                // TODO: can we really not just get all workflow runs?
+                try {
+                    List<WorkflowRun> workflowRuns = ws.getWorkflowRunsByStatus(WorkflowRunStatus.cancelled);
+                    workflowRuns.addAll(ws.getWorkflowRunsByStatus(WorkflowRunStatus.failed));
+                    workflowRuns.addAll(ws.getWorkflowRunsByStatus(WorkflowRunStatus.completed));
+                    Log.info(instance.getKey() + " has " + workflowRuns.size() + " workflow runs");
+                    if (workflowRuns.size() >= options.valueOf(this.killLimit)) {
+                        Log.info(instance.getKey() + " is at or above the kill limit");
+                        instancesToKill.put(instance.getKey(), helper.translateCloudIDToSensuName(instance.getKey()));
+                    }
+                    if (options.has(this.persistWR)) {
+                        simpleDBClient = ConfigTools.getSimpleDBClient();
+                        createDomainIfRequired(simpleDBClient, workflowRunDomain);
+
+                        for (WorkflowRun run : workflowRuns) {
+                            String workflowRunJson = gson.toJson(run);
+                            Map<String, Object> workflowRunMap = gson.fromJson(workflowRunJson, Map.class);
+                            for (Entry<String, Object> field : workflowRunMap.entrySet()) {
+                                // split up the ini file to ensure it makes it into the DB
+                                final int maximumLength = 1024;
+                                if (field.getKey().equals(Constants.INI_FILE)) {
+                                    String iniFile = (String) field.getValue();
+                                    String[] iniFileLines = iniFile.split("\n");
+                                    for (String iniFileLine : iniFileLines) {
+                                        String[] keyValue = StringUtils.split(iniFileLine, "=", 2);
+                                        if (keyValue.length >= 2) {
+                                            ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey() + "." + keyValue[0],
+                                                    StringUtils.abbreviate(keyValue[1], maximumLength), true);
+                                            PutAttributesRequest request = new PutAttributesRequest(workflowRunDomain, instance.getKey()
+                                                    + "." + run.getSwAccession(), Lists.newArrayList(attr));
+                                            simpleDBClient.putAttributes(request);
+                                        }
                                     }
+                                } else {
+                                    // check to see if the item is too big, if so split it up
+                                    ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), StringUtils.abbreviate(field
+                                            .getValue().toString(), maximumLength), true);
+                                    PutAttributesRequest request = new PutAttributesRequest(workflowRunDomain, instance.getKey() + "."
+                                            + run.getSwAccession(), Lists.newArrayList(attr));
+                                    simpleDBClient.putAttributes(request);
                                 }
-                            } else {
-                                // check to see if the item is too big, if so split it up
-                                ReplaceableAttribute attr = new ReplaceableAttribute(field.getKey(), StringUtils.abbreviate(field
-                                        .getValue().toString(), maximumLength), true);
-                                PutAttributesRequest request = new PutAttributesRequest(workflowRunDomain, instance.getKey() + "."
-                                        + run.getSwAccession(), Lists.newArrayList(attr));
-                                simpleDBClient.putAttributes(request);
                             }
                         }
                     }
+                } catch (AmazonClientException e) {
+                    Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to AmazonClient error", e);
+                } catch (JsonSyntaxException e) {
+                    Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to JSON error", e);
+                } catch (RuntimeException e) {
+                    Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to runtime error", e);
                 }
-            } catch (AmazonClientException e) {
-                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to AmazonClient error", e);
-            } catch (JsonSyntaxException e) {
-                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to JSON error", e);
-            } catch (RuntimeException e) {
-                Log.error("Skipping " + instance.getKey() + " " + instance.getValue() + " due to runtime error", e);
             }
         }
 

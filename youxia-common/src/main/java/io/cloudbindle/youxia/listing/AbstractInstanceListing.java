@@ -62,19 +62,38 @@ public abstract class AbstractInstanceListing {
     public static class InstanceDescriptor {
         private final String ipAddress;
         private final boolean spotInstance;
+        private final String privateIpAddress;
 
         public InstanceDescriptor(String ipAddress) {
+            this(ipAddress, null);
+        }
+
+        public InstanceDescriptor(String ipAddress, String privateIpAddress) {
             this.ipAddress = ipAddress;
+            this.privateIpAddress = privateIpAddress;
             this.spotInstance = false;
         }
 
         public InstanceDescriptor(String ipAddress, boolean spotInstance) {
+            this(ipAddress, null, spotInstance);
+        }
+
+        public InstanceDescriptor(String ipAddress, String privateIpAddress, boolean spotInstance) {
+            this.privateIpAddress = privateIpAddress;
             this.ipAddress = ipAddress;
             this.spotInstance = spotInstance;
         }
 
+        /**
+         *
+         * @return a public ip address
+         */
         public String getIpAddress() {
             return ipAddress;
+        }
+
+        public String getPrivateIpAddress() {
+            return privateIpAddress;
         }
 
         public boolean isSpotInstance() {

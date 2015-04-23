@@ -101,7 +101,8 @@ public class OpenStackTagger extends AbstractInstanceListing {
                         ImmutableMap<String, String> metadata = ImmutableMap.of(ConfigTools.YOUXIA_MANAGED_TAG, managedTag);
                         serverApiForZone.setMetadata(server.getId(), metadata);
                         // TODO: listing should only bother tagging active instances
-                        map.put(server.getId(), new InstanceDescriptor(server.getAccessIPv4()));
+
+                        map.put(server.getId(), new InstanceDescriptor(server.getAccessIPv4(), null));
                     }
                 }
             }
