@@ -17,11 +17,17 @@
 - name: Install erlang
   apt: name=erlang-nox state=latest update_cache=yes
 
+- name: check if we're in a docker container
+  stat: path=/.dockerinit
+  register: dockerinit_stat
+
 - name: Install NTP
   apt: name=ntp state=latest
+  when: not dockerinit_stat.stat.exists
 
 - name: Start NTP on boot
   service: name=ntp state=started enabled=yes
+  when: not dockerinit_stat.stat.exists
 
 - name: Install python-apt
   apt: name=python-apt state=latest
