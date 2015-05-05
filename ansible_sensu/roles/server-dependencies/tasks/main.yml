@@ -32,6 +32,12 @@
 - name: Install python-apt
   apt: name=python-apt state=latest
 
+- name: Generate SSL certificates and keys
+  command: "{{ playbook_dir }}/ssl/script.sh"
+  args:
+    chdir:  "{{ playbook_dir }}/ssl/"
+    creates: "{{ playbook_dir }}/ssl/ssl_certs"
+
 - name: Install RabbitMQ repository
   apt_repository: repo='deb http://www.rabbitmq.com/debian/ testing main' state=present
 

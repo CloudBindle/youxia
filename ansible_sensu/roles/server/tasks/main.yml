@@ -15,6 +15,6 @@
 - name: Ensure state of server services
   service: name={{ item }} state=started enabled=yes
   with_items:
+    - redis-server
     - sensu-server
     - sensu-api
-    - redis-server
