@@ -29,7 +29,7 @@ import java.util.Objects;
 import org.apache.commons.io.FileUtils;
 
 /**
- * 
+ *
  * @author dyuen
  */
 public class ClusterDetails {

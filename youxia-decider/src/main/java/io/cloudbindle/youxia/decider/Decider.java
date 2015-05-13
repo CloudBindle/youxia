@@ -46,7 +46,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 
 /**
  * This is a mock decider that schedules HelloWorld workflows in a youxia enabled ecosystem
- * 
+ *
  */
 public class Decider {
 
@@ -105,6 +105,7 @@ public class Decider {
             File instanceJson = new File(options.valueOf(this.json));
             String readFileToString = FileUtils.readFileToString(instanceJson, StandardCharsets.UTF_8);
             Type mapType = new TypeToken<Map<String, ClusterDetails>>() {
+                private static final long serialVersionUID = 1L;
             }.getType();
             this.instances = gson.fromJson(readFileToString, mapType);
             Log.stdout(this.instances.size() + " instances loaded");

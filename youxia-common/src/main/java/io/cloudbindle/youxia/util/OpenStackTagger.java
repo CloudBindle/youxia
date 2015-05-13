@@ -65,8 +65,7 @@ public class OpenStackTagger extends AbstractInstanceListing {
         try {
             this.options = parser.parse(args);
             if (!options.hasOptions()) {
-                throw new OptionException(null) {
-                };
+                throw new RuntimeException("No options specified");
             }
         } catch (OptionException e) {
             try {
@@ -118,5 +117,4 @@ public class OpenStackTagger extends AbstractInstanceListing {
             Log.stdoutWithTime(instance.getKey() + " " + instance.getValue());
         }
     }
-
 }
