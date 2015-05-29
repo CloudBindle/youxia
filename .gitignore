@@ -15,3 +15,5 @@
 **/.classpath
 **/.project
 .metadata/**
+/youxia-common/target/
+/youxia-q2seqware/target/
