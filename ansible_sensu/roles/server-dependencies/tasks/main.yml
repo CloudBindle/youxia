@@ -17,14 +17,26 @@
 - name: Install erlang
   apt: name=erlang-nox state=latest update_cache=yes
 
+- name: check if we're in a docker container
+  stat: path=/.dockerinit
+  register: dockerinit_stat
+
 - name: Install NTP
   apt: name=ntp state=latest
+  when: not dockerinit_stat.stat.exists
 
 - name: Start NTP on boot
   service: name=ntp state=started enabled=yes
+  when: not dockerinit_stat.stat.exists
 
 - name: Install python-apt
   apt: name=python-apt state=latest
+
+- name: Generate SSL certificates and keys
+  command: "{{ playbook_dir }}/ssl/script.sh"
+  args:
+    chdir:  "{{ playbook_dir }}/ssl/"
+    creates: "{{ playbook_dir }}/ssl/ssl_certs"
 
 - name: Install RabbitMQ repository
   apt_repository: repo='deb http://www.rabbitmq.com/debian/ testing main' state=present
