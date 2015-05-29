@@ -139,13 +139,14 @@ public class Reaper {
             helper = new OpenStackHelper();
         } else {
             helper = new AWSHelper();
+            // activate Amazon client to ensure value Amazon credentials early
+            AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
+            // make sure that connectvity is ok, we don't want to terminate instances and find out that we don't have valid Amazon
+            // credentials
+            eC2Client.describeRegions();
         }
         workflowRunDomain = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + Constants.WORKFLOW_RUNS;
         deletedClientsDomain = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + Constants.CLIENTS;
-        // activate Amazon client to ensure value Amazon credentials early
-        AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
-        // make sure that connectvity is ok, we don't want to terminate instances and find out that we don't have valid Amazon credentials
-        eC2Client.describeRegions();
 
         // fix persistent information
         // fix timezone in case paired clouds are in different time zones
@@ -194,10 +195,6 @@ public class Reaper {
         // TODO: incoporate sensu information to determine instances to kill here when that data is deemed reliable enough to act
         // automatically upon
 
-        Map<String, String> settings = Maps.newHashMap();
-        settings.put(SqwKeys.SW_REST_USER.getSettingKey(), youxiaConfig.getString(ConfigTools.SEQWARE_REST_USER));
-        settings.put(SqwKeys.SW_REST_PASS.getSettingKey(), youxiaConfig.getString(ConfigTools.SEQWARE_REST_PASS));
-
         Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).setPrettyPrinting().create();
         AmazonSimpleDBClient simpleDBClient;
 
@@ -225,6 +222,9 @@ public class Reaper {
                 String url = "http://" + instance.getValue().getIpAddress() + ":" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_PORT)
                         + "/" + youxiaConfig.getString(ConfigTools.SEQWARE_REST_ROOT);
                 Log.info("Looking at " + url);
+                Map<String, String> settings = Maps.newHashMap();
+                settings.put(SqwKeys.SW_REST_USER.getSettingKey(), youxiaConfig.getString(ConfigTools.SEQWARE_REST_USER));
+                settings.put(SqwKeys.SW_REST_PASS.getSettingKey(), youxiaConfig.getString(ConfigTools.SEQWARE_REST_PASS));
                 settings.put(SqwKeys.SW_REST_URL.getSettingKey(), url);
                 MetadataWS ws = MetadataFactory.getWS(settings);
                 // TODO: can we really not just get all workflow runs?
