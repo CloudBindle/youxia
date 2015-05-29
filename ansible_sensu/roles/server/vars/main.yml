@@ -1,0 +1,4 @@
+---
+sensu_password: "seqware"
+rabbit_password: "seqware"
+sensu_host_name: "localhost"

@@ -1,0 +1,11 @@
+# ansible/tasks/main.yml
+---
+
+- name: Install Ansible pre-req
+  apt: pkg=software-properties-common state=present
+
+- name: Install Ansible PPA
+  apt_repository: repo='ppa:ansible/ansible'
+
+- name: Install Ansible package
+  apt: pkg=ansible update_cache=yes

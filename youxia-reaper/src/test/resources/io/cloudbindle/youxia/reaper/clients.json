@@ -1,0 +1,21 @@
+[
+  {
+    "name": "client_1",
+    "address": "192.168.0.2",
+    "subscriptions": [
+      "chef-client",
+      "sensu-server"
+    ],
+    "timestamp": 1324674972
+  },
+  {
+    "name": "client_2",
+    "address": "192.168.0.3",
+    "subscriptions": [
+      "chef-client",
+      "webserver",
+      "memcached"
+    ],
+    "timestamp": 1324674956
+  }
+]

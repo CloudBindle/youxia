@@ -1,0 +1,24 @@
+{
+  "cluster-name-1": {
+     "workflow_accession": "2",
+     "workflow_name": "Workflow_Bundle_BWA",
+     "workflow_version": "2.6.0",
+     "username": "admin@admin.com",
+     "password": "admin",
+     "webservice": "http://master:8080/SeqWareWebService",
+     "host": "master",
+     "max_workflows": "1",
+     "max_scheduled_workflows": "1"
+   },
+  "cluster-name-2": {
+     "workflow_accession": "2",
+     "workflow_name": "Workflow_Bundle_BWA",
+     "workflow_version": "2.6.0",
+     "username": "admin@admin.com",
+     "password": "admin",
+     "webservice": "http://master2:8080/SeqWareWebService",
+     "host": "master2",
+     "max_workflows": "1",
+     "max_scheduled_workflows": "1"
+   }
+}

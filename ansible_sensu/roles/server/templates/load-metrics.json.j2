@@ -1,0 +1,11 @@
+{
+  "checks": {
+    "load_metrics": {
+      "type": "metric",
+      "command": "load-metrics.rb",
+      "interval": 10,
+      "subscribers": ["common"],
+      "handlers": ["relay"]
+    }
+  }
+}

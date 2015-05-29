@@ -1,0 +1,12 @@
+#roles/server/handlers/main.yml
+---
+
+- name: restart redis
+  service: name=redis-server state=restarted 
+  
+# need to sleep two seconds because sensu-server cannot stop + start with no wait
+- name: restart sensu server services
+  service: name={{ item }} state=restarted sleep=2
+  with_items:
+      - sensu-server
+      - sensu-api

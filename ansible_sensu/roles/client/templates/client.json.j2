@@ -1,0 +1,11 @@
+{
+  "client": {
+    "name": "{{ inventory_hostname }}",
+    "address": "{{ ansible_ssh_host }}",
+    "subscriptions": [ {{ subscriptions }} ],
+    "environment" : {
+        "ansible_system_vendor": "{{ ansible_system_vendor }}" ,
+        "ansible_product_name": "{{ ansible_product_name }}"
+    }
+  }
+}

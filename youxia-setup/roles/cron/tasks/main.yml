@@ -1,0 +1,20 @@
+# cron/tasks/main.yml
+---
+- name: Set up youxia cron and log directory
+  file: path={{ item.path }} state={{ item.state }} owner={{ item.owner }} mode={{ item.mode}} group={{ item.group }}
+  with_items:
+    - { state: 'directory', path: '~{{ user_name }}/logs', owner: '{{ user_name }}', group: '{{ user_name }}', mode: '0700' }
+    - { state: 'directory', path: '~{{ user_name }}/crons', owner: '{{ user_name }}', group: '{{ user_name }}', mode: '0700' }
+    - { state: 'directory', path: '~{{ user_name }}/state', owner: '{{ user_name }}', group: '{{ user_name }}', mode: '0700' }
+
+    
+- name: Template status cron
+  template: src=status.j2 dest=~{{ user_name }}/crons/status.cron owner={{ user_name }}
+  
+- name: Set up youxia cron permissions
+  file: path={{ item.path }} state={{ item.state }} owner={{ item.owner }} mode={{ item.mode}} group={{ item.group }}
+  with_items:
+  - { state: 'file', path: '~{{ user_name }}/crons/status.cron', owner: '{{ user_name }}', group: '{{ user_name }}', mode: '0700' }
+
+- name: Setup status cron
+  cron: name="status cron" job="~{{ user_name }}/crons/status.cron >> ~{{ user_name }}/logs/status.log" state=present user={{ user_name }} minute=*/15

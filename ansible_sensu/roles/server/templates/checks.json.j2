@@ -1,0 +1,52 @@
+{
+  "checks": {
+    "cron_check": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-procs.rb -p cron -C 1 ",
+      "interval": 60,
+      "subscribers": [ "common" ]
+    },
+    "check-tomcat": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-procs.rb -p tomcat7 -C 1 ",
+      "interval": 60,
+      "subscribers": [ "master" ]
+    },
+    "check-oozie": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-procs.rb -p oozie -C 1 ",
+      "interval": 60,
+      "subscribers": [ "master" ]
+    },
+    "check-postgres": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-procs.rb -p 'postgres: seqware' -C 1 ",
+      "interval": 60,
+      "subscribers": [ "master" ]
+    },
+    "check-NFS": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-procs.rb -p nfsd4 -C 1 ",
+      "interval": 60,
+      "subscribers": [ "master" ]
+    },
+    "check-ntp": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-ntp.rb ",
+      "interval": 60,
+      "subscribers": [ "common" ]
+    },
+    "sge_exec_check": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-procs.rb -p /usr/lib/gridengine/sge_execd -C 1 ",
+      "interval": 60,
+      "subscribers": [ "compute" ]
+    },
+    "sge_master_check": {
+      "handlers": ["default"],
+      "command": "/etc/sensu/plugins/check-procs.rb -p /usr/lib/gridengine/sge_qmaster -C 1 ",
+      "interval": 60,
+      "subscribers": [ "master" ]
+    }
+  }
+}

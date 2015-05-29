@@ -1,0 +1,17 @@
+# creds/tasks/main.yml
+---
+- name: Setup youxia config directory
+  file: state=directory path=~/.youxia
+
+- name: Copy over youxia config
+  copy: src=youxia_config dest=~/.youxia/config
+  #  notify: restart cron jobs (handler not checked in or created yet)
+
+- name: Setup aws config directory
+  file: state=directory path=~/.aws
+
+- name: Copy over youxia config
+  copy: src=aws_config dest=~/.aws/config
+
+- name: Copy over pem key for deployer
+  copy: src=ssh/ dest=~/.ssh mode=0600

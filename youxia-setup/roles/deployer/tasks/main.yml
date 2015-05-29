@@ -1,0 +1,30 @@
+# deployer/tasks/main.yml
+---
+- name: Install git
+  sudo: True
+  apt: pkg=git state=present
+
+- name: Install tree
+  sudo: True
+  apt: pkg=tree state=present
+
+- name: Create the deployer directory
+  file: path=~/youxia-deployer/target/ owner=ubuntu group=ubuntu mode=0755 state=directory
+  
+- name: Checkout ansible_sensu
+  git: repo=https://github.com/CloudBindle/youxia.git
+       dest=~/youxia
+       version={{ youxia_version }}
+       
+- name: Generate SSL certificates
+  shell: bash script.sh
+  args:
+    creates: ~/youxia/ansible_sensu/ssl/ssl_certs  
+    chdir: ~/youxia/ansible_sensu/ssl
+
+- name: Copy the jar file
+  get_url:
+    dest=~/youxia-deployer/target/youxia-deployer-{{ youxia_version }}-jar-with-dependencies.jar
+    url=https://seqwaremaven.oicr.on.ca/artifactory/seqware-release/io/cloudbindle/youxia-deployer/{{ youxia_version }}/youxia-deployer-{{ youxia_version }}-jar-with-dependencies.jar
+    mode=755
+  # notify: restart cron jobs (not implemented)

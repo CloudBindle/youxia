@@ -1,0 +1,17 @@
+/target/
+/youxia-deployer/target/
+/youxia-common/nbproject/private/
+/ansible_sensu/target/
+/youxia-reaper/target/
+/youxia-collector/target/
+/youxia-generator/target/
+/youxia-decider/target/
+/youxia-setup/youxia_config/config
+/youxia-setup/ssh/*.pem
+/youxia-setup/aws_config/config
+/ansible_sensu/ssl/ssl_certs/
+/.project
+**/.settings/**
+**/.classpath
+**/.project
+.metadata/**
