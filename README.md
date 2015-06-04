@@ -185,6 +185,13 @@ This component mutates the JSON for workflows stored in SimpleDB into the blackl
 
 ### OpenStack
 
+In general, the easiest way to determine your OpenStack youxia settings is to look in the OpenStack web interface. 
+
+* your openstack\_username is what you use to login, make sure to use the format (tenant:username)
+* the openstack\_endpoint is listed under Access & Security under "Identity"
+* the openstack\_key\_name is just the name of your key under "Key Pairs"
+* the openstasj\_ssh\_key is the full path of the 
+
 #### ETRI
 
 The following special steps need to be taken in order to setup with OpenStack
