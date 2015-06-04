@@ -190,7 +190,12 @@ In general, the easiest way to determine your OpenStack youxia settings is to lo
 * your openstack\_username is what you use to login, make sure to use the format (tenant:username)
 * the openstack\_endpoint is listed under Access & Security under "Identity"
 * the openstack\_key\_name is just the name of your key under "Key Pairs"
-* the openstasj\_ssh\_key is the full path of the 
+* the openstack\_ssh\_key is the full path of the ssh key that you wish to use
+* the openstack\_zone can be found using the "nova endpoints" command (you'll need the nova CLI)
+* the image\_id can be found in the web interface by clicking into your desired image
+* the security\_group is just the name 
+* the network\_id is the ID when you click into Networks -> NetWorks -> your desired network
+* arbitrary\_wait is set to a sane default, but if your openstack install is particularly slow, you'll need to lengthen it
 
 #### ETRI
 
