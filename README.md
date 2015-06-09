@@ -187,11 +187,11 @@ This component mutates the JSON for workflows stored in SimpleDB into the blackl
 
 In general, the easiest way to determine your OpenStack youxia settings is to look in the OpenStack web interface. 
 
-* your openstack\_username is what you use to login, make sure to use the format (tenant:username)
+* your openstack\_username is what you use to login, make sure to use the format (tenant:username). If you do not know your tenant name, you can find it by navigating to the API Access tab in Access & Security in the OpenStack GUI. Download your RC file and find it there 
 * the openstack\_endpoint is listed under Access & Security under "Identity"
 * the openstack\_key\_name is just the name of your key under "Key Pairs"
 * the openstack\_ssh\_key is the full path of the ssh key that you wish to use
-* the openstack\_zone can be found using the "nova endpoints" command (you'll need the nova CLI)
+* the openstack\_zone is actually the region name can be found using the "nova endpoints" command (you'll need the nova CLI)
 * the image\_id can be found in the web interface by clicking into your desired image
 * the security\_group is just the name 
 * the network\_id is the ID when you click into Networks -> NetWorks -> your desired network
