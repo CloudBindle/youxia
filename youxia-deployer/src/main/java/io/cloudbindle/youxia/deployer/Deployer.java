@@ -90,6 +90,7 @@ public class Deployer {
     public static final String DEPLOYER_OPENSTACK_SECURITY_GROUP = "deployer_openstack.security_group";
     public static final String DEPLOYER_OPENSTACK_NETWORK_ID = "deployer_openstack.network_id";
     public static final String DEPLOYER_OPENSTACK_ARBITRARY_WAIT = "deployer_openstack.arbitrary_wait";
+    public static final String DEPLOYER_DISABLE_SENSU_SERVER_DEPLOYMENT = "deployer.disable_sensu_server";
 
     private final ArgumentAcceptingOptionSpec<String> playbookSpec;
     private final ArgumentAcceptingOptionSpec<String> extraVarsSpec;
@@ -447,9 +448,12 @@ public class Deployer {
                 // hook up sensu to requested instances using Ansible
                 // 1. generate an ansible inventory file
                 StringBuilder buffer = new StringBuilder();
-                buffer.append("[sensu-server]").append('\n').append("sensu-server\tansible_ssh_host=")
-                        .append(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS))
-                        .append("\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=").append(keyFile).append("\n");
+                boolean disableSensuServer = youxiaConfig.getBoolean(DEPLOYER_DISABLE_SENSU_SERVER_DEPLOYMENT, Boolean.FALSE);
+                if (!disableSensuServer) {
+                    buffer.append("[sensu-server]").append('\n').append("sensu-server\tansible_ssh_host=")
+                            .append(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS))
+                            .append("\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=").append(keyFile).append("\n");
+                }
                 // assume all clients are masters (single-node clusters) for now
                 buffer.append("[master]\n");
                 for (Entry<String, String> s : instanceMap.entrySet()) {

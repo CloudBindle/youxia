@@ -59,6 +59,8 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	instance_type = m1.xlarge
 	security_group = <security group>
 	product = Linux/UNIX
+        # disable the following if you cannot setup the sensu server (for example, due to lack of permissions)
+        # disable_sensu_server = true
 
 	[deployer_openstack]
         flavor = m1.tiny
