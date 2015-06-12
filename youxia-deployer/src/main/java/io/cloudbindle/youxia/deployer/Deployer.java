@@ -15,6 +15,7 @@ import com.amazonaws.services.ec2.model.InstanceStatusSummary;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.Tag;
+import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -55,8 +56,10 @@ import org.jclouds.collect.IterableWithMarker;
 import org.jclouds.collect.PagedIterable;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
+import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
+import org.jclouds.compute.domain.TemplateBuilder;
 import org.jclouds.compute.options.TemplateOptions;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
@@ -81,6 +84,7 @@ public class Deployer {
     public static final String DEPLOYER_SECURITY_GROUP = "deployer.security_group";
     public static final String DEPLOYER_PRODUCT = "deployer.product";
     public static final String DEPLOYER_OPENSTACK_IMAGE_ID = "deployer_openstack.image_id";
+    public static final String DEPLOYER_OPENSTACK_FLAVOR = "deployer_openstack.flavor";
     public static final String DEPLOYER_OPENSTACK_MIN_CORES = "deployer_openstack.min_cores";
     public static final String DEPLOYER_OPENSTACK_MIN_RAM = "deployer_openstack.min_ram";
     public static final String DEPLOYER_OPENSTACK_SECURITY_GROUP = "deployer_openstack.security_group";
@@ -510,13 +514,32 @@ public class Deployer {
                     templateOptions.networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)));
                 }
 
-                Template template = computeService
-                        .templateBuilder()
-                        .imageId(
-                                youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "/"
-                                        + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID))
-                        .minCores(youxiaConfig.getDouble(DEPLOYER_OPENSTACK_MIN_CORES))
-                        .minRam(youxiaConfig.getInt(DEPLOYER_OPENSTACK_MIN_RAM)).options(templateOptions).build();
+                TemplateBuilder templateBuilder = computeService.templateBuilder().imageId(
+                        youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "/"
+                                + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID));
+                if (youxiaConfig.containsKey(DEPLOYER_OPENSTACK_FLAVOR)) {
+                    String hardwareId = youxiaConfig.getString(DEPLOYER_OPENSTACK_FLAVOR);
+                    System.out.println("Flavor found, using " + hardwareId + " as flavor");
+                    Set<? extends Hardware> profiles = computeService.listHardwareProfiles();
+                    Hardware targetHardware = null;
+                    for (Hardware profile : profiles) {
+                        if (Objects.equal(profile.getName(), hardwareId) || Objects.equal(profile.getProviderId(), hardwareId)) {
+                            targetHardware = profile;
+                            break;
+                        }
+                    }
+                    if (targetHardware != null) {
+                        templateBuilder = templateBuilder.fromHardware(targetHardware);
+                    } else {
+                        throw new RuntimeException("could not locate hardware profile, " + hardwareId);
+                    }
+                } else {
+                    System.out.println("No hardware id, using cores and ram to determine flavour");
+                    templateBuilder = templateBuilder.minCores(youxiaConfig.getDouble(DEPLOYER_OPENSTACK_MIN_CORES)).minRam(
+                            youxiaConfig.getInt(DEPLOYER_OPENSTACK_MIN_RAM));
+                }
+
+                Template template = templateBuilder.options(templateOptions).build();
 
                 Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
                 for (NodeMetadata meta : nodesInGroup) {

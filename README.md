@@ -61,6 +61,8 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	product = Linux/UNIX
 
 	[deployer_openstack]
+        flavor = m1.tiny
+        # flavour overrides cores and ram, which can be used to search for an appropriate instance
 	min_cores = 4 
 	min_ram = 16384
 	image_id = <image id>
