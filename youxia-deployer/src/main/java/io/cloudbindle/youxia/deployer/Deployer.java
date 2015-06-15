@@ -19,6 +19,7 @@ import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.gson.Gson;
 import io.cloudbindle.youxia.amazonaws.Requests;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
@@ -26,7 +27,9 @@ import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
+import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -98,6 +101,7 @@ public class Deployer {
     private final OptionSpecBuilder openStackModeSpec;
     private final ArgumentAcceptingOptionSpec<Integer> maxOnDemandSpec;
     private final ArgumentAcceptingOptionSpec<Integer> minOnDemandSpec;
+    private final ArgumentAcceptingOptionSpec<String> extraTagSpec;
 
     public Deployer(String[] args) {
         // record configuration
@@ -132,6 +136,10 @@ public class Deployer {
                 .acceptsAll(Arrays.asList("ansible-extra-vars", "e"),
                         "If specified, ansible will use the specified variables in YAML/JSON format").withRequiredArg()
                 .ofType(String.class);
+        this.extraTagSpec = parser
+                .acceptsAll(Arrays.asList("server-tag-file"),
+                        "If specified, ansible will use the specified tags in a JSON file (file contains a representation of a map)")
+                .withRequiredArg().ofType(String.class);
 
         try {
             this.options = parser.parse(args);
@@ -223,9 +231,13 @@ public class Deployer {
      *            number of instances to get in total
      * @param onDemand
      *            true when only on-demand instances are available
-     * @return
+     * @param zone
+     *            the value of zone
+     * @param additionalTags
+     *            the value of additionalTags
+     * @return the java.util.List<com.amazonaws.services.ec2.model.Instance>
      */
-    private List<Instance> requestAWSInstances(int numInstances, boolean onDemand, String zone) {
+    private List<Instance> requestAWSInstances(int numInstances, boolean onDemand, String zone, Map<String, String> additionalTags) {
         try {
             // we need additional information on number of on-demand and spot instances in order to cap our requests
             AbstractInstanceListing lister = ListingFactory.createAWSListing();
@@ -258,6 +270,9 @@ public class Deployer {
             requests.setAvailabilityZone(zone);
             // Create the list of tags we want to create and tag any associated requests.
             ArrayList<Tag> tags = new ArrayList<>();
+            for (Entry<String, String> entry : additionalTags.entrySet()) {
+                tags.add(new Tag(entry.getKey(), entry.getValue()));
+            }
             tags.add(new Tag("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)));
             tags.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)));
             tags.add(new Tag(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()));
@@ -502,17 +517,30 @@ public class Deployer {
     }
 
     private void runDeployment(int clientsToDeploy) throws Exception {
+        Map<String, String> extraTags = new HashMap<>();
+        if (options.has(this.extraTagSpec)) {
+            Gson gson = new Gson();
+            String readFileToString = FileUtils.readFileToString(new File(options.valueOf(this.extraTagSpec)), StandardCharsets.UTF_8);
+            extraTags = gson.fromJson(readFileToString, Map.class);
+        }
         Set<String> ids;
         if (options.has(this.openStackModeSpec)) {
             try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
                 ComputeService computeService = genericOpenStackApi.getComputeService();
                 // have to use the specific api here to designate a keypair, weird
-                TemplateOptions templateOptions = NovaTemplateOptions.Builder
-                        .securityGroupNames(youxiaConfig.getString(DEPLOYER_OPENSTACK_SECURITY_GROUP))
+                TemplateOptions templateOptions = NovaTemplateOptions.Builder.securityGroupNames(
+                        youxiaConfig.getString(DEPLOYER_OPENSTACK_SECURITY_GROUP)).keyPairName(
+                        youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME));
+
+                for (Entry<String, String> entry : extraTags.entrySet()) {
+                    templateOptions = templateOptions.userMetadata(entry.getKey(), entry.getValue());
+                }
+
+                templateOptions = templateOptions
                         .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                         .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                         .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
-                        .keyPairName(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME)).blockOnComplete(true);
+                        .blockOnComplete(true);
 
                 if (youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID) != null
                         && !youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID).isEmpty()) {
@@ -576,7 +604,7 @@ public class Deployer {
             String zoneWithLowestPrice = isReadyToRequestSpotInstances();
             Log.info("Reporting zone with lowest price: " + zoneWithLowestPrice);
             boolean onlyOnDemandAvailable = zoneWithLowestPrice == null;
-            List<Instance> readyInstances = requestAWSInstances(clientsToDeploy, onlyOnDemandAvailable, zoneWithLowestPrice);
+            List<Instance> readyInstances = requestAWSInstances(clientsToDeploy, onlyOnDemandAvailable, zoneWithLowestPrice, extraTags);
             if (readyInstances.isEmpty()) {
                 return;
             }
