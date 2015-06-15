@@ -20,7 +20,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <github.url>scm:git:git@github.com:CloudBindle/youxia.git</github.url>
         <seqware-version>1.1.0-alpha.4</seqware-version>
-        <jclouds.version>1.8.0</jclouds.version>
+        <jclouds.version>1.9.0</jclouds.version>
         <powermock.version>1.5.6</powermock.version>
         <aws.version>1.9.13</aws.version>
     </properties>

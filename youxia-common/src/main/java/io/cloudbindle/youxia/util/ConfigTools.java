@@ -55,6 +55,7 @@ public class ConfigTools {
     public static final String YOUXIA_OPENSTACK_USERNAME = "youxia.openstack_username";
     public static final String YOUXIA_OPENSTACK_PASSWORD = "youxia.openstack_password";
     public static final String YOUXIA_OPENSTACK_ENDPOINT = "youxia.openstack_endpoint";
+    public static final String YOUXIA_OPENSTACK_REGION = "youxia.openstack_region";
     public static final String YOUXIA_OPENSTACK_ZONE = "youxia.openstack_zone";
     public static final String YOUXIA_MANAGED_TAG = "youxia.managed_tag";
     public static final String SEQWARE_REST_USER = "seqware.rest_user";

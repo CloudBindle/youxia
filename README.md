@@ -52,15 +52,21 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	openstack_endpoint = http://10.5.73.21:5000/v2.0
 	openstack_key_name = <key name on OpenStack>
 	openstack_ssh_key = <path to SSH key>
-	openstack_zone = <zone>
+	openstack_region = <region ex: RegionOne>
+        # search for a location using this string, can be left blank if you don't care 
+	openstack_zone = <zone> 
 
 	[deployer]
 	ami_image = <image id>
 	instance_type = m1.xlarge
 	security_group = <security group>
 	product = Linux/UNIX
+        # disable the following if you cannot setup the sensu server (for example, due to lack of permissions)
+        # disable_sensu_server = true
 
 	[deployer_openstack]
+        flavor = m1.tiny
+        # flavour overrides cores and ram, which can be used to search for an appropriate instance
 	min_cores = 4 
 	min_ram = 16384
 	image_id = <image id>
@@ -124,6 +130,10 @@ You could use:
 Append the parameter --openstack to deploy OpenStack instances
 
 There are also two parameters that can be used to deploy a minimum number of on-demand instances (--max-on-demand) and cap the number of on-demand instances (--min-on-demand). 
+
+Finally, we tag created instances with some information for identification and state purposes. You can add your own additional tags via the (--server-tag-file).
+
+        {"one":"won","two":"two"}
 
 ##### Reaper
 

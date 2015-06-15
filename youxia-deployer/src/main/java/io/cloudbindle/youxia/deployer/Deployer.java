@@ -15,9 +15,11 @@ import com.amazonaws.services.ec2.model.InstanceStatusSummary;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.Tag;
+import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.gson.Gson;
 import io.cloudbindle.youxia.amazonaws.Requests;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
@@ -25,7 +27,9 @@ import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
+import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -55,9 +59,12 @@ import org.jclouds.collect.IterableWithMarker;
 import org.jclouds.collect.PagedIterable;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
+import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
+import org.jclouds.compute.domain.TemplateBuilder;
 import org.jclouds.compute.options.TemplateOptions;
+import org.jclouds.domain.Location;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.openstack.nova.v2_0.domain.Server;
@@ -81,17 +88,20 @@ public class Deployer {
     public static final String DEPLOYER_SECURITY_GROUP = "deployer.security_group";
     public static final String DEPLOYER_PRODUCT = "deployer.product";
     public static final String DEPLOYER_OPENSTACK_IMAGE_ID = "deployer_openstack.image_id";
+    public static final String DEPLOYER_OPENSTACK_FLAVOR = "deployer_openstack.flavor";
     public static final String DEPLOYER_OPENSTACK_MIN_CORES = "deployer_openstack.min_cores";
     public static final String DEPLOYER_OPENSTACK_MIN_RAM = "deployer_openstack.min_ram";
     public static final String DEPLOYER_OPENSTACK_SECURITY_GROUP = "deployer_openstack.security_group";
     public static final String DEPLOYER_OPENSTACK_NETWORK_ID = "deployer_openstack.network_id";
     public static final String DEPLOYER_OPENSTACK_ARBITRARY_WAIT = "deployer_openstack.arbitrary_wait";
+    public static final String DEPLOYER_DISABLE_SENSU_SERVER_DEPLOYMENT = "deployer.disable_sensu_server";
 
     private final ArgumentAcceptingOptionSpec<String> playbookSpec;
     private final ArgumentAcceptingOptionSpec<String> extraVarsSpec;
     private final OptionSpecBuilder openStackModeSpec;
     private final ArgumentAcceptingOptionSpec<Integer> maxOnDemandSpec;
     private final ArgumentAcceptingOptionSpec<Integer> minOnDemandSpec;
+    private final ArgumentAcceptingOptionSpec<String> extraTagSpec;
 
     public Deployer(String[] args) {
         // record configuration
@@ -126,6 +136,10 @@ public class Deployer {
                 .acceptsAll(Arrays.asList("ansible-extra-vars", "e"),
                         "If specified, ansible will use the specified variables in YAML/JSON format").withRequiredArg()
                 .ofType(String.class);
+        this.extraTagSpec = parser
+                .acceptsAll(Arrays.asList("server-tag-file"),
+                        "If specified, ansible will use the specified tags in a JSON file (file contains a representation of a map)")
+                .withRequiredArg().ofType(String.class);
 
         try {
             this.options = parser.parse(args);
@@ -217,9 +231,13 @@ public class Deployer {
      *            number of instances to get in total
      * @param onDemand
      *            true when only on-demand instances are available
-     * @return
+     * @param zone
+     *            the value of zone
+     * @param additionalTags
+     *            the value of additionalTags
+     * @return the java.util.List<com.amazonaws.services.ec2.model.Instance>
      */
-    private List<Instance> requestAWSInstances(int numInstances, boolean onDemand, String zone) {
+    private List<Instance> requestAWSInstances(int numInstances, boolean onDemand, String zone, Map<String, String> additionalTags) {
         try {
             // we need additional information on number of on-demand and spot instances in order to cap our requests
             AbstractInstanceListing lister = ListingFactory.createAWSListing();
@@ -252,6 +270,9 @@ public class Deployer {
             requests.setAvailabilityZone(zone);
             // Create the list of tags we want to create and tag any associated requests.
             ArrayList<Tag> tags = new ArrayList<>();
+            for (Entry<String, String> entry : additionalTags.entrySet()) {
+                tags.add(new Tag(entry.getKey(), entry.getValue()));
+            }
             tags.add(new Tag("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)));
             tags.add(new Tag(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)));
             tags.add(new Tag(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()));
@@ -443,9 +464,12 @@ public class Deployer {
                 // hook up sensu to requested instances using Ansible
                 // 1. generate an ansible inventory file
                 StringBuilder buffer = new StringBuilder();
-                buffer.append("[sensu-server]").append('\n').append("sensu-server\tansible_ssh_host=")
-                        .append(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS))
-                        .append("\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=").append(keyFile).append("\n");
+                boolean disableSensuServer = youxiaConfig.getBoolean(DEPLOYER_DISABLE_SENSU_SERVER_DEPLOYMENT, Boolean.FALSE);
+                if (!disableSensuServer) {
+                    buffer.append("[sensu-server]").append('\n').append("sensu-server\tansible_ssh_host=")
+                            .append(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS))
+                            .append("\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=").append(keyFile).append("\n");
+                }
                 // assume all clients are masters (single-node clusters) for now
                 buffer.append("[master]\n");
                 for (Entry<String, String> s : instanceMap.entrySet()) {
@@ -493,30 +517,71 @@ public class Deployer {
     }
 
     private void runDeployment(int clientsToDeploy) throws Exception {
+        Map<String, String> extraTags = new HashMap<>();
+        if (options.has(this.extraTagSpec)) {
+            Gson gson = new Gson();
+            String readFileToString = FileUtils.readFileToString(new File(options.valueOf(this.extraTagSpec)), StandardCharsets.UTF_8);
+            extraTags = gson.fromJson(readFileToString, Map.class);
+        }
         Set<String> ids;
         if (options.has(this.openStackModeSpec)) {
             try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
                 ComputeService computeService = genericOpenStackApi.getComputeService();
                 // have to use the specific api here to designate a keypair, weird
-                TemplateOptions templateOptions = NovaTemplateOptions.Builder
-                        .securityGroupNames(youxiaConfig.getString(DEPLOYER_OPENSTACK_SECURITY_GROUP))
+                TemplateOptions templateOptions = NovaTemplateOptions.Builder.securityGroupNames(
+                        youxiaConfig.getString(DEPLOYER_OPENSTACK_SECURITY_GROUP)).keyPairName(
+                        youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME));
+
+                for (Entry<String, String> entry : extraTags.entrySet()) {
+                    templateOptions = templateOptions.userMetadata(entry.getKey(), entry.getValue());
+                }
+
+                templateOptions = templateOptions
                         .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                         .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
                         .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
-                        .keyPairName(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME)).blockOnComplete(true);
+                        .blockOnComplete(true);
 
                 if (youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID) != null
                         && !youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID).isEmpty()) {
                     templateOptions.networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)));
                 }
 
-                Template template = computeService
-                        .templateBuilder()
-                        .imageId(
-                                youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "/"
-                                        + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID))
-                        .minCores(youxiaConfig.getDouble(DEPLOYER_OPENSTACK_MIN_CORES))
-                        .minRam(youxiaConfig.getInt(DEPLOYER_OPENSTACK_MIN_RAM)).options(templateOptions).build();
+                TemplateBuilder templateBuilder = computeService.templateBuilder().imageId(
+                        youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION) + "/"
+                                + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID));
+                if (youxiaConfig.containsKey(ConfigTools.YOUXIA_OPENSTACK_ZONE)) {
+                    String zone = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE);
+                    for (Location location : computeService.listAssignableLocations()) {
+                        if (location.getDescription().equals(zone) || location.getId().equals(zone)) {
+                            System.out.println("LocationId found , using " + location.toString());
+                            templateBuilder = templateBuilder.locationId(location.getId());
+                        }
+                    }
+                }
+                if (youxiaConfig.containsKey(DEPLOYER_OPENSTACK_FLAVOR)) {
+                    String hardwareId = youxiaConfig.getString(DEPLOYER_OPENSTACK_FLAVOR);
+                    System.out.println("Flavor found, using " + hardwareId + " as flavor");
+                    Set<? extends Hardware> profiles = computeService.listHardwareProfiles();
+                    Hardware targetHardware = null;
+                    for (Hardware profile : profiles) {
+                        if (Objects.equal(profile.getName(), hardwareId) || Objects.equal(profile.getProviderId(), hardwareId)) {
+                            targetHardware = profile;
+                            break;
+                        }
+                    }
+                    if (targetHardware != null) {
+                        templateBuilder = templateBuilder.fromHardware(targetHardware);
+                    } else {
+                        throw new RuntimeException("could not locate hardware profile, " + hardwareId);
+                    }
+                } else {
+                    System.out.println("No hardware id, using cores and ram to determine flavour");
+                    templateBuilder = templateBuilder.minCores(youxiaConfig.getDouble(DEPLOYER_OPENSTACK_MIN_CORES)).minRam(
+                            youxiaConfig.getInt(DEPLOYER_OPENSTACK_MIN_RAM));
+                }
+
+                Template template = templateBuilder.options(templateOptions).build();
 
                 Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
                 for (NodeMetadata meta : nodesInGroup) {
@@ -539,7 +604,7 @@ public class Deployer {
             String zoneWithLowestPrice = isReadyToRequestSpotInstances();
             Log.info("Reporting zone with lowest price: " + zoneWithLowestPrice);
             boolean onlyOnDemandAvailable = zoneWithLowestPrice == null;
-            List<Instance> readyInstances = requestAWSInstances(clientsToDeploy, onlyOnDemandAvailable, zoneWithLowestPrice);
+            List<Instance> readyInstances = requestAWSInstances(clientsToDeploy, onlyOnDemandAvailable, zoneWithLowestPrice, extraTags);
             if (readyInstances.isEmpty()) {
                 return;
             }
@@ -565,7 +630,7 @@ public class Deployer {
         // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for
         // this
         NovaApi novaApi = ConfigTools.getNovaApi();
-        ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
+        ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION));
         PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
         // what is this crazy nested structure?
         ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
@@ -573,7 +638,7 @@ public class Deployer {
             ImmutableList<Server> toList1 = iterable.toList();
             for (Server server : toList1) {
                 // generic api uses region ids, the specific one doesn't. Sigh.
-                final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "-" + server.getId().replace("/", "-");
+                final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION) + "-" + server.getId().replace("/", "-");
                 if (ids.contains(nodeId)) {
                     Log.stdoutWithTime("Finishing configuring " + nodeId);
                     Map<String, String> metadata = Maps.newHashMap(server.getMetadata());
