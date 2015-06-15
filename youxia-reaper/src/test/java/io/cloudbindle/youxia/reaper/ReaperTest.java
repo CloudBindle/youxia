@@ -334,7 +334,7 @@ public class ReaperTest {
         when(mockConfig.getInt(ConfigTools.YOUXIA_SENSU_PORT)).thenReturn(server.getServiceAddress().getPort());
         when(mockConfig.getString(ConfigTools.YOUXIA_SENSU_USERNAME)).thenReturn("username");
         when(mockConfig.getString(ConfigTools.YOUXIA_SENSU_PASSWORD)).thenReturn("password");
-        when(mockConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE)).thenReturn("dance_dance_revolution_zone");
+        when(mockConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION)).thenReturn("dance_dance_revolution_zone");
         return client;
     }
 }

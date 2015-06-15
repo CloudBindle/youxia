@@ -97,7 +97,7 @@ public class OpenStackHelper implements AbstractHelper {
         // this
         try (NovaApi novaApi = ConfigTools.getNovaApi()) {
             HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
-            ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
+            ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION));
             PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
             // what is this crazy nested structure?
             ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
@@ -105,7 +105,7 @@ public class OpenStackHelper implements AbstractHelper {
                 ImmutableList<Server> toList1 = iterable.toList();
                 for (Server server : toList1) {
                     // generic api uses region ids, the specific one doesn't. Sigh.
-                    final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "-"
+                    final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION) + "-"
                             + server.getId().replace("/", "-");
                     if (ids.contains(nodeId)) {
                         Log.stdoutWithTime("Finishing configuring " + nodeId);

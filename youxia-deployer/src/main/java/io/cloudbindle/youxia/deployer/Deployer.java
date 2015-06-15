@@ -61,6 +61,7 @@ import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.domain.TemplateBuilder;
 import org.jclouds.compute.options.TemplateOptions;
+import org.jclouds.domain.Location;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.openstack.nova.v2_0.domain.Server;
@@ -519,8 +520,17 @@ public class Deployer {
                 }
 
                 TemplateBuilder templateBuilder = computeService.templateBuilder().imageId(
-                        youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "/"
+                        youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION) + "/"
                                 + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID));
+                if (youxiaConfig.containsKey(ConfigTools.YOUXIA_OPENSTACK_ZONE)) {
+                    String zone = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE);
+                    for (Location location : computeService.listAssignableLocations()) {
+                        if (location.getDescription().equals(zone) || location.getId().equals(zone)) {
+                            System.out.println("LocationId found , using " + location.toString());
+                            templateBuilder = templateBuilder.locationId(location.getId());
+                        }
+                    }
+                }
                 if (youxiaConfig.containsKey(DEPLOYER_OPENSTACK_FLAVOR)) {
                     String hardwareId = youxiaConfig.getString(DEPLOYER_OPENSTACK_FLAVOR);
                     System.out.println("Flavor found, using " + hardwareId + " as flavor");
@@ -592,7 +602,7 @@ public class Deployer {
         // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for
         // this
         NovaApi novaApi = ConfigTools.getNovaApi();
-        ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE));
+        ServerApi serverApiForZone = novaApi.getServerApiForZone(youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION));
         PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
         // what is this crazy nested structure?
         ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
@@ -600,7 +610,7 @@ public class Deployer {
             ImmutableList<Server> toList1 = iterable.toList();
             for (Server server : toList1) {
                 // generic api uses region ids, the specific one doesn't. Sigh.
-                final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE) + "-" + server.getId().replace("/", "-");
+                final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION) + "-" + server.getId().replace("/", "-");
                 if (ids.contains(nodeId)) {
                     Log.stdoutWithTime("Finishing configuring " + nodeId);
                     Map<String, String> metadata = Maps.newHashMap(server.getMetadata());

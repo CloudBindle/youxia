@@ -52,6 +52,7 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	openstack_endpoint = http://10.5.73.21:5000/v2.0
 	openstack_key_name = <key name on OpenStack>
 	openstack_ssh_key = <path to SSH key>
+	openstack_region = <region> ex: RegionOne
 	openstack_zone = <zone>
 
 	[deployer]
