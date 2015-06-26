@@ -64,7 +64,6 @@ import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.domain.TemplateBuilder;
 import org.jclouds.compute.options.TemplateOptions;
-import org.jclouds.domain.Location;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.openstack.nova.v2_0.domain.Server;
@@ -552,11 +551,9 @@ public class Deployer {
                                 + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID));
                 if (youxiaConfig.containsKey(ConfigTools.YOUXIA_OPENSTACK_ZONE)) {
                     String zone = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE);
-                    for (Location location : computeService.listAssignableLocations()) {
-                        if (location.getDescription().equals(zone) || location.getId().equals(zone)) {
-                            System.out.println("LocationId found , using " + location.toString());
-                            templateBuilder = templateBuilder.locationId(location.getId());
-                        }
+                    if (templateOptions instanceof NovaTemplateOptions) {
+                        NovaTemplateOptions novaOptions = (NovaTemplateOptions) templateOptions;
+                        novaOptions.availabilityZone(zone);
                     }
                 }
                 if (youxiaConfig.containsKey(DEPLOYER_OPENSTACK_FLAVOR)) {
