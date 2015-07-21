@@ -699,7 +699,7 @@ public class Deployer {
     }
 
     private void runDeploymentForOpenStack(Map<String, String> extraTags, int clientsToDeploy) throws InterruptedException,
-            RunNodesException, RuntimeException {
+            RunNodesException {
         Set<String> ids;
         try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
             ComputeService computeService = genericOpenStackApi.getComputeService();
