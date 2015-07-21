@@ -55,6 +55,17 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	openstack_region = <region ex: RegionOne>
         # search for a location using this string, can be left blank if you don't care 
 	openstack_zone = <zone> 
+        # azure settings
+        azure_ssh_key = <ssh key used to login to your instances>
+        azure_subscription_id = <fill me in>
+        # get these two by following https://azure.microsoft.com/en-us/documentation/articles/java-create-azure-website-using-java-sdk/
+        azure_keystore_location = <fill me in> 
+        azure_keystore_password = <fill me in>
+        # get these by creating a storage account, follow https://azure.microsoft.com/en-us/documentation/articles/storage-create-storage-account/#regeneratestoragekeys
+        azure_storage_account_name = <fill me in>
+        azure_storage_account_key = <fill me in>
+
+
 
 	[deployer]
 	ami_image = <image id>

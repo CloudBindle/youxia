@@ -10,7 +10,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:1.2.1:exec</goal>
             </goals>
             <properties>
-                <exec.args>-classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 1 --total-nodes-num 5 --openstack --ansible-playbook /home/dyuen/youxia/ansible_sensu/site.yml</exec.args>
+                <exec.args>-classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 1 --total-nodes-num 5 --azure --ansible-playbook /home/dyuen/youxia/ansible_sensu/site.yml</exec.args>
                 <exec.executable>java</exec.executable>
             </properties>
         </action>
@@ -24,7 +24,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:1.2.1:exec</goal>
             </goals>
             <properties>
-                <exec.args>-Xdebug -Xrunjdwp:transport=dt_socket,server=n,address=${jpda.address} -classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 1 --total-nodes-num 5 --openstack --ansible-playbook /home/dyuen/youxia/ansible_sensu/site.yml</exec.args>
+                <exec.args>-Xdebug -Xrunjdwp:transport=dt_socket,server=n,address=${jpda.address} -classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 1 --total-nodes-num 5 --azure --ansible-playbook /home/dyuen/youxia/ansible_sensu/site.yml</exec.args>
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
             </properties>
@@ -39,7 +39,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:1.2.1:exec</goal>
             </goals>
             <properties>
-                <exec.args>-classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 1 --total-nodes-num 5 --openstack --ansible-playbook /home/dyuen/youxia/ansible_sensu/site.yml</exec.args>
+                <exec.args>-classpath %classpath io.cloudbindle.youxia.deployer.Deployer --max-spot-price 1 --batch-size 1 --total-nodes-num 5 --azure --ansible-playbook /home/dyuen/youxia/ansible_sensu/site.yml</exec.args>
                 <exec.executable>java</exec.executable>
             </properties>
         </action>

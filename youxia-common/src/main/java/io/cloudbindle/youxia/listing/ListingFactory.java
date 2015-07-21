@@ -30,4 +30,8 @@ public class ListingFactory {
         return new AwsListing();
     }
 
+    public static AbstractInstanceListing createAzureListing() {
+        return new AzureListing();
+    }
+
 }
