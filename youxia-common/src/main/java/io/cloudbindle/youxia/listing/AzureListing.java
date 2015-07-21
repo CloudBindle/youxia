@@ -59,7 +59,8 @@ public class AzureListing extends AbstractInstanceListing {
 
                 for (HostedServiceGetDetailedResponse.Deployment deployment : deploymentlist) {
                     if (deployment.getName().startsWith(managedTagValue)) {
-                        InstanceDescriptor descriptor = new InstanceDescriptor(deployment.getVirtualIPAddresses().get(0).toString());
+                        InstanceDescriptor descriptor = new InstanceDescriptor(deployment.getVirtualIPAddresses().get(0).getAddress()
+                                .getHostAddress(), null, false);
                         map.put(deployment.getName(), descriptor);
                     }
                 }
