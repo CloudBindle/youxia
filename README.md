@@ -55,17 +55,25 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	openstack_region = <region ex: RegionOne>
         # search for a location using this string, can be left blank if you don't care 
 	openstack_zone = <zone> 
+
         # azure settings
-        azure_ssh_key = <ssh key used to login to your instances>
-        azure_subscription_id = <fill me in>
+        azure_ssh_key = <path to SSH key, currently has to match burned-in public key in image> 
+        # get this by looking at a VM that you've spun up, it will be listed under the "quick glance" panel
+        azure_subscription_id = <fill me in> 
         # get these two by following https://azure.microsoft.com/en-us/documentation/articles/java-create-azure-website-using-java-sdk/
-        azure_keystore_location = <fill me in> 
-        azure_keystore_password = <fill me in>
+        azure_keystore_location = <path to keystore location> 
+        azure_keystore_password = <password for keystore>
         # get these by creating a storage account, follow https://azure.microsoft.com/en-us/documentation/articles/storage-create-storage-account/#regeneratestoragekeys
         azure_storage_account_name = <fill me in>
-        azure_storage_account_key = <fill me in>
-
-
+        azure_storage_account_key = <fill me in> 
+        # first, you'll need to setup active directory and activate the Azure Service Management API https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx#bk_portal
+        # then you'll need to setup an active directory organization user http://blog.baslijten.com/create-an-organizational-account-to-administrate-azure-when-having-a-microsoft-account/
+        azure_active_directory_username = <fill me in> 
+        azure_active_directory_password = <fill me in, login once to properly set a password> 
+        # get this by looking at the URL of the active directory page, seriously https://stackoverflow.com/questions/26384034/how-to-get-the-azure-account-tenant-id
+        azure_active_directory_tenant_id = <fill me in>  
+        # this is listed under the applications tab and is listed as client id
+        azure_active_directory_client_id = <fill me in> 
 
 	[deployer]
 	ami_image = <image id>
@@ -84,6 +92,14 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	security_group = default
 	network_id = <network id>
 	arbitrary_wait = 200000
+
+        # get from the azure preview portal
+        image_name = <fill me in> 
+        flavor = A5
+        location = East US
+        arbitrary_wait = 200000
+        # use the "Full Network Name" in the preview azure portal, note that this is probably *not* what you named the network
+        virtual_network = Group Group-3 pancancer
 
 	[seqware]
 	rest_user = admin@admin.com
