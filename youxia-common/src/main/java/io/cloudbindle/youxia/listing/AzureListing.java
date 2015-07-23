@@ -66,66 +66,6 @@ public class AzureListing extends AbstractInstanceListing {
                 }
             }
 
-            // this should be able to update the label
-            // ArrayList<Role> rolelist = deployment.getRoles();
-            //
-            // for (Role role : rolelist) {
-            // // try to record role info
-            // String serviceName = hostedService.getServiceName();
-            // String deploymentName = deployment.getName();
-            // String vmName = role.getRoleName();
-            // VirtualMachineUpdateParameters param = new VirtualMachineUpdateParameters();
-            // param.setLabel("test");
-            // param.setOSVirtualHardDisk(role.getOSVirtualHardDisk());
-            // param.setRoleName(role.getRoleName());
-            // param.setRoleSize(role.getRoleSize());
-            // param.setResourceExtensionReferences(role.getResourceExtensionReferences());
-            // param.setProvisionGuestAgent(role.isProvisionGuestAgent());
-            // param.setDataVirtualHardDisks(role.getDataVirtualHardDisks());
-            // param.setConfigurationSets(role.getConfigurationSets());
-            // param.setAvailabilitySetName(role.getAvailabilitySetName());
-            //
-            // try {
-            // OperationResponse beginUpdating = computeManagementClient.getVirtualMachinesOperations().beginUpdating(
-            // serviceName, deploymentName, vmName, param);
-            // String response = beginUpdating.toString();
-            // } catch (TransformerException ex) {
-            // throw new RuntimeException(ex);
-            // }
-            //
-            // if ((role.getRoleType() != null)
-            // && (role.getRoleType().equalsIgnoreCase(VirtualMachineRoleType.PersistentVMRole.toString()))) {
-            // vmlist.add(role);
-            // }
-            // }
-
-            // AmazonEC2Client ec2 = ConfigTools.getEC2Client();
-            // Map<String, InstanceDescriptor> map = Maps.newHashMap();
-            // // TODO: we can probably constrain instance listing to one region or zone
-            // DescribeInstancesResult describeInstancesResult = ec2.describeInstances();
-            // for (Reservation reservation : describeInstancesResult.getReservations()) {
-            // for (Instance instance : reservation.getInstances()) {
-            // String managedTag = null;
-            // String managedState = null;
-            // for (Tag tag : instance.getTags()) {
-            // if (tag.getKey().equals(ConfigTools.YOUXIA_MANAGED_TAG) && tag.getValue().equals(managedTagValue)) {
-            // managedTag = tag.getValue();
-            // }
-            // if (tag.getKey().equals(Constants.STATE_TAG)) {
-            // managedState = tag.getValue();
-            // }
-            // }
-            // handleMapping(
-            // managedTag,
-            // managedState,
-            // instance.getInstanceId(),
-            // new InstanceDescriptor(instance.getPublicIpAddress(), instance.getPrivateIpAddress(), Objects.equal(
-            // instance.getInstanceLifecycle(), (InstanceLifecycleType.Spot.toString()))), map);
-            // }
-            // }
-            // Log.info("Located " + map.values().size() + " relevant instances on Azure");
-            // return map;
-
         } catch (IOException | ServiceException | ParserConfigurationException | SAXException | URISyntaxException ex) {
             throw new RuntimeException(ex);
         }

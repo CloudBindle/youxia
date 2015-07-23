@@ -18,12 +18,16 @@ package io.cloudbindle.youxia.reaper;
 
 import com.microsoft.windowsazure.exception.ServiceException;
 import com.microsoft.windowsazure.management.compute.ComputeManagementClient;
+import io.cloudbindle.youxia.azure.resourceManagerWrapper.AzureResourceManagerClient;
+import io.cloudbindle.youxia.azure.resourceManagerWrapper.ResourceGroup;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.ListingFactory;
 import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -35,10 +39,27 @@ import org.apache.commons.lang3.StringUtils;
  */
 public class AzureHelper implements AbstractHelper {
 
+    private final AzureResourceManagerClient azureResourceManagerClient = ConfigTools.getAzureResourceManagerClient();
+
     @Override
     public boolean identifyOrphanedInstance(Map.Entry<String, InstanceDescriptor> instance) {
-        // without tagging, we have no ability to detect orphans
-        return false;
+        try {
+            ResourceGroup resourceGroup = azureResourceManagerClient.getResourceGroup(instance.getKey());
+            Map<String, String> tags = resourceGroup.getTags();
+            if (tags == null || !tags.containsKey(Constants.STATE_TAG)) {
+                Log.info(instance.getKey() + " is missing state tag, likely an orphaned VM");
+                return true;
+            }
+            if (tags.containsKey(Constants.STATE_TAG) && !tags.get(Constants.STATE_TAG).equals(Constants.STATE.READY.toString())) {
+                Log.info(instance.getKey() + " is not ready, likely an orphaned VM");
+                return true;
+            }
+            return false;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.err.println("Unable to detect tag state of " + instance.getKey());
+            return false;
+        }
     }
 
     @Override
@@ -62,6 +83,16 @@ public class AzureHelper implements AbstractHelper {
         Log.stdoutWithTime("Marking instances for death " + StringUtils.join(instancesToKill, ","));
         // should retag instances here
         for (String instance : instancesToKill) {
+            try {
+                ResourceGroup resourceGroup = azureResourceManagerClient.getResourceGroup(instance);
+                Map<String, String> tags = new HashMap<>();
+                tags.putAll(resourceGroup.getTags());
+                tags.put(Constants.STATE_TAG, Constants.STATE.MARKED_FOR_DEATH.toString());
+                azureResourceManagerClient.patchResourceGroup(instance, tags);
+            } catch (Exception ex) {
+                Log.error("Unable to update resource manager " + instance, ex);
+            }
+
             try {
                 client.getHostedServicesOperations().deleteAll(instance);
             } catch (InterruptedException | ExecutionException | ServiceException | IOException ex) {

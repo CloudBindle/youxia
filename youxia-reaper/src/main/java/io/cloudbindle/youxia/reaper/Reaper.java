@@ -402,7 +402,7 @@ public class Reaper {
     private void persistTerminatedInstances(Map<String, String> instancesToKill) {
         // look for instances that were not terminated by the reaper (ex: spot requests on Amazon)
         String managedTagValue = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
-        if (!options.has(this.openStackMode)) {
+        if (!options.has(this.openStackMode) && !options.has(this.azureMode)) {
             AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
             // terminate instances that did not finish deployment
             Filter[] filters = new Filter[] { new Filter().withName("instance-state-name").withValues("terminated"),

@@ -21,6 +21,12 @@
         <dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>azure-core</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.mail</groupId>
+                    <artifactId>mail</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>net.sourceforge.cobertura</groupId>

@@ -35,6 +35,7 @@ import com.microsoft.windowsazure.management.ManagementService;
 import com.microsoft.windowsazure.management.compute.ComputeManagementClient;
 import com.microsoft.windowsazure.management.compute.ComputeManagementService;
 import com.microsoft.windowsazure.management.configuration.ManagementConfiguration;
+import io.cloudbindle.youxia.azure.resourceManagerWrapper.AzureResourceManagerClient;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -80,6 +81,10 @@ public class ConfigTools {
     public static final String YOUXIA_AZURE_STORAGE_ACCOUNT_NAME = "youxia.azure_storage_account_name";
     public static final String YOUXIA_AZURE_STORAGE_ACCOUNT_KEY = "youxia.azure_storage_account_key";
     public static final String YOUXIA_AZURE_SSH_KEY = "youxia.azure_ssh_key";
+    public static final String YOUXIA_AZURE_ACTIVE_DIRECTORY_USERNAME = "youxia.azure_active_directory_username";
+    public static final String YOUXIA_AZURE_ACTIVE_DIRECTORY_PASSWORD = "youxia.azure_active_directory_password";
+    public static final String YOUXIA_AZURE_ACTIVE_DIRECTORY_TENANT_ID = "youxia.azure_active_directory_tenant_id";
+    public static final String YOUXIA_AZURE_ACTIVE_DIRECTORY_CLIENT_ID = "youxia.azure_active_directory_client_id";
 
     public static HierarchicalINIConfiguration getYouxiaConfig() {
         File configFile = new File(System.getProperty("user.home"), ".youxia/config");
@@ -220,6 +225,10 @@ public class ConfigTools {
         // Retrieve storage account from connection-string.
         CloudStorageAccount storageAccountClient = CloudStorageAccount.parse(storageConnectionString);
         return storageAccountClient;
+    }
+
+    public static AzureResourceManagerClient getAzureResourceManagerClient() {
+        return new AzureResourceManagerClient();
     }
 
 }

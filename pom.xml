@@ -45,6 +45,11 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>com.microsoft.azure</groupId>
+                <artifactId>adal4j</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <dependency>
                 <groupId>org.codehaus.jackson</groupId>
                 <artifactId>jackson-core-asl</artifactId>
                 <version>1.9.8</version>
