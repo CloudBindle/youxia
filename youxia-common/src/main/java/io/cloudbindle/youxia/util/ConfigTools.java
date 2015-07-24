@@ -27,7 +27,20 @@ import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.simpledb.AmazonSimpleDBClient;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Module;
+import com.microsoft.azure.storage.CloudStorageAccount;
+import com.microsoft.windowsazure.Configuration;
+import com.microsoft.windowsazure.core.utils.KeyStoreType;
+import com.microsoft.windowsazure.management.ManagementClient;
+import com.microsoft.windowsazure.management.ManagementService;
+import com.microsoft.windowsazure.management.compute.ComputeManagementClient;
+import com.microsoft.windowsazure.management.compute.ComputeManagementService;
+import com.microsoft.windowsazure.management.configuration.ManagementConfiguration;
+import io.cloudbindle.youxia.azure.resourceManagerWrapper.AzureResourceManagerClient;
 import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.security.InvalidKeyException;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import org.jclouds.ContextBuilder;
@@ -62,6 +75,16 @@ public class ConfigTools {
     public static final String SEQWARE_REST_PORT = "seqware.rest_port";
     public static final String SEQWARE_REST_ROOT = "seqware.rest_root";
     public static final String SEQWARE_REST_PASS = "seqware.rest_pass";
+    public static final String YOUXIA_AZURE_SUBSCRIPTION_ID = "youxia.azure_subscription_id";
+    public static final String YOUXIA_AZURE_KEYSTORE_LOCATION = "youxia.azure_keystore_location";
+    public static final String YOUXIA_AZURE_KEYSTORE_PASSWORD = "youxia.azure_keystore_password";
+    public static final String YOUXIA_AZURE_STORAGE_ACCOUNT_NAME = "youxia.azure_storage_account_name";
+    public static final String YOUXIA_AZURE_STORAGE_ACCOUNT_KEY = "youxia.azure_storage_account_key";
+    public static final String YOUXIA_AZURE_SSH_KEY = "youxia.azure_ssh_key";
+    public static final String YOUXIA_AZURE_ACTIVE_DIRECTORY_USERNAME = "youxia.azure_active_directory_username";
+    public static final String YOUXIA_AZURE_ACTIVE_DIRECTORY_PASSWORD = "youxia.azure_active_directory_password";
+    public static final String YOUXIA_AZURE_ACTIVE_DIRECTORY_TENANT_ID = "youxia.azure_active_directory_tenant_id";
+    public static final String YOUXIA_AZURE_ACTIVE_DIRECTORY_CLIENT_ID = "youxia.azure_active_directory_client_id";
 
     public static HierarchicalINIConfiguration getYouxiaConfig() {
         File configFile = new File(System.getProperty("user.home"), ".youxia/config");
@@ -160,6 +183,52 @@ public class ConfigTools {
     public static AmazonS3Client getS3Client() {
         Regions region = getRegion();
         return Region.getRegion(region).createClient(AmazonS3Client.class, getAWSCredentialProvider(), null);
+    }
+
+    public static ComputeManagementClient getAzureComputeClient() {
+        try {
+            Configuration config = getAzureConfig();
+            // create a management client to call the API
+            ComputeManagementClient client = ComputeManagementService.create(config);
+            return client;
+        } catch (URISyntaxException | IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public static ManagementClient getAzureManagementClient() {
+        try {
+            Configuration config = getAzureConfig();
+            // create a management client to call the API
+            return ManagementService.create(config);
+        } catch (URISyntaxException | IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private static Configuration getAzureConfig() throws IOException, URISyntaxException {
+        String uri = "https://management.core.windows.net/";
+        HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
+        String subscriptionID = youxiaConfig.getString(YOUXIA_AZURE_SUBSCRIPTION_ID);
+        String keystoreLocation = youxiaConfig.getString(YOUXIA_AZURE_KEYSTORE_LOCATION);
+        String keystorePassword = youxiaConfig.getString(YOUXIA_AZURE_KEYSTORE_PASSWORD);
+        com.microsoft.windowsazure.Configuration config = ManagementConfiguration.configure(new URI(uri), subscriptionID, keystoreLocation,
+                keystorePassword, KeyStoreType.jks);
+        return config;
+    }
+
+    public static CloudStorageAccount getAzureStorage() throws URISyntaxException, InvalidKeyException {
+        HierarchicalINIConfiguration youxiaConfig = ConfigTools.getYouxiaConfig();
+        String storageAccount = youxiaConfig.getString(YOUXIA_AZURE_STORAGE_ACCOUNT_NAME);
+        String storageKey = youxiaConfig.getString(YOUXIA_AZURE_STORAGE_ACCOUNT_KEY);
+        String storageConnectionString = "DefaultEndpointsProtocol=http;AccountName=" + storageAccount + ";AccountKey=" + storageKey;
+        // Retrieve storage account from connection-string.
+        CloudStorageAccount storageAccountClient = CloudStorageAccount.parse(storageConnectionString);
+        return storageAccountClient;
+    }
+
+    public static AzureResourceManagerClient getAzureResourceManagerClient() {
+        return new AzureResourceManagerClient();
     }
 
 }

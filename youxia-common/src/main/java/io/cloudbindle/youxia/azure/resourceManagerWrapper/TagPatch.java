@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 CloudBindle
+ * Copyright (C) 2015 CloudBindle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,24 +14,38 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.cloudbindle.youxia.listing;
+package io.cloudbindle.youxia.azure.resourceManagerWrapper;
+
+import java.util.Map;
 
 /**
+ * This is the type that needs to be sent for updates.
  *
  * @author dyuen
  */
-public class ListingFactory {
+public class TagPatch {
+    private Map<String, String> tags;
 
-    public static AbstractInstanceListing createOpenStackListing() {
-        return new OpenStackJCloudsListing();
+    public TagPatch() {
+
     }
 
-    public static AbstractInstanceListing createAWSListing() {
-        return new AwsListing();
+    public TagPatch(Map<String, String> newTags) {
+        this.tags = newTags;
     }
 
-    public static AbstractInstanceListing createAzureListing() {
-        return new AzureListing();
+    /**
+     * @return the tags
+     */
+    public Map<String, String> getTags() {
+        return tags;
     }
 
+    /**
+     * @param tags
+     *            the tags to set
+     */
+    public void setTags(Map<String, String> tags) {
+        this.tags = tags;
+    }
 }

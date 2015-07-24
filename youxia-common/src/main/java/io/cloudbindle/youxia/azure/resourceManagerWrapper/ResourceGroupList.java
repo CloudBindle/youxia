@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 CloudBindle
+ * Copyright (C) 2015 CloudBindle
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,24 +14,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package io.cloudbindle.youxia.listing;
+package io.cloudbindle.youxia.azure.resourceManagerWrapper;
 
 /**
- *
+ * This matches the response of https://msdn.microsoft.com/en-us/library/azure/dn790529.aspx
+ * 
  * @author dyuen
  */
-public class ListingFactory {
+public class ResourceGroupList {
 
-    public static AbstractInstanceListing createOpenStackListing() {
-        return new OpenStackJCloudsListing();
+    private ResourceGroup[] value;
+
+    /**
+     * @return the value
+     */
+    public ResourceGroup[] getValue() {
+        return value;
     }
 
-    public static AbstractInstanceListing createAWSListing() {
-        return new AwsListing();
+    /**
+     * @param value
+     *            the value to set
+     */
+    public void setValue(ResourceGroup[] value) {
+        this.value = value;
     }
-
-    public static AbstractInstanceListing createAzureListing() {
-        return new AzureListing();
-    }
-
 }

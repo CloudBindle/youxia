@@ -92,6 +92,7 @@ public class Reaper {
     private final int year;
     private final ArgumentAcceptingOptionSpec<String> overrideListSpec;
     private Set<String> overrideList;
+    private final OptionSpecBuilder azureMode;
 
     public Reaper(String[] args) {
         this.youxiaConfig = ConfigTools.getYouxiaConfig();
@@ -107,6 +108,7 @@ public class Reaper {
         this.testMode = parser.acceptsAll(Arrays.asList("test", "t"),
                 "In test mode, we only output instances that would be killed rather than actually kill them");
         this.openStackMode = parser.acceptsAll(Arrays.asList("openstack"), "Run the reaper using OpenStack (default is AWS)");
+        this.azureMode = parser.acceptsAll(Arrays.asList("azure"), "Run the reaper using Azure (default is AWS)");
 
         this.persistWR = parser
                 .acceptsAll(Arrays.asList("persist", "p"),
@@ -137,6 +139,8 @@ public class Reaper {
 
         if (this.options.has(this.openStackMode)) {
             helper = new OpenStackHelper();
+        } else if (this.options.has(this.azureMode)) {
+            helper = new AzureHelper();
         } else {
             helper = new AWSHelper();
             // activate Amazon client to ensure value Amazon credentials early
@@ -178,6 +182,8 @@ public class Reaper {
         AbstractInstanceListing lister;
         if (options.has(this.openStackMode)) {
             lister = ListingFactory.createOpenStackListing();
+        } else if (this.options.has(this.azureMode)) {
+            lister = ListingFactory.createAzureListing();
         } else {
             lister = ListingFactory.createAWSListing();
         }
@@ -396,7 +402,7 @@ public class Reaper {
     private void persistTerminatedInstances(Map<String, String> instancesToKill) {
         // look for instances that were not terminated by the reaper (ex: spot requests on Amazon)
         String managedTagValue = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG);
-        if (!options.has(this.openStackMode)) {
+        if (!options.has(this.openStackMode) && !options.has(this.azureMode)) {
             AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
             // terminate instances that did not finish deployment
             Filter[] filters = new Filter[] { new Filter().withName("instance-state-name").withValues("terminated"),

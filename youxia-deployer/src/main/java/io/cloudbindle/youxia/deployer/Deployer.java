@@ -20,7 +20,27 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
+import com.microsoft.azure.storage.CloudStorageAccount;
+import com.microsoft.azure.storage.blob.CloudBlobClient;
+import com.microsoft.azure.storage.blob.CloudBlobContainer;
+import com.microsoft.windowsazure.core.OperationResponse;
+import com.microsoft.windowsazure.management.compute.ComputeManagementClient;
+import com.microsoft.windowsazure.management.compute.HostedServiceOperations;
+import com.microsoft.windowsazure.management.compute.models.ConfigurationSet;
+import com.microsoft.windowsazure.management.compute.models.ConfigurationSetTypes;
+import com.microsoft.windowsazure.management.compute.models.DeploymentGetResponse;
+import com.microsoft.windowsazure.management.compute.models.DeploymentSlot;
+import com.microsoft.windowsazure.management.compute.models.HostedServiceCreateParameters;
+import com.microsoft.windowsazure.management.compute.models.InputEndpoint;
+import com.microsoft.windowsazure.management.compute.models.OSVirtualHardDisk;
+import com.microsoft.windowsazure.management.compute.models.Role;
+import com.microsoft.windowsazure.management.compute.models.VirtualHardDiskHostCaching;
+import com.microsoft.windowsazure.management.compute.models.VirtualMachineCreateDeploymentParameters;
+import com.microsoft.windowsazure.management.compute.models.VirtualMachineCreateParameters;
+import com.microsoft.windowsazure.management.compute.models.VirtualMachineRoleType;
 import io.cloudbindle.youxia.amazonaws.Requests;
+import io.cloudbindle.youxia.azure.resourceManagerWrapper.AzureResourceManagerClient;
+import io.cloudbindle.youxia.azure.resourceManagerWrapper.ResourceGroup;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.listing.ListingFactory;
@@ -29,6 +49,7 @@ import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.BuiltinHelpFormatter;
 import joptsimple.OptionException;
@@ -59,6 +81,7 @@ import org.jclouds.collect.IterableWithMarker;
 import org.jclouds.collect.PagedIterable;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
+import org.jclouds.compute.RunNodesException;
 import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.NodeMetadata;
 import org.jclouds.compute.domain.Template;
@@ -94,6 +117,12 @@ public class Deployer {
     public static final String DEPLOYER_OPENSTACK_NETWORK_ID = "deployer_openstack.network_id";
     public static final String DEPLOYER_OPENSTACK_ARBITRARY_WAIT = "deployer_openstack.arbitrary_wait";
     public static final String DEPLOYER_DISABLE_SENSU_SERVER_DEPLOYMENT = "deployer.disable_sensu_server";
+    // azure parameters
+    public static final String DEPLOYER_AZURE_IMAGE_NAME = "deployer_azure.image_name";
+    public static final String DEPLOYER_AZURE_FLAVOR = "deployer_azure.flavor";
+    public static final String DEPLOYER_AZURE_LOCATION = "deployer_azure.location";
+    public static final String DEPLOYER_AZURE_ARBITRARY_WAIT = "deployer_azure.arbitrary_wait";
+    public static final String DEPLOYER_AZURE_VIRTUAL_NETWORK = "deployer_azure.virtual_network";
 
     private final ArgumentAcceptingOptionSpec<String> playbookSpec;
     private final ArgumentAcceptingOptionSpec<String> extraVarsSpec;
@@ -101,6 +130,10 @@ public class Deployer {
     private final ArgumentAcceptingOptionSpec<Integer> maxOnDemandSpec;
     private final ArgumentAcceptingOptionSpec<Integer> minOnDemandSpec;
     private final ArgumentAcceptingOptionSpec<String> extraTagSpec;
+    private final OptionSpecBuilder azureModeSpec;
+
+    private static final int AZURE_OPERATION_SUCCESS_CODE = 201;
+    private static final int SSH_PORT_NUMBER = 22;
 
     public Deployer(String[] args) {
         // record configuration
@@ -115,10 +148,11 @@ public class Deployer {
                 .withRequiredArg().ofType(Integer.class).required();
 
         this.openStackModeSpec = parser.acceptsAll(Arrays.asList("openstack", "o"), "Run the deployer using OpenStack (default is AWS)");
+        this.azureModeSpec = parser.acceptsAll(Arrays.asList("azure", "a"), "Run the deployer using Azure (default is AWS)");
 
         // AWS specific parameter
         this.maxSpotPriceSpec = parser.acceptsAll(Arrays.asList("max-spot-price", "p"), "Maximum price to pay for spot-price instances.")
-                .requiredUnless(openStackModeSpec).withRequiredArg().ofType(Float.class);
+                .requiredUnless(openStackModeSpec, azureModeSpec).withRequiredArg().ofType(Float.class);
         this.maxOnDemandSpec = parser
                 .acceptsAll(Arrays.asList("max-on-demand", "max"), "Maximum number of on-demand instances to maintain.").withRequiredArg()
                 .ofType(Integer.class).defaultsTo(Integer.MAX_VALUE);
@@ -164,7 +198,8 @@ public class Deployer {
         AbstractInstanceListing lister;
         if (options.has(this.openStackModeSpec)) {
             lister = ListingFactory.createOpenStackListing();
-
+        } else if (options.has(this.azureModeSpec)) {
+            lister = ListingFactory.createAzureListing();
         } else {
             lister = ListingFactory.createAWSListing();
         }
@@ -431,6 +466,17 @@ public class Deployer {
         return wait;
     }
 
+    private Set<String> runAnsible(Map<String, DeploymentGetResponse> map) {
+        Set<String> ids = new HashSet<>();
+        Map<String, String> instanceMap = new HashMap<>();
+        for (Entry<String, DeploymentGetResponse> e : map.entrySet()) {
+            ids.add(e.getKey());
+            instanceMap.put(e.getKey(), e.getValue().getVirtualIPAddresses().get(0).getAddress().getHostAddress());
+        }
+        runAnsible(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_AZURE_SSH_KEY));
+        return ids;
+    }
+
     private Set<String> runAnsible(List<Instance> readyInstances) {
         Set<String> ids = new HashSet<>();
         Map<String, String> instanceMap = new HashMap<>();
@@ -524,101 +570,234 @@ public class Deployer {
         }
         Set<String> ids;
         if (options.has(this.openStackModeSpec)) {
-            try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
-                ComputeService computeService = genericOpenStackApi.getComputeService();
-                // have to use the specific api here to designate a keypair, weird
-                TemplateOptions templateOptions = NovaTemplateOptions.Builder.securityGroupNames(
-                        youxiaConfig.getString(DEPLOYER_OPENSTACK_SECURITY_GROUP)).keyPairName(
-                        youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME));
-
-                for (Entry<String, String> entry : extraTags.entrySet()) {
-                    templateOptions = templateOptions.userMetadata(entry.getKey(), entry.getValue());
-                }
-
-                templateOptions = templateOptions
-                        .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
-                        .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
-                        .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true)
-                        .blockOnComplete(true);
-
-                if (youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID) != null
-                        && !youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID).isEmpty()) {
-                    templateOptions.networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)));
-                }
-
-                TemplateBuilder templateBuilder = computeService.templateBuilder().imageId(
-                        youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION) + "/"
-                                + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID));
-                if (youxiaConfig.containsKey(ConfigTools.YOUXIA_OPENSTACK_ZONE)) {
-                    String zone = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE);
-                    if (templateOptions instanceof NovaTemplateOptions) {
-                        NovaTemplateOptions novaOptions = (NovaTemplateOptions) templateOptions;
-                        novaOptions.availabilityZone(zone);
-                    }
-                }
-                if (youxiaConfig.containsKey(DEPLOYER_OPENSTACK_FLAVOR)) {
-                    String hardwareId = youxiaConfig.getString(DEPLOYER_OPENSTACK_FLAVOR);
-                    System.out.println("Flavor found, using " + hardwareId + " as flavor");
-                    Set<? extends Hardware> profiles = computeService.listHardwareProfiles();
-                    Hardware targetHardware = null;
-                    for (Hardware profile : profiles) {
-                        if (Objects.equal(profile.getName(), hardwareId) || Objects.equal(profile.getProviderId(), hardwareId)) {
-                            targetHardware = profile;
-                            break;
-                        }
-                    }
-                    if (targetHardware != null) {
-                        templateBuilder = templateBuilder.fromHardware(targetHardware);
-                    } else {
-                        throw new RuntimeException("could not locate hardware profile, " + hardwareId);
-                    }
-                } else {
-                    System.out.println("No hardware id, using cores and ram to determine flavour");
-                    templateBuilder = templateBuilder.minCores(youxiaConfig.getDouble(DEPLOYER_OPENSTACK_MIN_CORES)).minRam(
-                            youxiaConfig.getInt(DEPLOYER_OPENSTACK_MIN_RAM));
-                }
-
-                Template template = templateBuilder.options(templateOptions).build();
-
-                Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
-                for (NodeMetadata meta : nodesInGroup) {
-                    Log.stdoutWithTime("Created " + meta.getId() + " " + meta.getStatus().toString());
-                }
-                System.out.println("Finished requesting VMs, starting arbitrary wait");
-                // wait is in minutes
-                Thread.sleep(youxiaConfig.getInt(DEPLOYER_OPENSTACK_ARBITRARY_WAIT));
-                System.out.println("Completed arbitrary wait");
-
-                ids = runAnsible(nodesInGroup);
-                for (String id : ids) {
-                    System.out.println("Looking to complete tagging of " + id);
-                }
-
-                retagInstances(ids);
-            }
-
+            runDeploymentForOpenStack(extraTags, clientsToDeploy);
+        } else if (options.has(this.azureModeSpec)) {
+            runDeploymentForAzure(extraTags, clientsToDeploy);
         } else {
-            String zoneWithLowestPrice = isReadyToRequestSpotInstances();
-            Log.info("Reporting zone with lowest price: " + zoneWithLowestPrice);
-            boolean onlyOnDemandAvailable = zoneWithLowestPrice == null;
-            List<Instance> readyInstances = requestAWSInstances(clientsToDeploy, onlyOnDemandAvailable, zoneWithLowestPrice, extraTags);
-            if (readyInstances.isEmpty()) {
-                return;
+            runDeploymentForAWS(clientsToDeploy, extraTags);
+        }
+    }
+
+    private boolean runDeploymentForAWS(int clientsToDeploy, Map<String, String> extraTags) {
+        String zoneWithLowestPrice = isReadyToRequestSpotInstances();
+        Log.info("Reporting zone with lowest price: " + zoneWithLowestPrice);
+        boolean onlyOnDemandAvailable = zoneWithLowestPrice == null;
+        List<Instance> readyInstances = requestAWSInstances(clientsToDeploy, onlyOnDemandAvailable, zoneWithLowestPrice, extraTags);
+        if (readyInstances.isEmpty()) {
+            return true;
+        }
+        // safety check here
+        if (readyInstances.size() > clientsToDeploy) {
+            Log.info("Something has gone awry, more instances reported as ready than were provisioned, aborting ");
+            throw new RuntimeException("readyInstances incorrect information");
+        }
+        runAnsible(readyInstances); // this should throw an Exception on playbook failure
+        AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
+        // set managed state of instance to ready
+        for (Instance i : readyInstances) {
+            Log.stdoutWithTime("Finishing configuring " + i.getInstanceId());
+            eC2Client.createTags(new CreateTagsRequest().withResources(i.getInstanceId())
+                    .withTags(new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString()))
+                    .withTags(new Tag(Constants.SENSU_NAME, i.getInstanceId())));
+        }
+        return false;
+    }
+
+    private void runDeploymentForAzure(Map<String, String> extraTags, int clientsToDeploy) throws Exception {
+        Map<String, DeploymentGetResponse> nodes = new HashMap<>();
+        ComputeManagementClient azureComputeClient = ConfigTools.getAzureComputeClient();
+        AzureResourceManagerClient azureResourceManagerClient = ConfigTools.getAzureResourceManagerClient();
+
+        for (int i = 0; i < clientsToDeploy; i++) {
+
+            String randomizedName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + "-" + UUID.randomUUID().toString();
+
+            CloudStorageAccount azureStorage = ConfigTools.getAzureStorage();
+            CloudBlobClient serviceClient = azureStorage.createCloudBlobClient();
+            // Container name must be lower case.
+            CloudBlobContainer container = serviceClient.getContainerReference(randomizedName);
+            container.createIfNotExists();
+
+            String storageAccountName = youxiaConfig.getString(ConfigTools.YOUXIA_AZURE_STORAGE_ACCOUNT_NAME);
+
+            ArrayList<ConfigurationSet> configlist = new ArrayList<>();
+            ConfigurationSet configurationSetForNetwork = new ConfigurationSet();
+
+            configurationSetForNetwork.setConfigurationSetType(ConfigurationSetTypes.NETWORKCONFIGURATION);
+            ArrayList<InputEndpoint> inputEndPointList = new ArrayList<>();
+            InputEndpoint inputEndpoint = new InputEndpoint();
+            inputEndpoint.setName("SSH");
+            inputEndpoint.setPort(SSH_PORT_NUMBER);
+            inputEndpoint.setLocalPort(SSH_PORT_NUMBER);
+            inputEndpoint.setProtocol("tcp");
+            inputEndPointList.add(inputEndpoint);
+            configurationSetForNetwork.setInputEndpoints(inputEndPointList);
+            configlist.add(configurationSetForNetwork);
+
+            OSVirtualHardDisk oSVirtualHardDisk = new OSVirtualHardDisk();
+            // required
+            oSVirtualHardDisk.setName(randomizedName);
+            oSVirtualHardDisk.setHostCaching(VirtualHardDiskHostCaching.READWRITE);
+            oSVirtualHardDisk.setOperatingSystem("Linux");
+
+            URI mediaLinkUriValue = new URI("http://" + storageAccountName + ".blob.core.windows.net/vhds/" + randomizedName + ".vhd");
+            // required
+            oSVirtualHardDisk.setMediaLink(mediaLinkUriValue);
+            // oSVirtualHardDisk.setSourceImageName(youxiaConfig.getString(DEPLOYER_AZURE_IMAGE_NAME));
+
+            VirtualMachineCreateParameters createParameters = new VirtualMachineCreateParameters();
+            // required
+            createParameters.setRoleName(randomizedName);
+            createParameters.setRoleSize(youxiaConfig.getString(DEPLOYER_AZURE_FLAVOR));
+            createParameters.setProvisionGuestAgent(true);
+            // createParameters.setConfigurationSets(configlist);
+            createParameters.setOSVirtualHardDisk(oSVirtualHardDisk);
+            createParameters.setAvailabilitySetName(null);
+
+            HostedServiceOperations hostedServicesOperations = azureComputeClient.getHostedServicesOperations();
+            // create something called a hosted service first
+            HostedServiceCreateParameters createHostedServiceParameters = new HostedServiceCreateParameters();
+            // required
+            createHostedServiceParameters.setLabel(randomizedName);
+            // required
+            createHostedServiceParameters.setServiceName(randomizedName);
+            createHostedServiceParameters.setDescription(randomizedName);
+            // required
+            createHostedServiceParameters.setLocation(youxiaConfig.getString(DEPLOYER_AZURE_LOCATION));
+
+            OperationResponse hostedServiceOperationResponse = hostedServicesOperations.create(createHostedServiceParameters);
+            if (hostedServiceOperationResponse.getStatusCode() != AZURE_OPERATION_SUCCESS_CODE) {
+                throw new RuntimeException("Could not create: " + createHostedServiceParameters.toString());
             }
-            // safety check here
-            if (readyInstances.size() > clientsToDeploy) {
-                Log.info("Something has gone awry, more instances reported as ready than were provisioned, aborting ");
-                throw new RuntimeException("readyInstances incorrect information");
+
+            // create something called a role first
+            ArrayList<Role> roleList = new ArrayList<>();
+            Role role = new Role();
+            // required
+            role.setRoleName(randomizedName);
+            // required
+            role.setVMImageName(youxiaConfig.getString(DEPLOYER_AZURE_IMAGE_NAME));
+            role.setRoleType(VirtualMachineRoleType.PersistentVMRole.toString());
+            role.setRoleSize(youxiaConfig.getString(DEPLOYER_AZURE_FLAVOR));
+            role.setProvisionGuestAgent(true);
+            role.setConfigurationSets(configlist);
+            roleList.add(role);
+
+            // create something called a deployment first
+            VirtualMachineCreateDeploymentParameters deploymentParameters = new VirtualMachineCreateDeploymentParameters();
+            deploymentParameters.setDeploymentSlot(DeploymentSlot.Production);
+            deploymentParameters.setName(randomizedName);
+            deploymentParameters.setLabel(randomizedName);
+            deploymentParameters.setRoles(roleList);
+            deploymentParameters.setVirtualNetworkName(youxiaConfig.getString(DEPLOYER_AZURE_VIRTUAL_NETWORK));
+
+            System.out.println("Deploying: " + randomizedName);
+            azureComputeClient.getVirtualMachinesOperations().createDeployment(randomizedName, deploymentParameters);
+
+            // todo: hook this up to async api and check for success to remove wait?
+            System.out.println("Finished requesting VMs, starting arbitrary wait");
+            // wait is in minutes
+            Thread.sleep(youxiaConfig.getInt(DEPLOYER_AZURE_ARBITRARY_WAIT));
+            System.out.println("Completed arbitrary wait");
+
+            // try to do tagging before we spin up
+            Map<String, String> tags = new HashMap<>();
+            tags.putAll(extraTags);
+            tags.put("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG));
+            tags.put(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG));
+            tags.put(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString());
+            tags.put(Constants.SENSU_NAME, randomizedName);
+            azureResourceManagerClient.patchResourceGroup(randomizedName, tags);
+
+            DeploymentGetResponse deployResponse = azureComputeClient.getDeploymentsOperations().getByName(randomizedName, randomizedName);
+            nodes.put(randomizedName, deployResponse);
+        }
+
+        runAnsible(nodes);
+
+        // retag on success
+        for (Entry<String, DeploymentGetResponse> deployment : nodes.entrySet()) {
+            ResourceGroup resourceGroup = azureResourceManagerClient.getResourceGroup(deployment.getKey());
+            Map<String, String> tags = resourceGroup.getTags();
+            tags.put(Constants.STATE_TAG, Constants.STATE.READY.toString());
+            azureResourceManagerClient.patchResourceGroup(deployment.getKey(), tags);
+        }
+    }
+
+    private void runDeploymentForOpenStack(Map<String, String> extraTags, int clientsToDeploy) throws InterruptedException,
+            RunNodesException {
+        Set<String> ids;
+        try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
+            ComputeService computeService = genericOpenStackApi.getComputeService();
+            // have to use the specific api here to designate a keypair, weird
+            TemplateOptions templateOptions = NovaTemplateOptions.Builder.securityGroupNames(
+                    youxiaConfig.getString(DEPLOYER_OPENSTACK_SECURITY_GROUP)).keyPairName(
+                    youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME));
+
+            for (Entry<String, String> entry : extraTags.entrySet()) {
+                templateOptions = templateOptions.userMetadata(entry.getKey(), entry.getValue());
             }
-            runAnsible(readyInstances); // this should throw an Exception on playbook failure
-            AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
-            // set managed state of instance to ready
-            for (Instance i : readyInstances) {
-                Log.stdoutWithTime("Finishing configuring " + i.getInstanceId());
-                eC2Client.createTags(new CreateTagsRequest().withResources(i.getInstanceId())
-                        .withTags(new Tag(Constants.STATE_TAG, Constants.STATE.READY.toString()))
-                        .withTags(new Tag(Constants.SENSU_NAME, i.getInstanceId())));
+
+            templateOptions = templateOptions
+                    .userMetadata("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
+                    .userMetadata(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG))
+                    .userMetadata(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()).blockUntilRunning(true).blockOnComplete(true);
+
+            if (youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID) != null
+                    && !youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID).isEmpty()) {
+                templateOptions.networks(Lists.newArrayList(youxiaConfig.getString(DEPLOYER_OPENSTACK_NETWORK_ID)));
             }
+
+            TemplateBuilder templateBuilder = computeService.templateBuilder()
+                    .imageId(
+                            youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION) + "/"
+                                    + youxiaConfig.getString(DEPLOYER_OPENSTACK_IMAGE_ID));
+            if (youxiaConfig.containsKey(ConfigTools.YOUXIA_OPENSTACK_ZONE)) {
+                String zone = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_ZONE);
+                if (templateOptions instanceof NovaTemplateOptions) {
+                    NovaTemplateOptions novaOptions = (NovaTemplateOptions) templateOptions;
+                    novaOptions.availabilityZone(zone);
+                }
+            }
+            if (youxiaConfig.containsKey(DEPLOYER_OPENSTACK_FLAVOR)) {
+                String hardwareId = youxiaConfig.getString(DEPLOYER_OPENSTACK_FLAVOR);
+                System.out.println("Flavor found, using " + hardwareId + " as flavor");
+                Set<? extends Hardware> profiles = computeService.listHardwareProfiles();
+                Hardware targetHardware = null;
+                for (Hardware profile : profiles) {
+                    if (Objects.equal(profile.getName(), hardwareId) || Objects.equal(profile.getProviderId(), hardwareId)) {
+                        targetHardware = profile;
+                        break;
+                    }
+                }
+                if (targetHardware != null) {
+                    templateBuilder = templateBuilder.fromHardware(targetHardware);
+                } else {
+                    throw new RuntimeException("could not locate hardware profile, " + hardwareId);
+                }
+            } else {
+                System.out.println("No hardware id, using cores and ram to determine flavour");
+                templateBuilder = templateBuilder.minCores(youxiaConfig.getDouble(DEPLOYER_OPENSTACK_MIN_CORES)).minRam(
+                        youxiaConfig.getInt(DEPLOYER_OPENSTACK_MIN_RAM));
+            }
+
+            Template template = templateBuilder.options(templateOptions).build();
+
+            Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
+            for (NodeMetadata meta : nodesInGroup) {
+                Log.stdoutWithTime("Created " + meta.getId() + " " + meta.getStatus().toString());
+            }
+            System.out.println("Finished requesting VMs, starting arbitrary wait");
+            // wait is in minutes
+            Thread.sleep(youxiaConfig.getInt(DEPLOYER_OPENSTACK_ARBITRARY_WAIT));
+            System.out.println("Completed arbitrary wait");
+
+            ids = runAnsible(nodesInGroup);
+            for (String id : ids) {
+                System.out.println("Looking to complete tagging of " + id);
+            }
+
+            retagInstances(ids);
         }
     }
 
