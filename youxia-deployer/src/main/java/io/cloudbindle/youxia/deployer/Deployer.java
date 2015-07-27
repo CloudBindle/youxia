@@ -707,7 +707,7 @@ public class Deployer {
             tags.put(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG));
             tags.put(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString());
             tags.put(Constants.SENSU_NAME, randomizedName);
-            azureResourceManagerClient.patchResourceGroup(randomizedName, tags);
+            azureResourceManagerClient.patchResourceGroup(randomizedName, tags, Integer.MAX_VALUE);
 
             DeploymentGetResponse deployResponse = azureComputeClient.getDeploymentsOperations().getByName(randomizedName, randomizedName);
             nodes.put(randomizedName, deployResponse);
@@ -717,10 +717,10 @@ public class Deployer {
 
         // retag on success
         for (Entry<String, DeploymentGetResponse> deployment : nodes.entrySet()) {
-            ResourceGroup resourceGroup = azureResourceManagerClient.getResourceGroup(deployment.getKey());
+            ResourceGroup resourceGroup = azureResourceManagerClient.getResourceGroup(deployment.getKey(), Integer.MAX_VALUE);
             Map<String, String> tags = resourceGroup.getTags();
             tags.put(Constants.STATE_TAG, Constants.STATE.READY.toString());
-            azureResourceManagerClient.patchResourceGroup(deployment.getKey(), tags);
+            azureResourceManagerClient.patchResourceGroup(deployment.getKey(), tags, AzureResourceManagerClient.DEFAULT_ATTEMPTS);
         }
     }
 

@@ -140,11 +140,11 @@ public class GeneratorTest {
         OpenStackJCloudsListing listing2 = createMockAndExpectNew(OpenStackJCloudsListing.class);
 
         Map<String, InstanceDescriptor> result1 = Maps.newHashMap();
-        result1.put("Wong_Fei-hong", new InstanceDescriptor("123.123.123.123"));
-        result1.put("Ip_Man", new InstanceDescriptor("124.124.124.124"));
+        result1.put("Wong_Fei-hong", new InstanceDescriptor("name", "123.123.123.123"));
+        result1.put("Ip_Man", new InstanceDescriptor("name", "124.124.124.124"));
         Map<String, InstanceDescriptor> result2 = Maps.newHashMap();
-        result2.put("Ouyang_Feng", new InstanceDescriptor("125.125.125.125"));
-        result2.put("Murong_Yang", new InstanceDescriptor("126.126.126.126"));
+        result2.put("Ouyang_Feng", new InstanceDescriptor("name", "125.125.125.125"));
+        result2.put("Murong_Yang", new InstanceDescriptor("name", "126.126.126.126"));
         expect(listing1.getInstances()).andReturn(result1);
         expect(listing2.getInstances()).andReturn(result2);
 

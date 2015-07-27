@@ -16,19 +16,20 @@
  */
 package io.cloudbindle.youxia.azure.resourceManagerWrapper;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
  * This matches the response of https://msdn.microsoft.com/en-us/library/azure/dn758095.aspx
- * 
+ *
  * @author dyuen
  */
 public class ResourceGroup {
     private String id;
     private String name;
     private String location;
-    private Map<String, String> tags;
-    private Map<String, String> properties;
+    private Map<String, String> tags = new HashMap<>();
+    private Map<String, String> properties = new HashMap<>();
 
     /**
      * @return the id

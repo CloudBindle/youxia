@@ -44,7 +44,7 @@ public class AzureHelper implements AbstractHelper {
     @Override
     public boolean identifyOrphanedInstance(Map.Entry<String, InstanceDescriptor> instance) {
         try {
-            ResourceGroup resourceGroup = azureResourceManagerClient.getResourceGroup(instance.getKey());
+            ResourceGroup resourceGroup = azureResourceManagerClient.getResourceGroup(instance.getKey(), 1);
             Map<String, String> tags = resourceGroup.getTags();
             if (tags == null || !tags.containsKey(Constants.STATE_TAG)) {
                 Log.info(instance.getKey() + " is missing state tag, likely an orphaned VM");
@@ -84,11 +84,12 @@ public class AzureHelper implements AbstractHelper {
         // should retag instances here
         for (String instance : instancesToKill) {
             try {
-                ResourceGroup resourceGroup = azureResourceManagerClient.getResourceGroup(instance);
+                ResourceGroup resourceGroup = azureResourceManagerClient.getResourceGroup(instance,
+                        AzureResourceManagerClient.DEFAULT_ATTEMPTS);
                 Map<String, String> tags = new HashMap<>();
                 tags.putAll(resourceGroup.getTags());
                 tags.put(Constants.STATE_TAG, Constants.STATE.MARKED_FOR_DEATH.toString());
-                azureResourceManagerClient.patchResourceGroup(instance, tags);
+                azureResourceManagerClient.patchResourceGroup(instance, tags, AzureResourceManagerClient.DEFAULT_ATTEMPTS);
             } catch (Exception ex) {
                 Log.error("Unable to update resource manager " + instance, ex);
             }

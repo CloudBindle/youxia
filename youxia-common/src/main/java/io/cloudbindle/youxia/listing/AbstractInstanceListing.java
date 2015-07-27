@@ -60,26 +60,29 @@ public abstract class AbstractInstanceListing {
     }
 
     public static class InstanceDescriptor {
+        private final String name;
         private final String ipAddress;
         private final boolean spotInstance;
         private final String privateIpAddress;
 
-        public InstanceDescriptor(String ipAddress) {
-            this(ipAddress, null);
+        public InstanceDescriptor(String name, String ipAddress) {
+            this(name, ipAddress, null);
         }
 
-        public InstanceDescriptor(String ipAddress, String privateIpAddress) {
+        public InstanceDescriptor(String name, String ipAddress, String privateIpAddress) {
             this.ipAddress = ipAddress;
+            this.name = name;
             this.privateIpAddress = privateIpAddress;
             this.spotInstance = false;
         }
 
-        public InstanceDescriptor(String ipAddress, boolean spotInstance) {
-            this(ipAddress, null, spotInstance);
+        public InstanceDescriptor(String name, String ipAddress, boolean spotInstance) {
+            this(name, ipAddress, null, spotInstance);
         }
 
-        public InstanceDescriptor(String ipAddress, String privateIpAddress, boolean spotInstance) {
+        public InstanceDescriptor(String name, String ipAddress, String privateIpAddress, boolean spotInstance) {
             this.privateIpAddress = privateIpAddress;
+            this.name = name;
             this.ipAddress = ipAddress;
             this.spotInstance = spotInstance;
         }
@@ -103,6 +106,13 @@ public abstract class AbstractInstanceListing {
         @Override
         public String toString() {
             return ipAddress + " spot: " + spotInstance;
+        }
+
+        /**
+         * @return the name
+         */
+        public String getName() {
+            return name;
         }
     }
 }
