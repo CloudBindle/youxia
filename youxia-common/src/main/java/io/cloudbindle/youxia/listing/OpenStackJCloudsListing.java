@@ -85,7 +85,7 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
                     if (iterator.hasNext()) {
                         secondAddress = iterator.next().getValue().getAddr();
                     }
-                    handleMapping(managedTag, managedState, id, new InstanceDescriptor(address, secondAddress), map);
+                    handleMapping(managedTag, managedState, id, new InstanceDescriptor(server.getUuid(), address, secondAddress), map);
                 }
             }
         }

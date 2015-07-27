@@ -95,8 +95,8 @@ public class DeployerTest {
         expect(ConfigTools.getEC2Client()).andReturn(mockClient);
         expectNew(AwsListing.class).andReturn(listing);
         Map<String, InstanceDescriptor> map = Maps.newTreeMap();
-        map.put("key1", new InstanceDescriptor("value1", false));
-        map.put("key2", new InstanceDescriptor("value2", false));
+        map.put("key1", new InstanceDescriptor("n1", "value1", false));
+        map.put("key2", new InstanceDescriptor("n2", "value2", false));
         expect(listing.getInstances()).andReturn(map);
         String[] args = { "--total-nodes-num", "2", "--max-spot-price", "2", "--batch-size", "5", "--ansible-playbook", "test-book.yml" };
 
@@ -117,8 +117,8 @@ public class DeployerTest {
         expect(ConfigTools.getEC2Client()).andReturn(mockClient);
         expectNew(OpenStackJCloudsListing.class).andReturn(listing);
         Map<String, InstanceDescriptor> map = Maps.newTreeMap();
-        map.put("key1", new InstanceDescriptor("value1", false));
-        map.put("key2", new InstanceDescriptor("value2", false));
+        map.put("key1", new InstanceDescriptor("n1", "value1", false));
+        map.put("key2", new InstanceDescriptor("n2", "value2", false));
         expect(listing.getInstances()).andReturn(map);
         String[] args = { "--openstack", "--total-nodes-num", "2", "--max-spot-price", "2", "--batch-size", "5", "--ansible-playbook",
                 "test-book.yml" };
@@ -147,8 +147,8 @@ public class DeployerTest {
         when(mockConfig.getStringArray(ConfigTools.YOUXIA_ZONE)).thenReturn(new String[] {});
 
         Map<String, InstanceDescriptor> map = Maps.newTreeMap();
-        map.put("key1", new InstanceDescriptor("value1", false));
-        map.put("key2", new InstanceDescriptor("value2", false));
+        map.put("key1", new InstanceDescriptor("n1", "value1", false));
+        map.put("key2", new InstanceDescriptor("n2", "value2", false));
         expect(listing.getInstances()).andReturn(map).anyTimes();
         String[] args = { "--total-nodes-num", "4", "--max-spot-price", "2", "--batch-size", "5", "--ansible-playbook", "test-book.yml",
                 "--max-on-demand", "2" };

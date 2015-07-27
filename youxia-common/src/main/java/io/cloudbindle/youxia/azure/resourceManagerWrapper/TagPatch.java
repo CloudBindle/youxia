@@ -16,6 +16,7 @@
  */
 package io.cloudbindle.youxia.azure.resourceManagerWrapper;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -24,7 +25,7 @@ import java.util.Map;
  * @author dyuen
  */
 public class TagPatch {
-    private Map<String, String> tags;
+    private Map<String, String> tags = new HashMap<>();
 
     public TagPatch() {
 

@@ -217,7 +217,8 @@ public class Reaper {
             }
 
             if (options.has(this.overrideListSpec)) {
-                if (this.overrideList.contains(instance.getValue().getIpAddress())
+                if (this.overrideList.contains(instance.getValue().getName())
+                        || this.overrideList.contains(instance.getValue().getIpAddress())
                         || this.overrideList.contains(instance.getValue().getPrivateIpAddress())) {
                     Log.info(instance.getKey() + " is added to kill list since it was found in the override list");
                     instancesToKill.put(instance.getKey(), helper.translateCloudIDToSensuName(instance.getKey()));

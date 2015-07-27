@@ -219,7 +219,7 @@ public class ReaperTest {
         AmazonEC2Client client = mockOutConfig();
         AwsListing listing1 = createMockAndExpectNew(AwsListing.class);
         Map<String, InstanceDescriptor> result1 = Maps.newHashMap();
-        result1.put("funky_id", new InstanceDescriptor(server.getServiceAddress().getHostName()));
+        result1.put("funky_id", new InstanceDescriptor("name", server.getServiceAddress().getHostName()));
         expect(listing1.getInstances()).andReturn(result1);
         Reservation reservation = new Reservation();
         Instance instance = new Instance();
@@ -280,7 +280,7 @@ public class ReaperTest {
         when(zoneApi.listInDetail()).thenReturn(pagedIterable);
 
         Map<String, InstanceDescriptor> result1 = Maps.newHashMap();
-        result1.put("funky_id", new InstanceDescriptor(server.getServiceAddress().getHostName()));
+        result1.put("funky_id", new InstanceDescriptor("name", server.getServiceAddress().getHostName()));
         expect(listing1.getInstances()).andReturn(result1);
         Reservation reservation = new Reservation();
         Instance instance = new Instance();
