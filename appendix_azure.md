@@ -1,5 +1,7 @@
 This document details how to setup youxia in Azure which, unfortunately, requires multiple types of authentication to access various services. All instructions here refer to the Azure preview portal unless otherwise specified. 
 
+First, pick a managment tag for youxia. Pick one with only alphanumberic characters and dashes (the Azure metadata API cannot seem to handle underscores). 
+
 ## Authentication
 
 #### Compute
