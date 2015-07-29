@@ -4,6 +4,8 @@ First, pick a managment tag for youxia. Pick one with only alphanumberic charact
 
 ## Authentication
 
+The following pieces of information should be setup in your ~/.youxia/config file. 
+
 #### Compute
 
 The first step is to get authenticated for compute so that you can provision and teardown VMs. Here you will require three pieces of information. 
