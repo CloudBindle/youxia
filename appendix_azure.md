@@ -2,6 +2,8 @@ This document details how to setup youxia in Azure which, unfortunately, require
 
 First, pick a managment tag for youxia. Pick one with only alphanumberic characters and dashes (the Azure metadata API cannot seem to handle underscores). 
 
+**Make sure you do not actually name your launcher starting with the management tag, otherwise it may self-reap**
+
 ## Authentication
 
 The following pieces of information should be setup in your ~/.youxia/config file. 
