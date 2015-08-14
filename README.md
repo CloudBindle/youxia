@@ -93,6 +93,7 @@ Second, configure your Youxia credentials in a <code>.youxia/config</code> file 
 	network_id = <network id>
 	arbitrary_wait = 200000
 
+    [deployer_azure]
     # get from the azure preview portal
     image_name = <fill me in> 
     flavor = A5
