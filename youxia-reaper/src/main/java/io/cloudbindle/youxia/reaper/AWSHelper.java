@@ -79,7 +79,7 @@ public class AWSHelper implements AbstractHelper {
         AmazonEC2Client client = ConfigTools.getEC2Client();
 
         // first, mark instances for death
-        Log.stdoutWithTime("Marking instances for death " + StringUtils.join(instancesToKill, ","));
+        Log.warn("Marking instances for death " + StringUtils.join(instancesToKill, ","));
         client.createTags(new CreateTagsRequest().withResources(instancesToKill).withTags(
                 new Tag(Constants.STATE_TAG, Constants.STATE.MARKED_FOR_DEATH.toString())));
 
