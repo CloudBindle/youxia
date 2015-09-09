@@ -32,6 +32,7 @@ import org.jclouds.collect.IterableWithMarker;
 import org.jclouds.collect.PagedIterable;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.nova.v2_0.domain.Address;
+import org.jclouds.openstack.nova.v2_0.domain.Flavor;
 import org.jclouds.openstack.nova.v2_0.domain.Server;
 import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 import org.junit.Assert;
@@ -161,6 +162,7 @@ public class OpenStackJCloudsListingTest {
         Multimap<String, Address> multiMap = ArrayListMultimap.create();
         multiMap.put("blah1", Address.createV4("123.123.123.123"));
         multiMap.put("blah2", Address.createV4("123.123.123.123"));
+        when(server.getFlavor()).thenReturn(Flavor.builder().name("m1.xlarge").id("id").ram(4).disk(1000).vcpus(4).build());
         when(server.getAddresses()).thenReturn(multiMap);
         when(server.getMetadata()).thenReturn(tags);
         ImmutableList<Server> serverList = ImmutableList.of(server);

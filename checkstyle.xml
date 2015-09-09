@@ -250,7 +250,9 @@
 		<property name="ignoreHashCodeMethod" value="true"/>
 	</module>
         <module name="MissingSwitchDefault"/>
+	<!-- not compatible with checkstyle 2.16?
         <module name="RedundantThrows"/>
+	-->
         <module name="SimplifyBooleanExpression"/>
         <module name="SimplifyBooleanReturn"/>
 

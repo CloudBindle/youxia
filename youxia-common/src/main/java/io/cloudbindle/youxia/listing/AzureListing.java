@@ -60,8 +60,9 @@ public class AzureListing extends AbstractInstanceListing {
                 for (HostedServiceGetDetailedResponse.Deployment deployment : deploymentlist) {
                     if (deployment.getName().startsWith(managedTagValue)) {
                         // this is ridiculous, the Azure API doesn't return private ip addresses?
+                        // also, not sure how to get flavor
                         InstanceDescriptor descriptor = new InstanceDescriptor(deployment.getName(), deployment.getVirtualIPAddresses()
-                                .get(0).getAddress().getHostAddress(), null, false);
+                                .get(0).getAddress().getHostAddress(), null, false, "unknown");
                         map.put(deployment.getName(), descriptor);
                     }
                 }

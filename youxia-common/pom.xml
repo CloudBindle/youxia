@@ -66,6 +66,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.apache.jclouds.api</groupId>
+            <artifactId>openstack-keystone</artifactId>
+            <version>1.9.0</version>
+        </dependency>
+        <dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>adal4j</artifactId>
             <exclusions>

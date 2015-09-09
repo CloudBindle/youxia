@@ -59,6 +59,7 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
             for (IterableWithMarker<Server> iterable : toList) {
                 ImmutableList<Server> toList1 = iterable.toList();
                 for (Server server : toList1) {
+
                     String managedTag = null;
                     String managedState = null;
                     for (Entry<String, String> tag : server.getMetadata().entrySet()) {
@@ -85,7 +86,7 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
                     if (iterator.hasNext()) {
                         secondAddress = iterator.next().getValue().getAddr();
                     }
-                    handleMapping(managedTag, managedState, id, new InstanceDescriptor(server.getUuid(), address, secondAddress), map);
+                    handleMapping(managedTag, managedState, id, new InstanceDescriptor(server.getUuid(), address, secondAddress, false, server.getFlavor().getName()), map);
                 }
             }
         }
