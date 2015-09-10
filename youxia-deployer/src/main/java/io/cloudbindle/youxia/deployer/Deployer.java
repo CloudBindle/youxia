@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.microsoft.azure.storage.CloudStorageAccount;
 import com.microsoft.azure.storage.blob.CloudBlobClient;
 import com.microsoft.azure.storage.blob.CloudBlobContainer;
@@ -49,6 +50,7 @@ import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -150,7 +152,7 @@ public class Deployer {
 
         this.totalNodesSpec = parser
                 .acceptsAll(Arrays.asList("total-nodes-num", "t"), "Total number of spot and on-demand instances to maintain.")
-                .withRequiredArg().ofType(Integer.class).required();
+                .withRequiredArg().ofType(Integer.class);
 
         this.openStackModeSpec = parser.acceptsAll(Arrays.asList("openstack", "o"), "Run the deployer using OpenStack (default is AWS)");
         this.azureModeSpec = parser.acceptsAll(Arrays.asList("azure", "a"), "Run the deployer using Azure (default is AWS)");
@@ -180,7 +182,7 @@ public class Deployer {
                 .withRequiredArg().ofType(String.class);
         this.instanceRestrictions = parser
                 .acceptsAll(Arrays.asList("instance-types"),
-                        "If specified, ansible will override the basic specified flavors (files contains a map of flavour -> # of instances)")
+                        "If specified, ansible will override the basic specified flavors (files contains a map of flavour -> # of instances)").requiredUnless(totalNodesSpec)
                 .withRequiredArg().ofType(String.class);
 
         try {
@@ -217,54 +219,64 @@ public class Deployer {
             lister = ListingFactory.createAWSListing();
             defaultFlavour = youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE);
         }
-        assert(defaultFlavour != null);
+        assert (defaultFlavour != null);
         Map<String, InstanceDescriptor> map = lister.getInstances();
         Log.info("Found " + map.size() + " clients");
+        final Integer batchSize = options.valueOf(this.batchSizeSpec);
 
-        // get additional map of client types if needed
         LinkedHashMap<String, Integer> clientTypes = new LinkedHashMap<>();
-        if (options.has(this.instanceRestrictions)) {
-            Gson gson = new Gson();
-            String readFileToString = null;
-            try {
-                readFileToString = FileUtils.readFileToString(new File(options.valueOf(this.instanceRestrictions)), StandardCharsets.UTF_8);
-                clientTypes = gson.fromJson(readFileToString, LinkedHashMap.class);
-            } catch (IOException e) {
-                e.printStackTrace();
+        if (options.has(totalNodesSpec)) {
+            int totalNumNodes = options.valueOf(totalNodesSpec);
+            int clientsNeeded = totalNumNodes - map.size();
+            Log.info("Need " + clientsNeeded + " more workers");
+            int clientsAfterBatching = Math.min(batchSize, clientsNeeded);
+            Log.info("After batch limit, we can requisition up to " + clientsAfterBatching + " this run");
+            clientTypes.put(defaultFlavour, clientsAfterBatching);
+        } else {
+            assert (options.has(instanceRestrictions));
+            // get additional map of client types if needed
+            if (options.has(this.instanceRestrictions)) {
+                Gson gson = new Gson();
+                String readFileToString = null;
+                try {
+                    Type type = new TypeToken<LinkedHashMap<String, Integer>>() {
+                    }.getType();
+                    readFileToString = FileUtils
+                            .readFileToString(new File(options.valueOf(this.instanceRestrictions)), StandardCharsets.UTF_8);
+                    clientTypes = gson.fromJson(readFileToString, type);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    throw new RuntimeException("Could not read client restrictions from " + this.instanceRestrictions.toString());
+                }
             }
-            throw new RuntimeException("Could not read client restrictions from " + this.instanceRestrictions.toString());
+
+            // map should be left with what can actually be requisitioned, with special VMs first, but limited by the batch size
+            Log.info("Looking for the following types: " + clientTypes.toString());
+
+            // first subtract the types that exist
+            for (Entry<String, InstanceDescriptor> entry : map.entrySet()) {
+                final String flavour = entry.getValue().getFlavour();
+                if (clientTypes.containsKey(flavour)) {
+                    clientTypes.compute(flavour, (k, v) -> (v == 1 ? null : v - 1));
+                }
+            }
+            // cap each group by the batch size
+            clientTypes.replaceAll((k,v) -> Math.min(batchSize,v));
+
+            Log.info("After removing found instances and capping by batch size: " + clientTypes.toString());
         }
 
-        // map should be left with what can actually be requisitioned, with special VMs first, but limited by the batch size
-        clientTypes.put(defaultFlavour, Integer.MAX_VALUE);
-        Log.info("Looking for the following types: " + clientTypes.toString());
-
-        // first subtract the types that exist
-        for(Entry<String, InstanceDescriptor> entry : map.entrySet()){
-            final String flavour = entry.getValue().getFlavour();
-            if (clientTypes.containsKey(flavour)){
-                clientTypes.compute(flavour,
-                        (k, v) -> (v == 1? null: v - 1));
-            }
-        }
-        Log.info("After removing found instances: " + clientTypes.toString());
+        // consider the first type of instance first, default type should be last since it was inserted last
         if (clientTypes.size() > 0) {
-            // consider the first type of instance first, default type should be last since it was inserted last
             final Entry<String, Integer> firstEntry = clientTypes.entrySet().iterator().next();
-            Log.info("After removing found instances: " + clientTypes.toString());
-            Log.info("Calculating: " + options.valueOf(totalNodesSpec) + " " + firstEntry.getValue() + " " + map.size());
-            int clientsNeeded = Math.min(options.valueOf(totalNodesSpec),firstEntry.getValue()) - map.size();
+            int clientsNeededForType = Integer.valueOf(firstEntry.getValue());
             final String flavour = firstEntry.getKey();
-            Log.info("Need " + clientsNeeded + " more " + flavour + " clients");
-            int clientsAfterBatching = Math.min(options.valueOf(this.batchSizeSpec), clientsNeeded);
-            if (clientsAfterBatching > 0){
-                Log.info("After batch limit, we can requisition up to " + clientsAfterBatching + " this run");
-                return new ImmutablePair<>(flavour, clientsAfterBatching);
+            if (clientsNeededForType > 0) {
+                Log.info("After batch limit, we can requisition up to " + clientsNeededForType + " " + firstEntry.getKey() + " this run");
+                return new ImmutablePair<>(flavour, clientsNeededForType);
             }
-            return null;
-        } else{
-            return null;
         }
+        return null;
     }
 
     /**
@@ -819,7 +831,7 @@ public class Deployer {
                 }
             }
             if (!clientsToDeploy.getKey().isEmpty()) {
-                String hardwareId = youxiaConfig.getString(DEPLOYER_OPENSTACK_FLAVOR);
+                String hardwareId = clientsToDeploy.getKey();
                 System.out.println("Flavor found, using " + hardwareId + " as flavor");
                 Set<? extends Hardware> profiles = computeService.listHardwareProfiles();
                 Hardware targetHardware = null;

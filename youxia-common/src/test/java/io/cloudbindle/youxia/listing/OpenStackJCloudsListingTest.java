@@ -144,7 +144,7 @@ public class OpenStackJCloudsListingTest {
     private NovaApi setupMocks() {
         NovaApi mockClient = mock(NovaApi.class);
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
-        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig);
+        expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         expect(ConfigTools.getNovaApi()).andReturn(mockClient);
         when(mockConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)).thenReturn("dummy_tag");
         return mockClient;
