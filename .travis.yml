@@ -1,5 +1,5 @@
 notifications:
-  slack: oicr:S9k4EowgQv9AnbCfEZHSzCsg
+  slack: 'oicr:S9k4EowgQv9AnbCfEZHSzCsg'
     on_success: never
     on_failure: always
 
