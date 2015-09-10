@@ -27,6 +27,8 @@ import io.cloudbindle.youxia.util.Constants;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
+
+import static org.easymock.EasyMock.anyInt;
 import static org.easymock.EasyMock.expect;
 import org.jclouds.collect.IterableWithMarker;
 import org.jclouds.collect.PagedIterable;
@@ -34,10 +36,14 @@ import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.nova.v2_0.domain.Address;
 import org.jclouds.openstack.nova.v2_0.domain.Flavor;
 import org.jclouds.openstack.nova.v2_0.domain.Server;
+import org.jclouds.openstack.nova.v2_0.features.FlavorApi;
 import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.powermock.api.easymock.PowerMock.mockStatic;
 import static org.powermock.api.easymock.PowerMock.replayAll;
 import static org.powermock.api.easymock.PowerMock.verifyAll;
@@ -144,9 +150,13 @@ public class OpenStackJCloudsListingTest {
     private NovaApi setupMocks() {
         NovaApi mockClient = mock(NovaApi.class);
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
+        FlavorApi mockFlavorAPI = mock(FlavorApi.class);
         expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         expect(ConfigTools.getNovaApi()).andReturn(mockClient);
         when(mockConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG)).thenReturn("dummy_tag");
+        when(mockClient.getFlavorApi(anyString())).thenReturn(mockFlavorAPI);
+        final Flavor flavor = Flavor.builder().name("m1.xlarge").id("id").ram(4).disk(1000).vcpus(4).build();
+        when(mockFlavorAPI.get(anyString())).thenReturn(flavor);
         return mockClient;
     }
 
