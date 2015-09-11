@@ -159,6 +159,15 @@ Append the parameter --openstack to deploy OpenStack instances
 
 There are also two parameters that can be used to deploy a minimum number of on-demand instances (--max-on-demand) and cap the number of on-demand instances (--min-on-demand). 
 
+It is also possible to specify a mix of instance types instead of `--total-nodes-num`. For example, the following JSON will result in 4 m1.small instances, 2 m1.xlarge, and 4 t1.micro. This should be stored in a file that is referenced using the `--instance-types` argument, as `--instance-types instance-types.json`:
+
+	{
+	"m1.small":4,
+	"m1.xlarge":2,
+	"t1.micro":4
+	}
+
+
 Finally, we tag created instances with some information for identification and state purposes. You can add your own additional tags via the (--server-tag-file).
 
         {"one":"won","two":"two"}

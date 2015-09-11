@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.microsoft.azure.storage.CloudStorageAccount;
 import com.microsoft.azure.storage.blob.CloudBlobClient;
 import com.microsoft.azure.storage.blob.CloudBlobContainer;
@@ -49,6 +50,7 @@ import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -58,11 +60,13 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
+
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.BuiltinHelpFormatter;
 import joptsimple.OptionException;
@@ -77,6 +81,8 @@ import org.apache.commons.exec.Executor;
 import org.apache.commons.exec.PumpStreamHandler;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.jclouds.collect.IterableWithMarker;
 import org.jclouds.collect.PagedIterable;
 import org.jclouds.compute.ComputeService;
@@ -103,6 +109,7 @@ public class Deployer {
     private final ArgumentAcceptingOptionSpec<Integer> totalNodesSpec;
     private final ArgumentAcceptingOptionSpec<Float> maxSpotPriceSpec;
     private final ArgumentAcceptingOptionSpec<Integer> batchSizeSpec;
+    private final ArgumentAcceptingOptionSpec<String> instanceRestrictions;
     private OptionSet options;
     private final HierarchicalINIConfiguration youxiaConfig;
     public static final String DEPLOYER_INSTANCE_TYPE = "deployer.instance_type";
@@ -145,7 +152,7 @@ public class Deployer {
 
         this.totalNodesSpec = parser
                 .acceptsAll(Arrays.asList("total-nodes-num", "t"), "Total number of spot and on-demand instances to maintain.")
-                .withRequiredArg().ofType(Integer.class).required();
+                .withRequiredArg().ofType(Integer.class);
 
         this.openStackModeSpec = parser.acceptsAll(Arrays.asList("openstack", "o"), "Run the deployer using OpenStack (default is AWS)");
         this.azureModeSpec = parser.acceptsAll(Arrays.asList("azure", "a"), "Run the deployer using Azure (default is AWS)");
@@ -173,6 +180,10 @@ public class Deployer {
                 .acceptsAll(Arrays.asList("server-tag-file"),
                         "If specified, ansible will use the specified tags in a JSON file (file contains a representation of a map)")
                 .withRequiredArg().ofType(String.class);
+        this.instanceRestrictions = parser
+                .acceptsAll(Arrays.asList("instance-types"),
+                        "If specified, ansible will override the basic specified flavors (files contains a map of flavour -> # of instances)").requiredUnless(totalNodesSpec)
+                .withRequiredArg().ofType(String.class);
 
         try {
             this.options = parser.parse(args);
@@ -192,25 +203,80 @@ public class Deployer {
     /**
      * Determine the number of clients that we need to spawn.
      *
-     * @return
+     * @return return the flavour -> number of clients that we can start up this run
      */
-    private int assessClients() {
+    private ImmutablePair<String, Integer> assessClients() {
         AbstractInstanceListing lister;
+        String defaultFlavour;
         if (options.has(this.openStackModeSpec)) {
             lister = ListingFactory.createOpenStackListing();
+            defaultFlavour = youxiaConfig.getString(DEPLOYER_OPENSTACK_FLAVOR);
+
         } else if (options.has(this.azureModeSpec)) {
             lister = ListingFactory.createAzureListing();
+            defaultFlavour = youxiaConfig.getString(DEPLOYER_AZURE_FLAVOR);
         } else {
             lister = ListingFactory.createAWSListing();
+            defaultFlavour = youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE);
         }
+        assert (defaultFlavour != null);
         Map<String, InstanceDescriptor> map = lister.getInstances();
         Log.info("Found " + map.size() + " clients");
+        final Integer batchSize = options.valueOf(this.batchSizeSpec);
 
-        int clientsNeeded = options.valueOf(totalNodesSpec) - map.size();
-        Log.info("Need " + clientsNeeded + " more clients");
-        int clientsAfterBatching = Math.min(options.valueOf(this.batchSizeSpec), clientsNeeded);
-        Log.info("After batch limit, we can requisition up to " + clientsAfterBatching + " this run");
-        return clientsAfterBatching;
+        LinkedHashMap<String, Integer> clientTypes = new LinkedHashMap<>();
+        if (options.has(totalNodesSpec)) {
+            int totalNumNodes = options.valueOf(totalNodesSpec);
+            int clientsNeeded = totalNumNodes - map.size();
+            Log.info("Need " + clientsNeeded + " more workers");
+            int clientsAfterBatching = Math.min(batchSize, clientsNeeded);
+            Log.info("After batch limit, we can requisition up to " + clientsAfterBatching + " this run");
+            clientTypes.put(defaultFlavour, clientsAfterBatching);
+        } else {
+            assert (options.has(instanceRestrictions));
+            // get additional map of client types if needed
+            if (options.has(this.instanceRestrictions)) {
+                Gson gson = new Gson();
+                String readFileToString = null;
+                try {
+                    Type type = new TypeToken<LinkedHashMap<String, Integer>>() {
+                    }.getType();
+                    readFileToString = FileUtils
+                            .readFileToString(new File(options.valueOf(this.instanceRestrictions)), StandardCharsets.UTF_8);
+                    clientTypes = gson.fromJson(readFileToString, type);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    throw new RuntimeException("Could not read client restrictions from " + this.instanceRestrictions.toString());
+                }
+            }
+
+            // map should be left with what can actually be requisitioned, with special VMs first, but limited by the batch size
+            Log.info("Looking for the following types: " + clientTypes.toString());
+
+            // first subtract the types that exist
+            for (Entry<String, InstanceDescriptor> entry : map.entrySet()) {
+                final String flavour = entry.getValue().getFlavour();
+                if (clientTypes.containsKey(flavour)) {
+                    clientTypes.compute(flavour, (k, v) -> (v == 1 ? null : v - 1));
+                }
+            }
+            // cap each group by the batch size
+            clientTypes.replaceAll((k,v) -> Math.min(batchSize,v));
+
+            Log.info("After removing found instances and capping by batch size: " + clientTypes.toString());
+        }
+
+        // consider the first type of instance first, default type should be last since it was inserted last
+        if (clientTypes.size() > 0) {
+            final Entry<String, Integer> firstEntry = clientTypes.entrySet().iterator().next();
+            int clientsNeededForType = Integer.valueOf(firstEntry.getValue());
+            final String flavour = firstEntry.getKey();
+            if (clientsNeededForType > 0) {
+                Log.info("After batch limit, we can requisition up to " + clientsNeededForType + " " + firstEntry.getKey() + " this run");
+                return new ImmutablePair<>(flavour, clientsNeededForType);
+            }
+        }
+        return null;
     }
 
     /**
@@ -218,7 +284,7 @@ public class Deployer {
      *
      * @return a zone with a reasonable spot price
      */
-    private String isReadyToRequestSpotInstances() {
+    private String isReadyToRequestSpotInstances(String flavour) {
         AmazonEC2Client ec2 = ConfigTools.getEC2Client();
         // grab all possible zones
         String[] desiredZones = youxiaConfig.getStringArray(ConfigTools.YOUXIA_ZONE);
@@ -227,12 +293,12 @@ public class Deployer {
 
         for (String zone : desiredZones) {
             DescribeSpotPriceHistoryResult describeSpotPriceHistory = ec2.describeSpotPriceHistory(new DescribeSpotPriceHistoryRequest()
-                    .withAvailabilityZone(zone).withInstanceTypes(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
+                    .withAvailabilityZone(zone).withInstanceTypes(flavour)
                     .withProductDescriptions(youxiaConfig.getString(DEPLOYER_PRODUCT)));
             Float currentPrice = null;
             for (SpotPrice spotPrice : describeSpotPriceHistory.getSpotPriceHistory()) {
                 if (spotPrice.getAvailabilityZone().equals(zone)
-                        && spotPrice.getInstanceType().equals(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE))
+                        && spotPrice.getInstanceType().equals(flavour)
                         && spotPrice.getProductDescription().contains("Linux")) {
                     Log.info(spotPrice.toString());
                     currentPrice = Float.valueOf(spotPrice.getSpotPrice());
@@ -271,7 +337,7 @@ public class Deployer {
      *            the value of additionalTags
      * @return the java.util.List<com.amazonaws.services.ec2.model.Instance>
      */
-    private List<Instance> requestAWSInstances(int numInstances, boolean onDemand, String zone, Map<String, String> additionalTags) {
+    private List<Instance> requestAWSInstances(int numInstances, boolean onDemand, String zone, Map<String, String> additionalTags, String flavor) {
         try {
             // we need additional information on number of on-demand and spot instances in order to cap our requests
             AbstractInstanceListing lister = ListingFactory.createAWSListing();
@@ -298,7 +364,7 @@ public class Deployer {
             int remainingOnDemandAllowed = maxOnDemand - currentOnDemand;
 
             // Setup the helper object that will perform all of the API calls.
-            Requests requests = new Requests(youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE), youxiaConfig.getString(DEPLOYER_AMI_IMAGE),
+            Requests requests = new Requests(flavor, youxiaConfig.getString(DEPLOYER_AMI_IMAGE),
                     Float.toString(options.valueOf(this.maxSpotPriceSpec)), youxiaConfig.getString(DEPLOYER_SECURITY_GROUP), numInstances,
                     youxiaConfig.getString(ConfigTools.YOUXIA_AWS_KEY_NAME));
             requests.setAvailabilityZone(zone);
@@ -312,7 +378,7 @@ public class Deployer {
             tags.add(new Tag(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString()));
             // Initialize the timer to now.
             Calendar startTimer = Calendar.getInstance();
-            Calendar nowTimer = null;
+            Calendar nowTimer;
             if (onDemand) {
                 if (launchOnDemandInstances(requests, remainingOnDemandAllowed, numInstances)) {
                     return new ArrayList<>();
@@ -347,7 +413,7 @@ public class Deployer {
                 } catch (AmazonServiceException ase) {
                     // Write out any exceptions that may have occurred.
                     Log.info("Caught Exception: " + ase.getMessage());
-                    Log.info("Reponse Status Code: " + ase.getStatusCode());
+                    Log.info("Response Status Code: " + ase.getStatusCode());
                     Log.info("Error Code: " + ase.getErrorCode());
                     Log.info("Request ID: " + ase.getRequestId());
                     Log.info("Attempting recovery with on-demand instance");
@@ -393,7 +459,7 @@ public class Deployer {
         } catch (AmazonServiceException ase) {
             // Write out any exceptions that may have occurred.
             Log.error("Caught Exception: " + ase.getMessage());
-            Log.error("Reponse Status Code: " + ase.getStatusCode());
+            Log.error("Response Status Code: " + ase.getStatusCode());
             Log.error("Error Code: " + ase.getErrorCode());
             Log.error("Request ID: " + ase.getRequestId());
             throw new RuntimeException(ase);
@@ -561,33 +627,37 @@ public class Deployer {
         }
     }
 
-    private void runDeployment(int clientsToDeploy) throws Exception {
+    /**
+     * Deploys a certain number of one flavour type.
+     * @param clientsToDeploy a number of clients to deploy
+     * @throws Exception
+     */
+    private void runDeployment(Pair<String, Integer> clientsToDeploy) throws Exception {
         Map<String, String> extraTags = new HashMap<>();
         if (options.has(this.extraTagSpec)) {
             Gson gson = new Gson();
             String readFileToString = FileUtils.readFileToString(new File(options.valueOf(this.extraTagSpec)), StandardCharsets.UTF_8);
             extraTags = gson.fromJson(readFileToString, Map.class);
         }
-        Set<String> ids;
         if (options.has(this.openStackModeSpec)) {
             runDeploymentForOpenStack(extraTags, clientsToDeploy);
         } else if (options.has(this.azureModeSpec)) {
             runDeploymentForAzure(extraTags, clientsToDeploy);
         } else {
-            runDeploymentForAWS(clientsToDeploy, extraTags);
+            runDeploymentForAWS(extraTags, clientsToDeploy);
         }
     }
 
-    private boolean runDeploymentForAWS(int clientsToDeploy, Map<String, String> extraTags) {
-        String zoneWithLowestPrice = isReadyToRequestSpotInstances();
+    private boolean runDeploymentForAWS(Map<String, String> extraTags, Pair<String, Integer> clientsToDeploy) {
+        String zoneWithLowestPrice = isReadyToRequestSpotInstances(clientsToDeploy.getKey());
         Log.info("Reporting zone with lowest price: " + zoneWithLowestPrice);
         boolean onlyOnDemandAvailable = zoneWithLowestPrice == null;
-        List<Instance> readyInstances = requestAWSInstances(clientsToDeploy, onlyOnDemandAvailable, zoneWithLowestPrice, extraTags);
+        List<Instance> readyInstances = requestAWSInstances(clientsToDeploy.getValue(), onlyOnDemandAvailable, zoneWithLowestPrice, extraTags, clientsToDeploy.getKey());
         if (readyInstances.isEmpty()) {
             return true;
         }
         // safety check here
-        if (readyInstances.size() > clientsToDeploy) {
+        if (readyInstances.size() > clientsToDeploy.getValue()) {
             Log.info("Something has gone awry, more instances reported as ready than were provisioned, aborting ");
             throw new RuntimeException("readyInstances incorrect information");
         }
@@ -603,12 +673,13 @@ public class Deployer {
         return false;
     }
 
-    private void runDeploymentForAzure(Map<String, String> extraTags, int clientsToDeploy) throws Exception {
+    private void runDeploymentForAzure(Map<String, String> extraTags, Pair<String, Integer> clientsToDeploy) throws Exception {
         Map<String, DeploymentGetResponse> nodes = new HashMap<>();
         ComputeManagementClient azureComputeClient = ConfigTools.getAzureComputeClient();
         AzureResourceManagerClient azureResourceManagerClient = ConfigTools.getAzureResourceManagerClient();
 
-        for (int i = 0; i < clientsToDeploy; i++) {
+        // TODO: implement deployment of different types of instances on Azure
+        for (int i = 0; i < clientsToDeploy.getValue(); i++) {
 
             String randomizedName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + "-" + UUID.randomUUID().toString();
 
@@ -724,12 +795,12 @@ public class Deployer {
         }
     }
 
-    private void runDeploymentForOpenStack(Map<String, String> extraTags, int clientsToDeploy) throws InterruptedException,
+    private void runDeploymentForOpenStack(Map<String, String> extraTags, Pair<String, Integer> clientsToDeploy) throws InterruptedException,
             RunNodesException {
         Set<String> ids;
         try (ComputeServiceContext genericOpenStackApi = ConfigTools.getGenericOpenStackApi()) {
             ComputeService computeService = genericOpenStackApi.getComputeService();
-            // have to use the specific api here to designate a keypair, weird
+            // have to use the specific api here to designate a key-pair, weird
             TemplateOptions templateOptions = NovaTemplateOptions.Builder.securityGroupNames(
                     youxiaConfig.getString(DEPLOYER_OPENSTACK_SECURITY_GROUP)).keyPairName(
                     youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_KEY_NAME));
@@ -759,8 +830,8 @@ public class Deployer {
                     novaOptions.availabilityZone(zone);
                 }
             }
-            if (youxiaConfig.containsKey(DEPLOYER_OPENSTACK_FLAVOR)) {
-                String hardwareId = youxiaConfig.getString(DEPLOYER_OPENSTACK_FLAVOR);
+            if (!clientsToDeploy.getKey().isEmpty()) {
+                String hardwareId = clientsToDeploy.getKey();
                 System.out.println("Flavor found, using " + hardwareId + " as flavor");
                 Set<? extends Hardware> profiles = computeService.listHardwareProfiles();
                 Hardware targetHardware = null;
@@ -783,7 +854,7 @@ public class Deployer {
 
             Template template = templateBuilder.options(templateOptions).build();
 
-            Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy, template);
+            Set<? extends NodeMetadata> nodesInGroup = computeService.createNodesInGroup("group", clientsToDeploy.getValue(), template);
             for (NodeMetadata meta : nodesInGroup) {
                 Log.stdoutWithTime("Created " + meta.getId() + " " + meta.getStatus().toString());
             }
@@ -802,7 +873,7 @@ public class Deployer {
     }
 
     private void retagInstances(Set<String> ids) {
-        // retag instances with finished metadata, cannot see how to do this with the generic api
+        // re-tag instances with finished metadata, cannot see how to do this with the generic api
         // this sucks incredibly bad and is copied from the OpenStackTagger, there has got to be a way to use the generic api for
         // this
         NovaApi novaApi = ConfigTools.getNovaApi();
@@ -810,8 +881,8 @@ public class Deployer {
         PagedIterable<Server> listInDetail = serverApiForZone.listInDetail();
         // what is this crazy nested structure?
         ImmutableList<IterableWithMarker<Server>> toList = listInDetail.toList();
-        for (IterableWithMarker<Server> iterable : toList) {
-            ImmutableList<Server> toList1 = iterable.toList();
+        for (IterableWithMarker<Server> iterate : toList) {
+            ImmutableList<Server> toList1 = iterate.toList();
             for (Server server : toList1) {
                 // generic api uses region ids, the specific one doesn't. Sigh.
                 final String nodeId = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_REGION) + "-" + server.getId().replace("/", "-");
@@ -829,8 +900,9 @@ public class Deployer {
     public static void main(String[] args) throws Exception {
 
         Deployer deployer = new Deployer(args);
-        int clientsToDeploy = deployer.assessClients();
-        if (clientsToDeploy > 0) {
+
+        Pair<String, Integer> clientsToDeploy = deployer.assessClients();
+        if (clientsToDeploy != null) {
             deployer.runDeployment(clientsToDeploy);
         }
     }

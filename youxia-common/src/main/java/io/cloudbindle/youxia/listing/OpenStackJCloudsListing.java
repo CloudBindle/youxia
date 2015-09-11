@@ -29,7 +29,9 @@ import org.jclouds.collect.IterableWithMarker;
 import org.jclouds.collect.PagedIterable;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
 import org.jclouds.openstack.nova.v2_0.domain.Address;
+import org.jclouds.openstack.nova.v2_0.domain.Flavor;
 import org.jclouds.openstack.nova.v2_0.domain.Server;
+import org.jclouds.openstack.nova.v2_0.features.FlavorApi;
 import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 
 /**
@@ -49,6 +51,8 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
     public Map<String, InstanceDescriptor> getInstances() {
         String managedTagValue = ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_MANAGED_TAG);
         NovaApi novaApi = ConfigTools.getNovaApi();
+        final FlavorApi flavorApi = novaApi.getFlavorApi(ConfigTools.getYouxiaConfig().getString(ConfigTools.YOUXIA_OPENSTACK_REGION));
+
         Map<String, InstanceDescriptor> map = Maps.newHashMap();
         for (String zone : novaApi.getConfiguredZones()) {
             Log.info("Looking at zone: " + zone);
@@ -59,6 +63,7 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
             for (IterableWithMarker<Server> iterable : toList) {
                 ImmutableList<Server> toList1 = iterable.toList();
                 for (Server server : toList1) {
+
                     String managedTag = null;
                     String managedState = null;
                     for (Entry<String, String> tag : server.getMetadata().entrySet()) {
@@ -85,7 +90,14 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
                     if (iterator.hasNext()) {
                         secondAddress = iterator.next().getValue().getAddr();
                     }
-                    handleMapping(managedTag, managedState, id, new InstanceDescriptor(server.getUuid(), address, secondAddress), map);
+                    // need to translate to a name which is actually useful
+                    Log.debug("Found " + server.getFlavor().toString());
+                    final Flavor flavor = flavorApi.get(server.getFlavor().getId());
+                    Log.debug("Found from api " + flavor.toString());
+                    String flavorName = flavor.getName();
+
+                    handleMapping(managedTag, managedState, id,
+                            new InstanceDescriptor(server.getUuid(), address, secondAddress, false, flavorName), map);
                 }
             }
         }

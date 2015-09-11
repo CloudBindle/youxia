@@ -51,7 +51,7 @@ public class AwsJCloudsListing extends AbstractInstanceListing {
                         String privateIpAddress = nodeMetadata.getPrivateAddresses().iterator().next();
                         // how do I figure out what is a spot instance
                         map.put(nodeMetadata.getProviderId(), new InstanceDescriptor(nodeMetadata.getProviderId(), ipAddress,
-                                privateIpAddress, false));
+                                privateIpAddress, false, nodeMetadata.getHardware().getProviderId()));
                     }
                 }
             }

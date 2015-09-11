@@ -16,21 +16,20 @@
  */
 package io.cloudbindle.youxia.listing;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
 import io.cloudbindle.youxia.util.ConfigTools;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import static org.easymock.EasyMock.expect;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
-import org.jclouds.compute.domain.ComputeType;
-import org.jclouds.compute.domain.Hardware;
-import org.jclouds.compute.domain.NodeMetadata;
-import org.jclouds.compute.domain.OperatingSystem;
+import org.jclouds.compute.domain.*;
 import org.jclouds.domain.Location;
 import org.jclouds.domain.LoginCredentials;
 import org.jclouds.domain.ResourceMetadata;
@@ -192,8 +191,63 @@ public class AwsJCloudsListingTest {
 
             @Override
             public Hardware getHardware() {
-                throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose Tools |
-                                                                               // Templates.
+                return new Hardware() {
+                    @Override public List<? extends Processor> getProcessors() {
+                        return null;
+                    }
+
+                    @Override public int getRam() {
+                        return 0;
+                    }
+
+                    @Override public List<? extends Volume> getVolumes() {
+                        return null;
+                    }
+
+                    @Override public Predicate<Image> supportsImage() {
+                        return null;
+                    }
+
+                    @Override public String getHypervisor() {
+                        return null;
+                    }
+
+                    @Override public ComputeType getType() {
+                        return null;
+                    }
+
+                    @Override public String getProviderId() {
+                        return "m1.xlarge";
+                    }
+
+                    @Override public String getName() {
+                        return null;
+                    }
+
+                    @Override public String getId() {
+                        return null;
+                    }
+
+                    @Override public Set<String> getTags() {
+                        return null;
+                    }
+
+                    @Override public Location getLocation() {
+                        return null;
+                    }
+
+                    @Override public URI getUri() {
+                        return null;
+                    }
+
+                    @Override public Map<String, String> getUserMetadata() {
+                        return null;
+                    }
+
+                    @Override public int compareTo(ResourceMetadata<ComputeType> o) {
+                        return 0;
+                    }
+                };
             }
 
             @Override

@@ -91,6 +91,8 @@ public class DeployerTest {
         AmazonEC2Client mockClient = mock(AmazonEC2Client.class);
         AwsListing listing = createMockAndExpectNew(AwsListing.class);
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
+        when(mockConfig.containsKey(Deployer.DEPLOYER_INSTANCE_TYPE)).thenReturn(true);
+        when(mockConfig.getString(Deployer.DEPLOYER_INSTANCE_TYPE)).thenReturn("m1.xlarge");
         expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         expect(ConfigTools.getEC2Client()).andReturn(mockClient);
         expectNew(AwsListing.class).andReturn(listing);
@@ -113,6 +115,8 @@ public class DeployerTest {
         AmazonEC2Client mockClient = mock(AmazonEC2Client.class);
         OpenStackJCloudsListing listing = createMockAndExpectNew(OpenStackJCloudsListing.class);
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
+        when(mockConfig.containsKey(Deployer.DEPLOYER_OPENSTACK_FLAVOR)).thenReturn(true);
+        when(mockConfig.getString(Deployer.DEPLOYER_OPENSTACK_FLAVOR)).thenReturn("m1.xlarge");
         expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         expect(ConfigTools.getEC2Client()).andReturn(mockClient);
         expectNew(OpenStackJCloudsListing.class).andReturn(listing);
