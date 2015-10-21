@@ -1,6 +1,6 @@
 This document details how to setup youxia in Azure which, unfortunately, requires multiple types of authentication to access various services. All instructions here refer to the Azure preview portal unless otherwise specified. 
 
-First, pick a managment tag for youxia. Pick one with only alphanumberic characters and dashes (the Azure metadata API cannot seem to handle underscores). It seems that CaPiTal letters are also not allowed.
+First, pick a managment tag for youxia. Pick one with only alphanumberic characters and dashes (the Azure metadata API cannot seem to handle underscores). It seems that CaPiTal letters are also not allowed (because _some_ Azure resources do not allow capital letters in their names).
 
 **Make sure you do not actually name your launcher starting with the management tag, otherwise it may self-reap**
 
