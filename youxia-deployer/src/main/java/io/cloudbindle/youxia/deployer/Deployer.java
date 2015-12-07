@@ -18,6 +18,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import org.apache.commons.exec.CommandLine;
@@ -133,7 +138,6 @@ public class Deployer {
     public static final String DEPLOYER_AZURE_IMAGE_NAME = "deployer_azure.image_name";
     public static final String DEPLOYER_AZURE_FLAVOR = "deployer_azure.flavor";
     public static final String DEPLOYER_AZURE_LOCATION = "deployer_azure.location";
-    public static final String DEPLOYER_AZURE_ARBITRARY_WAIT = "deployer_azure.arbitrary_wait";
     public static final String DEPLOYER_AZURE_VIRTUAL_NETWORK = "deployer_azure.virtual_network";
 
     private final ArgumentAcceptingOptionSpec<String> playbookSpec;
@@ -545,34 +549,38 @@ public class Deployer {
         return wait;
     }
 
-    private Set<String> runAnsible(Map<String, DeploymentGetResponse> map) {
+    /**
+     * prepare to run ansible for Azure
+     * @param map
+     * @return
+     */
+    private Set<String> prepAnsibleForAzure(Map<String, DeploymentGetResponse> map) {
         Set<String> ids = new HashSet<>();
         Map<String, String> instanceMap = new HashMap<>();
         for (Entry<String, DeploymentGetResponse> e : map.entrySet()) {
             ids.add(e.getKey());
             instanceMap.put(e.getKey(), e.getValue().getVirtualIPAddresses().get(0).getAddress().getHostAddress());
         }
-        runAnsible(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_AZURE_SSH_KEY));
+        runAnsibleActual(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_AZURE_SSH_KEY));
         return ids;
     }
 
-    private Set<String> runAnsible(List<Instance> readyInstances) {
+    private Set<String> prepAnsibleForAWS(List<Instance> readyInstances) {
         Set<String> ids = new HashSet<>();
         Map<String, String> instanceMap = new HashMap<>();
         for (Instance s : readyInstances) {
             ids.add(s.getInstanceId());
             instanceMap.put(s.getInstanceId(), s.getPublicIpAddress());
         }
-        runAnsible(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY));
+        runAnsibleActual(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_AWS_SSH_KEY));
         return ids;
     }
 
-    private Set<String> runAnsible(Set<? extends NodeMetadata> nodeMetadata) throws InterruptedException {
+    private Set<String> prepAnsibleForOpenstack(Set<? extends NodeMetadata> nodeMetadata) throws InterruptedException {
         // validate SSH connections before unleashing ansible
         Set<String> ids = new HashSet<>();
         Map<String, String> instanceMap = new HashMap<>();
         final String openstackKey = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_SSH_KEY);
-        String openStackKeyContents = null;
         for (NodeMetadata node : nodeMetadata) {
             final String nodeId = node.getId().replace("/", "-");
             ids.add(nodeId);
@@ -581,33 +589,45 @@ public class Deployer {
             }
             final String ipAddress = node.getPrivateAddresses().iterator().next();
             instanceMap.put(nodeId,ipAddress);
-            // check and wait for SSH connection
-            boolean connected = false;
-            int i = 0;
-            while(!connected) {
-                try {
-                    final int sshPort = 22;
-                    openStackKeyContents = (openStackKeyContents == null ? FileUtils.readFileToString(new File(openstackKey), StandardCharsets.UTF_8) : openStackKeyContents);
-                    Shell shell = new SSH(ipAddress, sshPort, "ubuntu",openStackKeyContents);
-                    new Shell.Plain(shell).exec("echo 'Hello, world!'");
-                    connected = true;
-                } catch (IOException ex) {
-                    Log.info("Could not connect to " + nodeId + " , waiting to reconnect");
-                    final int everyFiveAttempts = 5;
-                    if (i % everyFiveAttempts == 0){
-                        Log.info("Taking more than " + i + " attempts, printing stack trace", ex);
-                    }
-                    Thread.sleep(ONE_MINUTE_IN_MILLISECONDS);
-                }
-                i++;
-            }
+            waitForSSHConnection(openstackKey, nodeId, ipAddress);
         }
         // then run ansible
-        runAnsible(instanceMap, openstackKey);
+        runAnsibleActual(instanceMap, openstackKey);
         return ids;
     }
 
-    private void runAnsible(Map<String, String> instanceMap, String keyFile) {
+    private String waitForSSHConnection(String sshKeyFile, String nodeId, String ipAddress)
+        throws InterruptedException {
+        // check and wait for SSH connection
+        boolean connected = false;
+        int i = 1;
+        String sshKeyContents = null;
+        while(!connected) {
+            try {
+                final int sshPort = 22;
+                sshKeyContents = (sshKeyContents == null ? FileUtils.readFileToString(new File(sshKeyFile), StandardCharsets.UTF_8) : sshKeyContents);
+                Shell shell = new SSH(ipAddress, sshPort, "ubuntu",sshKeyContents);
+                new Shell.Plain(shell).exec("echo 'Hello, world!'");
+                connected = true;
+            } catch (IOException ex) {
+                Log.info("Could not connect to " + nodeId + " , waiting to reconnect");
+                final int everyFiveAttempts = 5;
+                if (i % everyFiveAttempts == 0){
+                    Log.info("Taking more than " + i + " attempts, printing stack trace", ex);
+                }
+                Thread.sleep(ONE_MINUTE_IN_MILLISECONDS);
+            }
+            i++;
+        }
+        return sshKeyContents;
+    }
+
+    /**
+     * Actually run ansible
+     * @param instanceMap
+     * @param keyFile
+     */
+    private void runAnsibleActual(Map<String, String> instanceMap, String keyFile) {
         if (this.options.has(this.playbookSpec)) {
             try {
                 // hook up sensu to requested instances using Ansible
@@ -699,7 +719,7 @@ public class Deployer {
             Log.info("Something has gone awry, more instances reported as ready than were provisioned, aborting ");
             throw new RuntimeException("readyInstances incorrect information");
         }
-        runAnsible(readyInstances); // this should throw an Exception on playbook failure
+        prepAnsibleForAWS(readyInstances); // this should throw an Exception on playbook failure
         AmazonEC2Client eC2Client = ConfigTools.getEC2Client();
         // set managed state of instance to ready
         for (Instance i : readyInstances) {
@@ -712,117 +732,137 @@ public class Deployer {
     }
 
     private void runDeploymentForAzure(Map<String, String> extraTags, Pair<String, Integer> clientsToDeploy) throws Exception {
-        Map<String, DeploymentGetResponse> nodes = new HashMap<>();
+        Map<String, DeploymentGetResponse> nodes = new ConcurrentHashMap<>();
         ComputeManagementClient azureComputeClient = ConfigTools.getAzureComputeClient();
         AzureResourceManagerClient azureResourceManagerClient = ConfigTools.getAzureResourceManagerClient();
 
+        final ExecutorService executorService = Executors.newFixedThreadPool(clientsToDeploy.getValue());
         // TODO: implement deployment of different types of instances on Azure
+        List<Future<Void>> futures = new ArrayList<>();
+
         for (int i = 0; i < clientsToDeploy.getValue(); i++) {
+            final Future<Void> future = executorService.submit((Callable<Void>) () -> {
+                String randomizedName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + "-" + UUID.randomUUID().toString();
 
-            String randomizedName = youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG) + "-" + UUID.randomUUID().toString();
+                CloudStorageAccount azureStorage = ConfigTools.getAzureStorage();
+                CloudBlobClient serviceClient = azureStorage.createCloudBlobClient();
+                // Container name must be lower case.
+                CloudBlobContainer container = serviceClient.getContainerReference(randomizedName);
+                container.createIfNotExists();
 
-            CloudStorageAccount azureStorage = ConfigTools.getAzureStorage();
-            CloudBlobClient serviceClient = azureStorage.createCloudBlobClient();
-            // Container name must be lower case.
-            CloudBlobContainer container = serviceClient.getContainerReference(randomizedName);
-            container.createIfNotExists();
+                String storageAccountName = youxiaConfig.getString(ConfigTools.YOUXIA_AZURE_STORAGE_ACCOUNT_NAME);
 
-            String storageAccountName = youxiaConfig.getString(ConfigTools.YOUXIA_AZURE_STORAGE_ACCOUNT_NAME);
+                ArrayList<ConfigurationSet> configlist = new ArrayList<>();
+                ConfigurationSet configurationSetForNetwork = new ConfigurationSet();
 
-            ArrayList<ConfigurationSet> configlist = new ArrayList<>();
-            ConfigurationSet configurationSetForNetwork = new ConfigurationSet();
+                configurationSetForNetwork.setConfigurationSetType(ConfigurationSetTypes.NETWORKCONFIGURATION);
+                ArrayList<InputEndpoint> inputEndPointList = new ArrayList<>();
+                InputEndpoint inputEndpoint = new InputEndpoint();
+                inputEndpoint.setName("SSH");
+                inputEndpoint.setPort(SSH_PORT_NUMBER);
+                inputEndpoint.setLocalPort(SSH_PORT_NUMBER);
+                inputEndpoint.setProtocol("tcp");
+                inputEndPointList.add(inputEndpoint);
+                configurationSetForNetwork.setInputEndpoints(inputEndPointList);
+                configlist.add(configurationSetForNetwork);
 
-            configurationSetForNetwork.setConfigurationSetType(ConfigurationSetTypes.NETWORKCONFIGURATION);
-            ArrayList<InputEndpoint> inputEndPointList = new ArrayList<>();
-            InputEndpoint inputEndpoint = new InputEndpoint();
-            inputEndpoint.setName("SSH");
-            inputEndpoint.setPort(SSH_PORT_NUMBER);
-            inputEndpoint.setLocalPort(SSH_PORT_NUMBER);
-            inputEndpoint.setProtocol("tcp");
-            inputEndPointList.add(inputEndpoint);
-            configurationSetForNetwork.setInputEndpoints(inputEndPointList);
-            configlist.add(configurationSetForNetwork);
+                OSVirtualHardDisk oSVirtualHardDisk = new OSVirtualHardDisk();
+                // required
+                oSVirtualHardDisk.setName(randomizedName);
+                oSVirtualHardDisk.setHostCaching(VirtualHardDiskHostCaching.READWRITE);
+                oSVirtualHardDisk.setOperatingSystem("Linux");
 
-            OSVirtualHardDisk oSVirtualHardDisk = new OSVirtualHardDisk();
-            // required
-            oSVirtualHardDisk.setName(randomizedName);
-            oSVirtualHardDisk.setHostCaching(VirtualHardDiskHostCaching.READWRITE);
-            oSVirtualHardDisk.setOperatingSystem("Linux");
+                URI mediaLinkUriValue = new URI("http://" + storageAccountName + ".blob.core.windows.net/vhds/" + randomizedName + ".vhd");
+                // required
+                oSVirtualHardDisk.setMediaLink(mediaLinkUriValue);
+                // oSVirtualHardDisk.setSourceImageName(youxiaConfig.getString(DEPLOYER_AZURE_IMAGE_NAME));
 
-            URI mediaLinkUriValue = new URI("http://" + storageAccountName + ".blob.core.windows.net/vhds/" + randomizedName + ".vhd");
-            // required
-            oSVirtualHardDisk.setMediaLink(mediaLinkUriValue);
-            // oSVirtualHardDisk.setSourceImageName(youxiaConfig.getString(DEPLOYER_AZURE_IMAGE_NAME));
+                VirtualMachineCreateParameters createParameters = new VirtualMachineCreateParameters();
+                // required
+                createParameters.setRoleName(randomizedName);
+                createParameters.setRoleSize(youxiaConfig.getString(DEPLOYER_AZURE_FLAVOR));
+                createParameters.setProvisionGuestAgent(true);
+                // createParameters.setConfigurationSets(configlist);
+                createParameters.setOSVirtualHardDisk(oSVirtualHardDisk);
+                createParameters.setAvailabilitySetName(null);
 
-            VirtualMachineCreateParameters createParameters = new VirtualMachineCreateParameters();
-            // required
-            createParameters.setRoleName(randomizedName);
-            createParameters.setRoleSize(youxiaConfig.getString(DEPLOYER_AZURE_FLAVOR));
-            createParameters.setProvisionGuestAgent(true);
-            // createParameters.setConfigurationSets(configlist);
-            createParameters.setOSVirtualHardDisk(oSVirtualHardDisk);
-            createParameters.setAvailabilitySetName(null);
+                HostedServiceOperations hostedServicesOperations = azureComputeClient.getHostedServicesOperations();
+                // create something called a hosted service first
+                HostedServiceCreateParameters createHostedServiceParameters = new HostedServiceCreateParameters();
+                // required
+                createHostedServiceParameters.setLabel(randomizedName);
+                // required
+                createHostedServiceParameters.setServiceName(randomizedName);
+                createHostedServiceParameters.setDescription(randomizedName);
+                // required
+                createHostedServiceParameters.setLocation(youxiaConfig.getString(DEPLOYER_AZURE_LOCATION));
 
-            HostedServiceOperations hostedServicesOperations = azureComputeClient.getHostedServicesOperations();
-            // create something called a hosted service first
-            HostedServiceCreateParameters createHostedServiceParameters = new HostedServiceCreateParameters();
-            // required
-            createHostedServiceParameters.setLabel(randomizedName);
-            // required
-            createHostedServiceParameters.setServiceName(randomizedName);
-            createHostedServiceParameters.setDescription(randomizedName);
-            // required
-            createHostedServiceParameters.setLocation(youxiaConfig.getString(DEPLOYER_AZURE_LOCATION));
+                OperationResponse hostedServiceOperationResponse = hostedServicesOperations.create(createHostedServiceParameters);
+                if (hostedServiceOperationResponse.getStatusCode() != AZURE_OPERATION_SUCCESS_CODE) {
+                    throw new RuntimeException("Could not create: " + createHostedServiceParameters.toString());
+                }
 
-            OperationResponse hostedServiceOperationResponse = hostedServicesOperations.create(createHostedServiceParameters);
-            if (hostedServiceOperationResponse.getStatusCode() != AZURE_OPERATION_SUCCESS_CODE) {
-                throw new RuntimeException("Could not create: " + createHostedServiceParameters.toString());
-            }
+                // create something called a role first
+                ArrayList<Role> roleList = new ArrayList<>();
+                Role role = new Role();
+                // required
+                role.setRoleName(randomizedName);
+                // required
+                role.setVMImageName(youxiaConfig.getString(DEPLOYER_AZURE_IMAGE_NAME));
+                role.setRoleType(VirtualMachineRoleType.PersistentVMRole.toString());
+                role.setRoleSize(youxiaConfig.getString(DEPLOYER_AZURE_FLAVOR));
+                role.setProvisionGuestAgent(true);
+                role.setConfigurationSets(configlist);
+                roleList.add(role);
 
-            // create something called a role first
-            ArrayList<Role> roleList = new ArrayList<>();
-            Role role = new Role();
-            // required
-            role.setRoleName(randomizedName);
-            // required
-            role.setVMImageName(youxiaConfig.getString(DEPLOYER_AZURE_IMAGE_NAME));
-            role.setRoleType(VirtualMachineRoleType.PersistentVMRole.toString());
-            role.setRoleSize(youxiaConfig.getString(DEPLOYER_AZURE_FLAVOR));
-            role.setProvisionGuestAgent(true);
-            role.setConfigurationSets(configlist);
-            roleList.add(role);
+                // create something called a deployment first
+                VirtualMachineCreateDeploymentParameters deploymentParameters = new VirtualMachineCreateDeploymentParameters();
+                deploymentParameters.setDeploymentSlot(DeploymentSlot.Production);
+                deploymentParameters.setName(randomizedName);
+                deploymentParameters.setLabel(randomizedName);
+                deploymentParameters.setRoles(roleList);
+                deploymentParameters.setVirtualNetworkName(youxiaConfig.getString(DEPLOYER_AZURE_VIRTUAL_NETWORK));
 
-            // create something called a deployment first
-            VirtualMachineCreateDeploymentParameters deploymentParameters = new VirtualMachineCreateDeploymentParameters();
-            deploymentParameters.setDeploymentSlot(DeploymentSlot.Production);
-            deploymentParameters.setName(randomizedName);
-            deploymentParameters.setLabel(randomizedName);
-            deploymentParameters.setRoles(roleList);
-            deploymentParameters.setVirtualNetworkName(youxiaConfig.getString(DEPLOYER_AZURE_VIRTUAL_NETWORK));
+                System.out.println("Deploying: " + randomizedName);
+                azureComputeClient.getVirtualMachinesOperations().createDeployment(randomizedName, deploymentParameters);
 
-            System.out.println("Deploying: " + randomizedName);
-            azureComputeClient.getVirtualMachinesOperations().createDeployment(randomizedName, deploymentParameters);
+                DeploymentGetResponse deployResponseBeforeTagging;
+                while (true) {
+                    try {
+                        deployResponseBeforeTagging = azureComputeClient.getDeploymentsOperations()
+                                                          .getByName(randomizedName, randomizedName);
+                        break;
+                    } catch (Exception e) {
+                        Log.error("Could not retrieve metadata for " + randomizedName + " waiting to retry");
+                        Thread.sleep(ONE_MINUTE_IN_MILLISECONDS);
+                    }
+                }
+                waitForSSHConnection(youxiaConfig.getString(ConfigTools.YOUXIA_AZURE_SSH_KEY), randomizedName,
+                    deployResponseBeforeTagging.getVirtualIPAddresses().get(0).getAddress().getHostAddress());
 
-            // todo: hook this up to async api and check for success to remove wait?
-            System.out.println("Finished requesting VMs, starting arbitrary wait");
-            // wait is in minutes
-            Thread.sleep(youxiaConfig.getInt(DEPLOYER_AZURE_ARBITRARY_WAIT));
-            System.out.println("Completed arbitrary wait");
+                // try to do tagging before we spin up
+                Map<String, String> tags = new HashMap<>();
+                tags.putAll(extraTags);
+                tags.put("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG));
+                tags.put(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG));
+                tags.put(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString());
+                tags.put(Constants.SENSU_NAME, randomizedName);
+                azureResourceManagerClient.patchResourceGroup(randomizedName, tags, Integer.MAX_VALUE);
 
-            // try to do tagging before we spin up
-            Map<String, String> tags = new HashMap<>();
-            tags.putAll(extraTags);
-            tags.put("Name", "instance_managed_by_" + youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG));
-            tags.put(ConfigTools.YOUXIA_MANAGED_TAG, youxiaConfig.getString(ConfigTools.YOUXIA_MANAGED_TAG));
-            tags.put(Constants.STATE_TAG, Constants.STATE.SETTING_UP.toString());
-            tags.put(Constants.SENSU_NAME, randomizedName);
-            azureResourceManagerClient.patchResourceGroup(randomizedName, tags, Integer.MAX_VALUE);
-
-            DeploymentGetResponse deployResponse = azureComputeClient.getDeploymentsOperations().getByName(randomizedName, randomizedName);
-            nodes.put(randomizedName, deployResponse);
+                DeploymentGetResponse deployResponse = azureComputeClient.getDeploymentsOperations()
+                                                           .getByName(randomizedName, randomizedName);
+                nodes.put(randomizedName, deployResponse);
+                return null;
+            });
+            futures.add(future);
         }
 
-        runAnsible(nodes);
+        for(Future<Void> f : futures){
+            f.get();
+        }
+        executorService.shutdown();
+
+        prepAnsibleForAzure(nodes);
 
         // retag on success
         for (Entry<String, DeploymentGetResponse> deployment : nodes.entrySet()) {
@@ -898,7 +938,7 @@ public class Deployer {
             }
             System.out.println("Finished requesting VMs, trying to connect via SSH");
 
-            ids = runAnsible(nodesInGroup);
+            ids = prepAnsibleForOpenstack(nodesInGroup);
             for (String id : ids) {
                 System.out.println("Looking to complete tagging of " + id);
             }
