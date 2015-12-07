@@ -365,6 +365,17 @@
                     </exclusion>
                 </exclusions>
             </dependency>
+            <!-- ssh stuff for the deployer -->
+            <dependency>
+                <groupId>com.jcabi</groupId>
+                <artifactId>jcabi-log</artifactId>
+                <version>0.15.1</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jcabi</groupId>
+                <artifactId>jcabi-aspects</artifactId>
+                <version>0.20.1</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

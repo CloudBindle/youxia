@@ -1,53 +1,5 @@
 package io.cloudbindle.youxia.deployer;
 
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.ec2.AmazonEC2Client;
-import com.amazonaws.services.ec2.model.CreateTagsRequest;
-import com.amazonaws.services.ec2.model.DescribeInstanceStatusRequest;
-import com.amazonaws.services.ec2.model.DescribeInstanceStatusResult;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
-import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.InstanceStatus;
-import com.amazonaws.services.ec2.model.InstanceStatusSummary;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.SpotPrice;
-import com.amazonaws.services.ec2.model.Tag;
-import com.google.common.base.Objects;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.microsoft.azure.storage.CloudStorageAccount;
-import com.microsoft.azure.storage.blob.CloudBlobClient;
-import com.microsoft.azure.storage.blob.CloudBlobContainer;
-import com.microsoft.windowsazure.core.OperationResponse;
-import com.microsoft.windowsazure.management.compute.ComputeManagementClient;
-import com.microsoft.windowsazure.management.compute.HostedServiceOperations;
-import com.microsoft.windowsazure.management.compute.models.ConfigurationSet;
-import com.microsoft.windowsazure.management.compute.models.ConfigurationSetTypes;
-import com.microsoft.windowsazure.management.compute.models.DeploymentGetResponse;
-import com.microsoft.windowsazure.management.compute.models.DeploymentSlot;
-import com.microsoft.windowsazure.management.compute.models.HostedServiceCreateParameters;
-import com.microsoft.windowsazure.management.compute.models.InputEndpoint;
-import com.microsoft.windowsazure.management.compute.models.OSVirtualHardDisk;
-import com.microsoft.windowsazure.management.compute.models.Role;
-import com.microsoft.windowsazure.management.compute.models.VirtualHardDiskHostCaching;
-import com.microsoft.windowsazure.management.compute.models.VirtualMachineCreateDeploymentParameters;
-import com.microsoft.windowsazure.management.compute.models.VirtualMachineCreateParameters;
-import com.microsoft.windowsazure.management.compute.models.VirtualMachineRoleType;
-import io.cloudbindle.youxia.amazonaws.Requests;
-import io.cloudbindle.youxia.azure.resourceManagerWrapper.AzureResourceManagerClient;
-import io.cloudbindle.youxia.azure.resourceManagerWrapper.ResourceGroup;
-import io.cloudbindle.youxia.listing.AbstractInstanceListing;
-import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
-import io.cloudbindle.youxia.listing.ListingFactory;
-import io.cloudbindle.youxia.util.ConfigTools;
-import io.cloudbindle.youxia.util.Constants;
-import io.cloudbindle.youxia.util.Log;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -67,12 +19,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 
-import joptsimple.ArgumentAcceptingOptionSpec;
-import joptsimple.BuiltinHelpFormatter;
-import joptsimple.OptionException;
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
-import joptsimple.OptionSpecBuilder;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
@@ -98,6 +44,64 @@ import org.jclouds.openstack.nova.v2_0.compute.options.NovaTemplateOptions;
 import org.jclouds.openstack.nova.v2_0.domain.Server;
 import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.CreateTagsRequest;
+import com.amazonaws.services.ec2.model.DescribeInstanceStatusRequest;
+import com.amazonaws.services.ec2.model.DescribeInstanceStatusResult;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryRequest;
+import com.amazonaws.services.ec2.model.DescribeSpotPriceHistoryResult;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.InstanceStatus;
+import com.amazonaws.services.ec2.model.InstanceStatusSummary;
+import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.ec2.model.SpotPrice;
+import com.amazonaws.services.ec2.model.Tag;
+import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.jcabi.ssh.SSH;
+import com.jcabi.ssh.Shell;
+import com.microsoft.azure.storage.CloudStorageAccount;
+import com.microsoft.azure.storage.blob.CloudBlobClient;
+import com.microsoft.azure.storage.blob.CloudBlobContainer;
+import com.microsoft.windowsazure.core.OperationResponse;
+import com.microsoft.windowsazure.management.compute.ComputeManagementClient;
+import com.microsoft.windowsazure.management.compute.HostedServiceOperations;
+import com.microsoft.windowsazure.management.compute.models.ConfigurationSet;
+import com.microsoft.windowsazure.management.compute.models.ConfigurationSetTypes;
+import com.microsoft.windowsazure.management.compute.models.DeploymentGetResponse;
+import com.microsoft.windowsazure.management.compute.models.DeploymentSlot;
+import com.microsoft.windowsazure.management.compute.models.HostedServiceCreateParameters;
+import com.microsoft.windowsazure.management.compute.models.InputEndpoint;
+import com.microsoft.windowsazure.management.compute.models.OSVirtualHardDisk;
+import com.microsoft.windowsazure.management.compute.models.Role;
+import com.microsoft.windowsazure.management.compute.models.VirtualHardDiskHostCaching;
+import com.microsoft.windowsazure.management.compute.models.VirtualMachineCreateDeploymentParameters;
+import com.microsoft.windowsazure.management.compute.models.VirtualMachineCreateParameters;
+import com.microsoft.windowsazure.management.compute.models.VirtualMachineRoleType;
+
+import io.cloudbindle.youxia.amazonaws.Requests;
+import io.cloudbindle.youxia.azure.resourceManagerWrapper.AzureResourceManagerClient;
+import io.cloudbindle.youxia.azure.resourceManagerWrapper.ResourceGroup;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing;
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
+import io.cloudbindle.youxia.listing.ListingFactory;
+import io.cloudbindle.youxia.util.ConfigTools;
+import io.cloudbindle.youxia.util.Constants;
+import io.cloudbindle.youxia.util.Log;
+import joptsimple.ArgumentAcceptingOptionSpec;
+import joptsimple.BuiltinHelpFormatter;
+import joptsimple.OptionException;
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
+import joptsimple.OptionSpecBuilder;
+
 /**
  * This class maintains a fleet of amazon instances dependent on state retrieved from sensu.
  *
@@ -106,6 +110,8 @@ import org.jclouds.openstack.nova.v2_0.features.ServerApi;
 public class Deployer {
 
     private static final long SLEEP_CYCLE = 60000;
+    private static final long ONE_MINUTE_IN_MILLISECONDS = 60000;
+
     private final ArgumentAcceptingOptionSpec<Integer> totalNodesSpec;
     private final ArgumentAcceptingOptionSpec<Float> maxSpotPriceSpec;
     private final ArgumentAcceptingOptionSpec<Integer> batchSizeSpec;
@@ -122,7 +128,6 @@ public class Deployer {
     public static final String DEPLOYER_OPENSTACK_MIN_RAM = "deployer_openstack.min_ram";
     public static final String DEPLOYER_OPENSTACK_SECURITY_GROUP = "deployer_openstack.security_group";
     public static final String DEPLOYER_OPENSTACK_NETWORK_ID = "deployer_openstack.network_id";
-    public static final String DEPLOYER_OPENSTACK_ARBITRARY_WAIT = "deployer_openstack.arbitrary_wait";
     public static final String DEPLOYER_DISABLE_SENSU_SERVER_DEPLOYMENT = "deployer.disable_sensu_server";
     // azure parameters
     public static final String DEPLOYER_AZURE_IMAGE_NAME = "deployer_azure.image_name";
@@ -211,13 +216,21 @@ public class Deployer {
         if (options.has(this.openStackModeSpec)) {
             lister = ListingFactory.createOpenStackListing();
             defaultFlavour = youxiaConfig.getString(DEPLOYER_OPENSTACK_FLAVOR);
-
+            if (defaultFlavour == null){
+                throw new RuntimeException("Need " + DEPLOYER_OPENSTACK_FLAVOR + " in config file");
+            }
         } else if (options.has(this.azureModeSpec)) {
             lister = ListingFactory.createAzureListing();
             defaultFlavour = youxiaConfig.getString(DEPLOYER_AZURE_FLAVOR);
+            if (defaultFlavour == null){
+                throw new RuntimeException("Need " + DEPLOYER_AZURE_FLAVOR + " in config file");
+            }
         } else {
             lister = ListingFactory.createAWSListing();
             defaultFlavour = youxiaConfig.getString(DEPLOYER_INSTANCE_TYPE);
+            if (defaultFlavour == null){
+                throw new RuntimeException("Need " + DEPLOYER_INSTANCE_TYPE + " in config file");
+            }
         }
         assert (defaultFlavour != null);
         Map<String, InstanceDescriptor> map = lister.getInstances();
@@ -554,18 +567,37 @@ public class Deployer {
         return ids;
     }
 
-    private Set<String> runAnsible(Set<? extends NodeMetadata> nodeMetadata) {
+    private Set<String> runAnsible(Set<? extends NodeMetadata> nodeMetadata) throws InterruptedException {
+        // validate SSH connections before unleashing ansible
         Set<String> ids = new HashSet<>();
         Map<String, String> instanceMap = new HashMap<>();
+        final String openstackKey = youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_SSH_KEY);
+        String openStackKeyContents = null;
         for (NodeMetadata node : nodeMetadata) {
             final String nodeId = node.getId().replace("/", "-");
             ids.add(nodeId);
             if (node.getPrivateAddresses().isEmpty()) {
                 throw new RuntimeException("Node " + nodeId + " was not assigned an ip address");
             }
-            instanceMap.put(nodeId, node.getPrivateAddresses().iterator().next());
+            final String ipAddress = node.getPrivateAddresses().iterator().next();
+            instanceMap.put(nodeId,ipAddress);
+            // check and wait for SSH connection
+            boolean connected = false;
+            while(!connected) {
+                try {
+                    final int sshPort = 22;
+                    openStackKeyContents = (openStackKeyContents == null ? FileUtils.readFileToString(new File(openstackKey)) : openStackKeyContents);
+                    Shell shell = new SSH(ipAddress, sshPort, "ubuntu",openStackKeyContents);
+                    new Shell.Plain(shell).exec("echo 'Hello, world!'");
+                    connected = true;
+                } catch (IOException ex) {
+                    Log.info("Could not connect to " + nodeId + " , waiting to reconnect");
+                    Thread.sleep(ONE_MINUTE_IN_MILLISECONDS);
+                }
+            }
         }
-        runAnsible(instanceMap, youxiaConfig.getString(ConfigTools.YOUXIA_OPENSTACK_SSH_KEY));
+        // then run ansible
+        runAnsible(instanceMap, openstackKey);
         return ids;
     }
 
@@ -858,10 +890,7 @@ public class Deployer {
             for (NodeMetadata meta : nodesInGroup) {
                 Log.stdoutWithTime("Created " + meta.getId() + " " + meta.getStatus().toString());
             }
-            System.out.println("Finished requesting VMs, starting arbitrary wait");
-            // wait is in minutes
-            Thread.sleep(youxiaConfig.getInt(DEPLOYER_OPENSTACK_ARBITRARY_WAIT));
-            System.out.println("Completed arbitrary wait");
+            System.out.println("Finished requesting VMs, trying to connect via SSH");
 
             ids = runAnsible(nodesInGroup);
             for (String id : ids) {

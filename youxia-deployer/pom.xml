@@ -139,6 +139,11 @@
             <artifactId>mockito-all</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.jcabi</groupId>
+            <artifactId>jcabi-ssh</artifactId>
+            <version>1.5</version>
+        </dependency>
     </dependencies>
 
     <build>
