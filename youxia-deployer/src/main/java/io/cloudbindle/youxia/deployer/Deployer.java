@@ -583,17 +583,23 @@ public class Deployer {
             instanceMap.put(nodeId,ipAddress);
             // check and wait for SSH connection
             boolean connected = false;
+            int i = 0;
             while(!connected) {
                 try {
                     final int sshPort = 22;
-                    openStackKeyContents = (openStackKeyContents == null ? FileUtils.readFileToString(new File(openstackKey)) : openStackKeyContents);
+                    openStackKeyContents = (openStackKeyContents == null ? FileUtils.readFileToString(new File(openstackKey), StandardCharsets.UTF_8) : openStackKeyContents);
                     Shell shell = new SSH(ipAddress, sshPort, "ubuntu",openStackKeyContents);
                     new Shell.Plain(shell).exec("echo 'Hello, world!'");
                     connected = true;
                 } catch (IOException ex) {
-                    Log.info("Could not connect to " + nodeId + " , waiting to reconnect", ex);
+                    Log.info("Could not connect to " + nodeId + " , waiting to reconnect");
+                    final int everyFiveAttempts = 5;
+                    if (i % everyFiveAttempts == 0){
+                        Log.info("Taking more than " + i + " attempts, printing stack trace", ex);
+                    }
                     Thread.sleep(ONE_MINUTE_IN_MILLISECONDS);
                 }
+                i++;
             }
         }
         // then run ansible
