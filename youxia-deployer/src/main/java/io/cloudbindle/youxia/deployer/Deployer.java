@@ -250,7 +250,7 @@ public class Deployer {
             // get additional map of client types if needed
             if (options.has(this.instanceRestrictions)) {
                 Gson gson = new Gson();
-                String readFileToString = null;
+                String readFileToString;
                 try {
                     Type type = new TypeToken<LinkedHashMap<String, Integer>>() {
                     }.getType();
@@ -492,7 +492,7 @@ public class Deployer {
      */
     private boolean launchOnDemandInstances(Requests requests, int remainingOnDemandAllowed, int numInstances) {
         // launch on demand instances
-        requests.setInstanceIds(new ArrayList<String>());
+        requests.setInstanceIds(new ArrayList<>());
         if (remainingOnDemandAllowed > 0) {
             requests.setNumInstances(Math.min(remainingOnDemandAllowed, numInstances));
             Log.info("Launching " + requests.getNumInstances() + " after on-demand max cutoff");
@@ -591,7 +591,7 @@ public class Deployer {
                     new Shell.Plain(shell).exec("echo 'Hello, world!'");
                     connected = true;
                 } catch (IOException ex) {
-                    Log.info("Could not connect to " + nodeId + " , waiting to reconnect");
+                    Log.info("Could not connect to " + nodeId + " , waiting to reconnect", ex);
                     Thread.sleep(ONE_MINUTE_IN_MILLISECONDS);
                 }
             }
