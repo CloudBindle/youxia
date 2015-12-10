@@ -16,30 +16,34 @@
  */
 package io.cloudbindle.youxia.deployer;
 
-import com.amazonaws.services.ec2.AmazonEC2Client;
-import com.google.common.collect.Maps;
-import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
-import io.cloudbindle.youxia.listing.AwsListing;
-import io.cloudbindle.youxia.listing.ListingFactory;
-import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
-import io.cloudbindle.youxia.util.ConfigTools;
 import java.util.Map;
+
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
-import static org.easymock.EasyMock.expect;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.google.common.collect.Maps;
+
+import io.cloudbindle.youxia.listing.AbstractInstanceListing.InstanceDescriptor;
+import io.cloudbindle.youxia.listing.AwsListing;
+import io.cloudbindle.youxia.listing.ListingFactory;
+import io.cloudbindle.youxia.listing.OpenStackJCloudsListing;
+import io.cloudbindle.youxia.util.ConfigTools;
+
+import static org.easymock.EasyMock.expect;
 import static org.powermock.api.easymock.PowerMock.createMockAndExpectNew;
 import static org.powermock.api.easymock.PowerMock.expectNew;
 import static org.powermock.api.easymock.PowerMock.mockStatic;
 import static org.powermock.api.easymock.PowerMock.replay;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 /**
  *
@@ -91,8 +95,8 @@ public class DeployerTest {
         AmazonEC2Client mockClient = mock(AmazonEC2Client.class);
         AwsListing listing = createMockAndExpectNew(AwsListing.class);
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
-        when(mockConfig.containsKey(Deployer.DEPLOYER_INSTANCE_TYPE)).thenReturn(true);
-        when(mockConfig.getString(Deployer.DEPLOYER_INSTANCE_TYPE)).thenReturn("m1.xlarge");
+        when(mockConfig.containsKey(Deployer.DEPLOYER_INSTANCE_TYPE)).thenReturn(true, true);
+        when(mockConfig.getString(Deployer.DEPLOYER_INSTANCE_TYPE)).thenReturn("m1.xlarge", "m1.xlarge");
         expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         expect(ConfigTools.getEC2Client()).andReturn(mockClient);
         expectNew(AwsListing.class).andReturn(listing);
@@ -115,8 +119,8 @@ public class DeployerTest {
         AmazonEC2Client mockClient = mock(AmazonEC2Client.class);
         OpenStackJCloudsListing listing = createMockAndExpectNew(OpenStackJCloudsListing.class);
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
-        when(mockConfig.containsKey(Deployer.DEPLOYER_OPENSTACK_FLAVOR)).thenReturn(true);
-        when(mockConfig.getString(Deployer.DEPLOYER_OPENSTACK_FLAVOR)).thenReturn("m1.xlarge");
+        when(mockConfig.containsKey(Deployer.DEPLOYER_OPENSTACK_FLAVOR)).thenReturn(true, true);
+        when(mockConfig.getString(Deployer.DEPLOYER_OPENSTACK_FLAVOR)).thenReturn("m1.xlarge", "m1.xlarge");
         expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         expect(ConfigTools.getEC2Client()).andReturn(mockClient);
         expectNew(OpenStackJCloudsListing.class).andReturn(listing);
@@ -145,6 +149,8 @@ public class DeployerTest {
         AmazonEC2Client mockClient = mock(AmazonEC2Client.class);
         AwsListing listing = createMockAndExpectNew(AwsListing.class);
         HierarchicalINIConfiguration mockConfig = mock(HierarchicalINIConfiguration.class);
+        when(mockConfig.containsKey(Deployer.DEPLOYER_INSTANCE_TYPE)).thenReturn(true, true);
+        when(mockConfig.getString(Deployer.DEPLOYER_INSTANCE_TYPE)).thenReturn("m1.xlarge", "m1.xlarge");
         expect(ConfigTools.getYouxiaConfig()).andReturn(mockConfig).anyTimes();
         expect(ConfigTools.getEC2Client()).andReturn(mockClient).anyTimes();
         expectNew(AwsListing.class).andReturn(listing).anyTimes();
