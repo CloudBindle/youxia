@@ -27,6 +27,7 @@ import java.util.concurrent.Future;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.exec.ExecuteException;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.apache.commons.exec.Executor;
 import org.apache.commons.exec.PumpStreamHandler;
@@ -64,6 +65,7 @@ import com.amazonaws.services.ec2.model.InstanceStatusSummary;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.SpotPrice;
 import com.amazonaws.services.ec2.model.Tag;
+import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -121,6 +123,7 @@ public class Deployer {
     private final ArgumentAcceptingOptionSpec<Float> maxSpotPriceSpec;
     private final ArgumentAcceptingOptionSpec<Integer> batchSizeSpec;
     private final ArgumentAcceptingOptionSpec<String> instanceRestrictions;
+    private final ArgumentAcceptingOptionSpec<Long> retryAnsibleCountSpec;
     private OptionSet options;
     private final HierarchicalINIConfiguration youxiaConfig;
     public static final String DEPLOYER_INSTANCE_TYPE = "deployer.instance_type";
@@ -189,6 +192,12 @@ public class Deployer {
                 .acceptsAll(Arrays.asList("server-tag-file"),
                         "If specified, ansible will use the specified tags in a JSON file (file contains a representation of a map)")
                 .withRequiredArg().ofType(String.class);
+        this.retryAnsibleCountSpec = parser
+                                         .acceptsAll(Arrays.asList("ansible-retry-count", "arc"),
+                                             "If specified, the deployer will retry ansible this number of times before reporting the last failure code").withRequiredArg()
+                                         .ofType(Long.class).defaultsTo(0L);
+
+
         this.instanceRestrictions = parser
                 .acceptsAll(Arrays.asList("instance-types"),
                         "If specified, ansible will override the basic specified flavors (files contains a map of flavour -> # of instances)").requiredUnless(totalNodesSpec)
@@ -624,8 +633,8 @@ public class Deployer {
 
     /**
      * Actually run ansible
-     * @param instanceMap
-     * @param keyFile
+     * @param instanceMap a map of instance names to ip addresses
+     * @param keyFile path to the ssh file
      */
     private void runAnsibleActual(Map<String, String> instanceMap, String keyFile) {
         if (this.options.has(this.playbookSpec)) {
@@ -634,8 +643,10 @@ public class Deployer {
                 // 1. generate an ansible inventory file
                 StringBuilder buffer = new StringBuilder();
                 boolean disableSensuServer = youxiaConfig.getBoolean(DEPLOYER_DISABLE_SENSU_SERVER_DEPLOYMENT, Boolean.FALSE);
+                // needed an empty group for compatibility reasons
+                buffer.append("[sensu-server]").append('\n');
                 if (!disableSensuServer) {
-                    buffer.append("[sensu-server]").append('\n').append("sensu-server\tansible_ssh_host=")
+                    buffer.append("sensu-server\tansible_ssh_host=")
                             .append(youxiaConfig.getString(ConfigTools.YOUXIA_SENSU_IP_ADDRESS))
                             .append("\tansible_ssh_user=ubuntu\tansible_ssh_private_key_file=").append(keyFile).append("\n");
                 }
@@ -671,14 +682,30 @@ public class Deployer {
                 map.put("playbook", this.options.valueOf(this.playbookSpec));
                 cmdLine.setSubstitutionMap(map);
 
-                Log.info(cmdLine.toString());
-                // kill ansible if it hangs for 120 minutes
-                final int waitTime = 120 * 60 * 1000;
-                ExecuteWatchdog watchdog = new ExecuteWatchdog(waitTime);
-                Executor executor = new DefaultExecutor();
-                executor.setStreamHandler(new PumpStreamHandler(System.out));
-                executor.setWatchdog(watchdog);
-                executor.execute(cmdLine, environmentMap);
+                ExecuteException nonZeroExitException = null;
+                Executor executor;
+                for (int runCount = 0; runCount <= this.options.valueOf(this.retryAnsibleCountSpec); runCount++) {
+                    Log.info("ansible attempt #" + runCount + ": " + Joiner.on(' ').join(cmdLine.toStrings()));
+                    try {
+                        // kill ansible if it hangs for 120 minutes
+                        final int waitTime = 120 * 60 * 1000;
+                        ExecuteWatchdog watchdog = new ExecuteWatchdog(waitTime);
+                        executor = new DefaultExecutor();
+                        executor.setStreamHandler(new PumpStreamHandler(System.out));
+                        executor.setWatchdog(watchdog);
+                        executor.execute(cmdLine, environmentMap);
+                        // immediately return on success
+                        return;
+                    } catch (ExecuteException ex) {
+                        Log.info("Caught an Ansible non-zero exit code for: " + Joiner.on(' ').join(cmdLine.toStrings()));
+                        nonZeroExitException = ex;
+                    }
+                }
+                // if the last ansible attempt failed, throw the exception
+                if (nonZeroExitException != null){
+                    throw nonZeroExitException;
+                }
+
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
