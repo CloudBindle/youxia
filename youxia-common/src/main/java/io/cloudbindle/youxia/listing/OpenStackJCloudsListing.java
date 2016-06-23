@@ -22,9 +22,6 @@ import com.google.common.collect.Maps;
 import io.cloudbindle.youxia.util.ConfigTools;
 import io.cloudbindle.youxia.util.Constants;
 import io.cloudbindle.youxia.util.Log;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
 import org.jclouds.collect.IterableWithMarker;
 import org.jclouds.collect.PagedIterable;
 import org.jclouds.openstack.nova.v2_0.NovaApi;
@@ -33,6 +30,10 @@ import org.jclouds.openstack.nova.v2_0.domain.Flavor;
 import org.jclouds.openstack.nova.v2_0.domain.Server;
 import org.jclouds.openstack.nova.v2_0.features.FlavorApi;
 import org.jclouds.openstack.nova.v2_0.features.ServerApi;
+
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * This lists instances available on OpenStack.
@@ -93,6 +94,10 @@ public class OpenStackJCloudsListing extends AbstractInstanceListing {
                     // need to translate to a name which is actually useful
                     Log.debug("Found " + server.getFlavor().toString());
                     final Flavor flavor = flavorApi.get(server.getFlavor().getId());
+                    if (flavor == null){
+                        // a weird instance without an instance type, skip
+                        continue;
+                    }
                     Log.debug("Found from api " + flavor.toString());
                     String flavorName = flavor.getName();
 

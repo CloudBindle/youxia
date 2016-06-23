@@ -13,4 +13,5 @@ jdk:
 script: mvn -B clean install -DskipITs=false
 
 after_success:
-  - mvn -B clean -DskipITs=false cobertura:cobertura cobertura:cobertura-integration-test coveralls:report
+- mvn -B clean -DskipITs=false cobertura:cobertura cobertura:cobertura-integration-test coveralls:report
+- mvn -B versioneye:update
