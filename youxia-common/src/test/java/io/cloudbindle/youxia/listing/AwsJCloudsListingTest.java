@@ -247,6 +247,12 @@ public class AwsJCloudsListingTest {
                     @Override public int compareTo(ResourceMetadata<ComputeType> o) {
                         return 0;
                     }
+
+                    @Override
+                    public boolean isDeprecated() {
+                        // TODO Auto-generated method stub
+                        return false;
+                    }
                 };
             }
 
