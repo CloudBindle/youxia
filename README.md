@@ -1,5 +1,8 @@
 [![Build Status](https://travis-ci.org/CloudBindle/youxia.svg?branch=develop)](https://travis-ci.org/CloudBindle/youxia)
 [![Coverage Status](https://coveralls.io/repos/CloudBindle/youxia/badge.svg?branch=develop)](https://coveralls.io/r/CloudBindle/youxia?branch=develop)
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.56313.svg)](http://dx.doi.org/10.5281/zenodo.56313)
+
+
 
 youxia
 ======
